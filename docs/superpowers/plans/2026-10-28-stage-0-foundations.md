@@ -144,11 +144,11 @@
 
 | Plan task | Jira key (fill in) |
 |---|---|
-| Task 3 | GYM-__ |
-| Task 4 | GYM-__ |
-| Task 5 | GYM-__ |
-| Task 6 | GYM-__ |
-| Task 7 | GYM-__ |
+| Task 3 | GYM-8 |
+| Task 4 | GYM-9 |
+| Task 5 | GYM-10 |
+| Task 6 | GYM-11 |
+| Task 7 | GYM-12 |
 
 ### Task 3: Move the legacy tool and create the GitHub repo
 
