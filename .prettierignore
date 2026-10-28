@@ -1,0 +1,7 @@
+legacy/
+docs/
+coverage/
+node_modules/
+package-lock.json
+.expo/
+*.md

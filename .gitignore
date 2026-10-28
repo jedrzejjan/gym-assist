@@ -28,3 +28,13 @@ coverage/
 .claude/settings.local.json
 .superpowers/
 __pycache__/
+
+# Expo extras
+web-build/
+expo-env.d.ts
+.metro-health-check*
+*.tsbuildinfo
+*.p8
+*.p12
+*.key
+*.pem
