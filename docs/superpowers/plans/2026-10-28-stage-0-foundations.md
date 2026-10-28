@@ -211,7 +211,7 @@ Branch: `build/GYM-<Task 4 key>-expo-skeleton`. Follow the ticket loop in `CLAUD
   - `test`: `jest`
   - `test:ci`: `jest --ci --coverage`
   - `doctor`: `npx expo-doctor`
-- Modify: `app.json`: `name` "Gym Assist", `slug` "gym-assist", `scheme` "gymassist", `android.package` `com.jjtrainer.gymassist` (confirmed by the user).
+- Modify: `app.json`: `name` "Gym Assist", `slug` "gym-assist", `scheme` "gymassist", `android.package` `com.jedrosz.gymassist` (confirmed by the user).
 
 **Interfaces:**
 - Produces:
@@ -219,7 +219,7 @@ Branch: `build/GYM-<Task 4 key>-expo-skeleton`. Follow the ticket loop in `CLAUD
   - the folders `app/`, `data/` and `domain/` from spec section 5;
   - the `android.package` ID.
 
-- [ ] **Step 1: Use the Android package ID `com.jjtrainer.gymassist`.** The user confirmed it. It is permanent once the app is on the Play Store.
+- [ ] **Step 1: Use the Android package ID `com.jedrosz.gymassist`.** The user confirmed it. It is permanent once the app is on the Play Store.
 - [ ] **Step 2: Generate the project and remove the template's demo screens, components and assets.** Keep `assets/` icons only.
 - [ ] **Step 3: Write the failing test** `app/__tests__/index.test.tsx`:
   ```tsx

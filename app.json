@@ -15,7 +15,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.jjtrainer.gymassist"
+      "package": "com.jedrosz.gymassist"
     },
     "plugins": [
       "expo-router",
