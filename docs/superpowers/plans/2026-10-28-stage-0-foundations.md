@@ -70,10 +70,10 @@
 - [ ] **Step 2 [USER]: Create a GitHub fine-grained personal access token** for the GitHub MCP.
   - Repository access: the `gym-assist` repo, once it exists. Until then, "All repositories" with the permissions listed next.
   - Permissions: Contents, Pull requests, Issues and Workflows (read/write); Metadata and Actions (read).
-  - Store it as the user environment variable `GITHUB_PAT`, then restart the Claude app.
+  - Store it as the user environment variable `GYM_APP_TOKEN`, then restart the Claude app.
 - [ ] **Step 3: Write `.mcp.json`** with three servers. Check each URL against the provider's current docs at setup. The values below were current at the time of writing.
   - `atlassian`: `"type": "http"`, `"url": "https://mcp.atlassian.com/v1/mcp"` (OAuth in the browser).
-  - `github`: `"type": "http"`, `"url": "https://api.githubcopilot.com/mcp/"`, `"headers": {"Authorization": "Bearer ${GITHUB_PAT}"}`.
+  - `github`: `"type": "http"`, `"url": "https://api.githubcopilot.com/mcp/"`, `"headers": {"Authorization": "Bearer ${GYM_APP_TOKEN}"}`.
   - `penpot`: `"type": "http"`, with the URL shown in Penpot under Your account → Integrations → MCP Server.
 
   The file holds no secret values, only `${...}` references.
@@ -188,6 +188,7 @@
     git push -u origin main
     ```
 - [ ] **Step 8 [USER]: In the GitHub for Jira app, give it access to the `gym-assist` repo.**
+- [ ] **Step 8a [USER]: Narrow the GitHub MCP token** (GitHub label and PC variable `GYM_APP_TOKEN`). Set Repository access to "Only select repositories → gym-assist", and set the expiry to 90 days.
 - [ ] **Step 9: Verify.**
   - Through the GitHub MCP, list the files on `main`. Expected: `legacy/gym_tracker.py` is there and `legacy/data/` is not.
   - The Jira ticket for Task 3 shows the commit in its Development panel.
