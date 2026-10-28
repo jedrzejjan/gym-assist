@@ -67,13 +67,14 @@ Done when the user approves the designs. Each MVP ticket links to its Penpot boa
 Two 2-week sprints:
 
 - **Sprint 1:** local database and migrations, exercise library with seed data, clients, log session. Result: a real session can be logged on the phone.
-- **Sprint 2:** history, recovery, progress, CSV import of the existing history, JSON export. Result: the app replaces the Python tool.
+- **Sprint 2:** history, recovery, progress, CSV import of the existing history, and the backup plan in section 5: JSON export, automatic backups, restore. Result: the app replaces the Python tool.
 
 **Done when:**
 
 - the APK is installed on the user's phone;
 - the user has logged three real sessions with it;
 - the recovery screen matches `python legacy/gym_tracker.py status` for the same data;
+- a backup restores correctly on a reinstalled app;
 - CI is green.
 
 ### Stage 3: Backlog after the MVP
@@ -91,6 +92,23 @@ The order can change when the user reprioritises, but Terraform stays first. In 
 9. CI extras: EAS Submit to the Play Store, EAS Update (over-the-air updates), release notes generated from commit types.
 10. Full Polish translation of the UI.
 
+The items below came from a review of this spec, not from the user. In Jira they get the label `ai-generated`. Items 12 to 16 also get priority Low.
+
+11. **Test and CI hygiene** `[AI generated]`
+    - Run the data tests on `better-sqlite3` through Drizzle, because `expo-sqlite` does not run in Jest. Write down that Node's SQLite can behave slightly differently from the phone's.
+    - Add a migration test that upgrades a database with realistic data from schema version N to N+1.
+    - Set a coverage threshold of about 90% for `domain/` only.
+    - Make Dependabot ignore Expo-managed packages, and upgrade those with `npx expo install --fix`.
+12. **Soft deletes for sync** `[AI generated, Low]`. Part of the server work in item 5. Add `deleted_at` or a tombstone table, designed for the chosen server. Until sync exists, deletes stay hard deletes, because there is no other device to tell.
+13. **App lock and GDPR basics** `[AI generated, Low]`
+    - PIN or fingerprint lock with `expo-local-authentication`.
+    - A privacy notice and a client consent note.
+    - Export and delete of all data for one client.
+    Recommended before the first real client's data goes into the app.
+14. **EAS build status in GitHub** `[AI generated, Low]`. With `--no-wait`, a failed EAS build still shows green in GitHub. For now the failure shows on expo.dev and by email. This item reports the result back to GitHub, by polling `eas build:view` or through an Expo webhook.
+15. **Architecture Decision Records** `[AI generated, Low]`. Short records in `docs/adr/` of the key decisions: Expo over Kotlin, local-first, no AWS, Penpot, Terraform timing. The user writes the "no AWS" reason.
+16. **Expo SDK upgrade routine** `[AI generated, Low]`. A recurring chore for each new Expo SDK release: upgrade, run `npx expo install --fix`, run the tests, check on the phone.
+
 ### Stage 4: Play Store
 
 - Google Play developer account (one-time fee, paid by the user).
@@ -107,13 +125,18 @@ The order can change when the user reprioritises, but Terraform stays first. In 
    - by movement pattern, then an exercise from that pattern;
    - from the full exercise list, with search.
    A third way, "New exercise", opens the Add exercise page. It is a backlog item.
+   When an exercise is chosen, the screen shows that client's sets from the last session that had this exercise, for example "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6". If there is none, it shows "First time".
 4. **Add a set:** weight and reps. Both may be left blank.
+   - **Edit a set:** tap a logged set to change its weight or reps.
+   - **Delete a set:** removes the row. The remaining sets keep their numbers, and the next new set gets the next number.
 5. **Keep adding sets.** "Finish exercise" is available after any number of sets.
 6. **Back on the choose-exercise page**, the trainer chooses the next exercise as in step 3. This page also shows:
    - **Finish session:** saves the session as finished.
    - **Cancel session:** asks "Discard this session?" and, if confirmed, deletes the draft.
 
 The session is saved as a draft after every set. If the app closes or the phone dies, the trainer continues the draft where they left off.
+
+**One draft at a time.** Only one draft session can be open in the whole app. If the trainer starts a session while a draft exists, for the same client or another one, the app asks: "Resume", "Finish it" or "Discard it". Discard uses the same "Discard this session?" confirmation.
 
 ## 5. Architecture
 
@@ -129,11 +152,12 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
 
 ### `domain/`: training logic ported from `gym_tracker.py`
 
-- `recovery.ts` turns the last date a pattern or muscle was trained into a status. The thresholds are the same as `recovery_label` in the Python tool:
-  - fewer than 2 days: "recovering, too soon";
-  - 2 to 3 days: "in supercompensation window (48–72 h)";
-  - more than 3 days: "due";
+- `recovery.ts` turns the last date a pattern or muscle was trained into a status. The thresholds are the same as `recovery_label` in the Python tool. Days are **calendar days** between the session date and today's date on the phone, not 24-hour periods, because sessions store a date only:
+  - 0 or 1 days: "recovering, too soon";
+  - 2 or 3 days (exactly 3 counts here): "in supercompensation window (48–72 h)";
+  - 4 days or more: "due";
   - never trained: "never logged".
+  Only finished sessions count. A draft does not.
 - `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared.
 - `sets.ts` gives the next set number in a session exercise and the display format, where a blank value shows as "-".
 - `catalogue.ts` holds the fixed lists:
@@ -149,16 +173,35 @@ All domain functions are pure: data in, result out.
 - SQLite on the phone through `expo-sqlite`, with Drizzle ORM for typed queries and versioned migrations. A migration must upgrade existing data without loss.
 - **Seed:** the exercise library from `exercises.csv`, loaded on first start.
 - **Import:** a one-time CSV import of the existing history (section 6).
-- **Export:** JSON export of all data, as a manual backup.
+- **Export:** JSON export of all data, on demand.
+
+### Backup plan
+
+The trainer must not need to remember anything. No backup step depends on a manual action.
+
+Installing a new APK over the old one keeps the app's data, as long as the app is updated and not uninstalled and the build uses the same signing key. The real risks are:
+
+- a schema migration that goes wrong;
+- an uninstall;
+- a lost or broken phone.
+
+| Layer | What it does | Protects against |
+|---|---|---|
+| **Pre-migration snapshot** | On start, before running any migration, the app copies the database file to `backups/pre-migration-v<N>.db` inside the app. It keeps the last 3 snapshots. If the migration fails, the app restores the snapshot and shows an error instead of opening a broken database. | Data loss from an app update |
+| **Automatic export after every finished session** | After "Finish session", the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. | Uninstall, lost phone |
+| **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
+| **Warning** | If no backup folder is chosen, or the last automatic export failed, the Clients screen shows a warning until it is fixed. | A silent backup failure |
+
+**Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data after a confirmation ("This replaces all data in the app"). A restore test on a reinstalled app is part of the MVP's "done when" check.
 
 ### `app/`: screens
 
 - **Clients:** list, add, edit, archive.
 - **Client:** that client's history, recovery and progress.
 - **Session:** the flow from section 4.
-- **Settings:** import and export.
+- **Settings:** CSV import, JSON export, backup folder, restore from backup.
 
-There is no global state library. The database is the source of truth, and screens read from it. The app has no network code.
+There is no global state library. The database is the source of truth, and screens read from it through reactive queries (Drizzle's `useLiveQuery`). A screen updates by itself after any write, so it never shows stale data. The app has no network code.
 
 ### Language
 
@@ -167,6 +210,7 @@ The MVP UI is in English. Exercise names show the English and Polish names. A fu
 ### Errors
 
 - Blank weight or reps is allowed and saved as NULL.
+- Number fields accept a comma or a dot as the decimal separator (`22,5` and `22.5` are both 22.5 kg). Reps accept whole numbers only.
 - Invalid input (negative numbers, text in number fields) is blocked in the input field.
 - A failed import reports the failing row and imports nothing.
 
@@ -296,6 +340,6 @@ All steps are required status checks on `main`.
 ## 9. Testing
 
 - **Unit tests (Jest)** for all of `domain/`. Expected values come from the output of `gym_tracker.py` on the same sample data.
-- **Data tests** against an in-memory SQLite database: migrations, seed, import, export, session drafts.
+- **Data tests** against an in-memory SQLite database: migrations, seed, import, export, restore, session drafts, the one-draft rule.
 - **Component tests** for the log-session flow.
 - **End-to-end UI tests** are a backlog item (Maestro).
