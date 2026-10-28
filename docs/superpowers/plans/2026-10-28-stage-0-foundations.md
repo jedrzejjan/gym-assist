@@ -28,7 +28,10 @@
 ## Global Constraints
 
 - Stage 0 is timeboxed to 1 week.
-- **Claude never creates accounts, never handles secrets, never pushes to `main` and never merges.** Every step marked **[USER]** is done by the user. Claude waits and then verifies the result.
+- **Claude never creates accounts, never handles secrets and never pushes to `main` directly.** Every step marked **[USER]** is done by the user. Claude waits and then verifies the result.
+- **Merging:** Claude squash-merges a PR through the GitHub MCP once CI is green and a fresh review subagent approves it.
+  - Every PR in this plan changes CI/CD, repo settings or the app's structure, so it also gets the `needs-owner` label. Claude waits for the user's approval before merging.
+  - If the review subagent requests changes, the ticket goes back to In Progress until they are fixed and the review passes.
 - The only exception to "never push to `main`" is the bootstrap push in Task 3, and the **user** makes it. That happens before branch protection exists.
 - Personal data never enters git: `legacy/data/`, `legacy/reports/`, `legacy/config/`, `legacy/plans/`, `legacy/profile/` and `.claude/skills/log-gym-session/`.
 - Never commit `.env*`, `*.jks`, `*.keystore`, `credentials.json`, `*.tfstate*` or `google-services*.json`.
@@ -207,7 +210,7 @@ Branch: `build/GYM-<Task 4 key>-expo-skeleton`. Follow the ticket loop in `CLAUD
   - `test`: `jest`
   - `test:ci`: `jest --ci --coverage`
   - `doctor`: `npx expo-doctor`
-- Modify: `app.json`: `name` "Gym Assist", `slug` "gym-assist", `scheme` "gymassist", `android.package` `com.jjdelaval.gymassist` (the user confirms this in Step 1).
+- Modify: `app.json`: `name` "Gym Assist", `slug` "gym-assist", `scheme` "gymassist", `android.package` `com.jjtrainer.gymassist` (confirmed by the user).
 
 **Interfaces:**
 - Produces:
@@ -215,7 +218,7 @@ Branch: `build/GYM-<Task 4 key>-expo-skeleton`. Follow the ticket loop in `CLAUD
   - the folders `app/`, `data/` and `domain/` from spec section 5;
   - the `android.package` ID.
 
-- [ ] **Step 1 [USER]: Confirm the Android package ID.** The proposal is `com.jjdelaval.gymassist`. It is permanent once the app is on the Play Store.
+- [ ] **Step 1: Use the Android package ID `com.jjtrainer.gymassist`.** The user confirmed it. It is permanent once the app is on the Play Store.
 - [ ] **Step 2: Generate the project and remove the template's demo screens, components and assets.** Keep `assets/` icons only.
 - [ ] **Step 3: Write the failing test** `app/__tests__/index.test.tsx`:
   ```tsx
@@ -235,7 +238,7 @@ Branch: `build/GYM-<Task 4 key>-expo-skeleton`. Follow the ticket loop in `CLAUD
   - Expected: "Gym Assist" appears on the phone.
 - [ ] **Step 8: Commit, push the branch, and open the PR** through the GitHub MCP.
   - Title: `build(infra): GYM-<Task 4 key> Expo TypeScript app skeleton`.
-  - Move the ticket to In Review. **[USER]** reviews and merges.
+  - Move the ticket to In Review and run the review subagent. Add `needs-owner`, get the user's approval, then squash-merge.
 
 ### Task 5: CI workflow
 
@@ -246,6 +249,7 @@ Branch: `ci/GYM-<Task 5 key>-ci-workflow`.
 - Create: `commitlint.config.js`
 - Create: `scripts/commitlint-jira-plugin.js`
 - Create: `.github/dependabot.yml`
+- Create: the GitHub label `needs-owner`, through the GitHub MCP
 - Test: `scripts/__tests__/commitlint.test.js`
 
 **Interfaces:**
@@ -276,7 +280,7 @@ Branch: `ci/GYM-<Task 5 key>-ci-workflow`.
   - Expected: the `title` and `checks` jobs both run and pass on the PR.
   - Then temporarily change the PR title to `ci: CI workflow` and re-run `title`. Expected: it fails.
   - Restore the title. Expected: it passes again.
-- [ ] **Step 7:** Move the ticket to In Review. **[USER]** reviews and merges.
+- [ ] **Step 7:** Move the ticket to In Review and run the review subagent. Add `needs-owner`, get the user's approval, then squash-merge.
 
 ### Task 6: Protect `main`
 
@@ -289,6 +293,7 @@ Branch: `ci/GYM-<Task 5 key>-ci-workflow`.
   - Require a pull request before merging.
   - Require the status checks `title` and `checks` to pass.
   - Block force pushes and deletion.
+  - Do not require approving reviews, because the review subagent posts a comment, not a GitHub approval.
   - Do not add a bypass list.
 - [ ] **Step 2: Verify.** Claude:
   - makes a throwaway commit on a local branch;
@@ -332,7 +337,7 @@ Branch: `ci/GYM-<Task 7 key>-android-build`.
     - Then `expo/expo-github-action` (pinned to its current major version) with `eas-version: latest` and `token: ${{ secrets.EXPO_TOKEN }}`.
     - Then `eas build --platform android --profile ${{ inputs.profile }} --non-interactive --no-wait`.
   - Permissions: `contents: read`.
-- [ ] **Step 5: Open the PR** with the title `ci(infra): GYM-<Task 7 key> Manual Android build workflow`. **[USER]** reviews and merges. A workflow that uses `workflow_dispatch` can only be run once it is on `main`.
+- [ ] **Step 5: Open the PR** with the title `ci(infra): GYM-<Task 7 key> Manual Android build workflow`. Run the review subagent, add `needs-owner`, get the user's approval, then squash-merge. A workflow that uses `workflow_dispatch` can only be run once it is on `main`.
 - [ ] **Step 6: Test the gate** (Review Focus 5).
   - **[USER]** runs "Build Android" from a branch with a deliberately failing test.
   - Expected: job `ci` fails, job `build` is skipped, and no build appears on expo.dev.

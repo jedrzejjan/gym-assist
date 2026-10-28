@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: draft, waiting for review
+Status: approved 2026-10-28
 
 ## 1. Purpose
 
@@ -11,13 +11,13 @@ The project has three aims:
 
 1. **Build the app.** First as an APK on the trainer's own phone, later on the Play Store.
 2. **Run it like a business.** Jira for stages and tickets, GitHub with CI/CD, MCP connections to external tools, and a product that could one day be sold.
-3. **Learn how an AI coding agent works.** Claude codes every ticket. The user acts as product owner and reviewer. Jira records how Claude splits work into smaller tasks.
+3. **Learn how an AI coding agent works.** Claude codes every ticket, and a Claude review subagent reviews the code. The user is the product owner and reviews high-level decisions: product, design, architecture and business. Jira records how Claude splits work into smaller tasks.
 
 ### Success criteria
 
 - The trainer runs a real session with the app and needs no CSV file or Python script.
 - Every stage and ticket, and the split of tickets into sub-tasks, is visible in Jira.
-- Every change reaches `main` through a pull request with green CI, reviewed and merged by the user.
+- Every change reaches `main` through a pull request with green CI and an approving review from the review subagent. A PR that needs owner approval (section 8) also has the user's approval.
 
 ### Out of scope
 
@@ -302,8 +302,20 @@ All steps are required status checks on `main`.
 
 ### Roles
 
-- **User:** product owner and reviewer. Sets priorities, approves designs, reviews and merges PRs, runs the build workflow, tests on the phone.
-- **Claude:** developer. Writes and splits tickets, codes, tests, opens PRs, updates Jira.
+- **User:** product owner. Sets priorities, approves product, design, architecture and business decisions, approves PRs that need owner approval, runs the build workflow, tests on the phone. The user does not review code.
+- **Claude:** developer. Writes and splits tickets, codes, tests, opens PRs, updates Jira, and merges PRs once they pass review.
+- **Review subagent:** a fresh Claude subagent that reviews each PR's code and has not seen the implementation work. It posts its review as a PR comment, either approving or requesting changes.
+
+### Owner approval
+
+Before merging, Claude asks the user to approve any PR that:
+
+- changes the spec, `CLAUDE.md` or a product decision;
+- changes the database schema or the folder layers, or adds a new library;
+- changes a screen or flow away from the approved Penpot design;
+- changes CI/CD, repo settings or infrastructure.
+
+Claude adds the GitHub label `needs-owner`, explains the decision in plain language in the PR description, and waits for the user's approval in chat or on the PR. Claude merges every other PR once the review subagent approves and CI is green.
 
 ### Claude's loop for each ticket
 
@@ -315,14 +327,18 @@ All steps are required status checks on `main`.
    - links the ticket;
    - lists the changes and how they were tested;
    - ends with "Agent notes": the plan, what went wrong, and what the tests caught.
-6. When CI is green, move the ticket to In Review. The user reviews and merges.
+6. When CI is green, move the ticket to In Review and run the review subagent on the PR.
+   - If it requests changes, move the ticket back to In Progress, fix them, and run the review again.
+   - If it approves, and the PR needs owner approval, wait for the user.
+   - Then squash-merge.
 7. Move the ticket to Done. Comment with anything deferred, and create backlog tickets for the deferred work.
 
 ### Definition of Done
 
 - CI is green.
 - New logic has tests.
-- The user has reviewed and merged the PR.
+- The review subagent has approved the PR, and so has the user if it needs owner approval.
+- The PR is merged.
 - The Penpot design was followed, where the ticket has one.
 - Jira is up to date.
 
@@ -333,7 +349,9 @@ All steps are required status checks on `main`.
 
 ### Agent limits
 
-- Claude never pushes to `main` and never merges.
+- Claude never pushes to `main` directly.
+- Claude merges only through a PR with green CI and an approving subagent review, plus the user's approval when the PR needs it.
+- Claude never bypasses branch protection.
 - Claude never handles secrets and never creates accounts.
 - The user creates the GitHub, Jira, Expo, Penpot and Google Play accounts, and authorises each MCP connection.
 
