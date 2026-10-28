@@ -1,0 +1,30 @@
+# Personal data from the legacy tool (never commit)
+legacy/data/
+legacy/reports/
+legacy/config/
+legacy/plans/
+legacy/profile/
+.claude/skills/log-gym-session/
+
+# Secrets
+.env*
+*.jks
+*.keystore
+credentials.json
+google-services*.json
+*.tfstate
+*.tfstate.*
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+android/
+ios/
+coverage/
+*.log
+
+# Tools
+.claude/settings.local.json
+.superpowers/
+__pycache__/
