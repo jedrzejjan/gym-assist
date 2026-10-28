@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GYM_APP_TOKEN}"
+      }
+    },
+    "penpot": {
+      "type": "http",
+      "url": "https://design.penpot.app/mcp/stream?userToken=${PENPOT_MCP_TOKEN}"
+    }
+  }
+}
