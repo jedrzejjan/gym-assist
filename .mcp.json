@@ -4,7 +4,8 @@
       "type": "http",
       "url": "https://api.githubcopilot.com/mcp/",
       "headers": {
-        "Authorization": "Bearer ${GYM_APP_TOKEN}"
+        "Authorization": "Bearer ${GYM_APP_TOKEN}",
+        "X-MCP-Toolsets": "context,repos,issues,pull_requests,actions"
       }
     },
     "penpot": {
