@@ -26,6 +26,10 @@ test.each([
   ['no ticket name', 'feat(log): GYM-12'],
   ['two spaces after the key', 'feat(log): GYM-12  Log set screen'],
   ['ticket number zero', 'feat(log): GYM-0 Log set screen'],
+  // commitlint skips these by default; they must not reach main as squash commits.
+  ['merge message', 'Merge stuff into main'],
+  ['fixup prefix', 'fixup! anything'],
+  ['GitHub revert title', 'Revert "feat(log): GYM-3 Log set screen"'],
 ])('rejects a title with %s', (_reason, title) => {
   expect(isValid(title)).toBe(false);
 });

@@ -4,6 +4,9 @@ const jiraPlugin = require('./scripts/commitlint-jira-plugin');
 module.exports = {
   extends: ['@commitlint/config-conventional'],
   plugins: [jiraPlugin],
+  // Check every title: commitlint's default skips (Merge..., fixup!, Revert "...") would
+  // let a squash commit with no type, scope or Jira key reach main.
+  defaultIgnores: false,
   rules: {
     'type-enum': [
       2,

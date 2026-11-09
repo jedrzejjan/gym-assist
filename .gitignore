@@ -5,6 +5,9 @@ legacy/config/
 legacy/plans/
 legacy/profile/
 .claude/skills/log-gym-session/
+# The real training history, wherever it is copied (tests use __fixtures__ samples)
+sessions.csv
+visits.csv
 
 # Secrets
 .env*
