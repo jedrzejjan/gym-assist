@@ -1,5 +1,5 @@
 // commitlint rule: the subject must start with the Jira key, e.g. "GYM-12 Log set screen".
-const JIRA_KEY = /^GYM-\d+ \S/;
+const JIRA_KEY = /^GYM-[1-9]\d* \S/;
 
 module.exports = {
   rules: {

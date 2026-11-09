@@ -12,13 +12,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-checks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   title:
-    # The PR title becomes the squash commit. Dependabot titles have no Jira key.
-    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    # The PR title becomes the squash commit. PRs opened by Dependabot have no Jira key.
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -30,7 +30,7 @@ jobs:
       - name: Check PR title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: echo "$PR_TITLE" | npx commitlint
+        run: printf '%s\n' "$PR_TITLE" | npx commitlint
 
   checks:
     runs-on: ubuntu-latest

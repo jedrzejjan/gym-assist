@@ -22,6 +22,10 @@ test.each([
   ['lowercase key', 'feat(log): gym-12 Log set screen'],
   ['unknown type', 'feature(log): GYM-12 Log set screen'],
   ['unknown scope', 'feat(ui): GYM-12 Log set screen'],
+  ['no scope', 'feat: GYM-12 Log set screen'],
+  ['no ticket name', 'feat(log): GYM-12'],
+  ['two spaces after the key', 'feat(log): GYM-12  Log set screen'],
+  ['ticket number zero', 'feat(log): GYM-0 Log set screen'],
 ])('rejects a title with %s', (_reason, title) => {
   expect(isValid(title)).toBe(false);
 });
