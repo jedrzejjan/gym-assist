@@ -11,8 +11,10 @@ on:
 permissions:
   contents: read
 
+# When called from another workflow, github.workflow is the caller's name, so a
+# "Build Android" gate and a push-to-main CI run never cancel each other.
 concurrency:
-  group: ci-checks-${{ github.ref }}
+  group: ci-checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
