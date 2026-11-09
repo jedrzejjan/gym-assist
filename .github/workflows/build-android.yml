@@ -1,0 +1,40 @@
+name: Build Android
+
+# Manual only: the EAS free tier has a monthly build quota.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile (preview = APK for the phone, production = AAB for the Play Store)'
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    # Gate: no build (and no EAS quota used) unless the CI checks pass.
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Start EAS build
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: eas build --platform android --profile "$PROFILE" --non-interactive --no-wait

@@ -31,6 +31,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "94aa9a8e-9fa2-4f8c-8ff1-855b4e8be8a0"
+      }
+    },
+    "owner": "jedrosz-team"
   }
 }
