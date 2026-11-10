@@ -44,7 +44,7 @@
   - "This replaces all data in the app".
 - **Units:** kg and cm only. A blank value shows as "-".
 - **Out of scope:** don't draw the Add exercise / New exercise page, box height, cardio, set notes, the left/right side, planning, measurements other than weight, charts, or the questionnaire.
-- **No new product decisions in boards.** If a screen needs behaviour the spec doesn't describe, draw it as a **proposal**: the board name ends in `(proposal)`, and the summary posted to the owner asks a yes or no question. Owner-approved proposals are written into the spec through a `needs-owner` PR before the task closes. Rejected ones are deleted.
+- **No new product decisions in boards.** If a screen needs behaviour the spec doesn't describe, draw it as a **proposal**: the board name ends in `(proposal)`, and the summary posted to the owner asks a yes or no question. Owner-approved proposals are written into the spec before the task closes, each through its own ticket (a new task under GYM-2) and its own `needs-owner` PR, so every ticket keeps one PR. Rejected ones are deleted. Details the spec doesn't name, such as a count shown after an import or a "restore done" screen, are proposals too: list them in the owner summary.
 - **Naming:**
   - boards: `<area>/<screen>[ - <state>]`, for example `log/exercise - first time` or `log/dialog - discard session`;
   - components: `kit/<name>`;
@@ -59,7 +59,7 @@
   - a PR whose description has the ticket link, the changes, how they were tested, and "Agent notes";
   - merge only once CI is green and the review subagent has approved, and also the owner if the PR changes the spec (`needs-owner`).
 - **Penpot tab:** the owner keeps the **Gym Assist UX** tab open and connected (**File → MCP Server → Connect**). If `execute_code` reports "No Penpot instance connected", ask the owner to focus the tab and reconnect. Don't retry in a loop.
-- **Helpers:** `penpotUtils.getPageByName`, `penpotUtils.findShapes` and `penpotUtils.isContainedIn` exist, according to the Penpot MCP's `high_level_overview`. Read it again at the start of each session.
+- **Helpers:** `penpotUtils.getPageByName`, `penpotUtils.findShapes` and `penpotUtils.isContainedIn` exist, according to the Penpot MCP's `high_level_overview`, and `Text.textBounds` exists in the Penpot API (`penpot_api_info`, type `Text`). Read it again at the start of each session.
 
 ## Review Focus
 
@@ -110,6 +110,7 @@
 - [ ] **Step 3: Run them on the empty file to see them fail.**
   - Run through `execute_code`: paste the file, then `return storage.checkBoards('Kit', ['kit/app bar'], { ignoreSize: true })`.
   - Expected: an error that the page `Kit` isn't found.
+  - Then `return storage.checkLinks('Kit', [])`. Expected: an error that the page isn't found.
 - [ ] **Step 4: Create the four pages, and build the 10 kit components on `Kit`** with the Global Constraints colours and sizes. Use flex layouts.
 - [ ] **Step 5: Run `checkBoards('Kit', <the 10 kit names>, { ignoreSize: true })`.**
   - Expected: `missing`, `extra`, `smallText`, `smallTargets` and `overflow` all empty.
@@ -147,7 +148,7 @@
   - Include a 5-line summary, plus the question: "A, B, both, or neither?"
   - Move the sub-task to In Review.
 - [ ] **Step 6: Apply the owner's changes until the owner says "approved".**
-  - If a proposal is approved, open a `needs-owner` PR `docs(design): GYM-13 Record how the trainer returns to a draft` that adds it to spec section 4, and merge it per Global Constraints.
+  - If a proposal is approved, create the task "Record how the trainer returns to a draft" under GYM-2 (key GYM-p), and open the `needs-owner` PR `docs(design): GYM-p Record how the trainer returns to a draft` from `docs/GYM-p-draft-return` that adds it to spec section 4. Merge it per Global Constraints, and move GYM-p to Done.
   - Delete the rejected proposal nodes.
   - Comment the approval and the PNG on the sub-task, then move it to Done.
 
@@ -160,10 +161,11 @@
 - Consumes: the kit from Task 1, and the approved flow and proposal answer from Task 2.
 - Produces: the boards below, named exactly as listed. Task 4 links them, and Stage 2 tickets GYM-19, GYM-20 and GYM-21 link to them.
 
-Boards (19, plus 1 more if proposal A was approved):
+Boards (20, plus 1 more if proposal A was approved):
 ```
 clients/list
 client/overview
+client/overview - draft exists
 log/dialog - draft exists
 log/dialog - draft exists (empty)
 log/start - date
@@ -183,6 +185,7 @@ log/exercise - after delete
 log/exercise - blank values
 clients/list - session in progress      (only if proposal A was approved)
 ```
+- `client/overview - draft exists` looks like `client/overview`, but its "Start session" opens the draft prompt. A Penpot button holds one interaction, so the draft case needs its own board.
 - `log/exercise - after delete` shows set numbers 1, 3 and 4 after set 2 was deleted.
 - `log/session - with exercises` shows one exercise marked finished, which can be opened again.
 
@@ -206,7 +209,7 @@ clients/list - session in progress      (only if proposal A was approved)
 **Files:**
 - Penpot: interactions on the page `Log session`
   - flow `Log a session`, starting at `clients/list`;
-  - flow `Resume a draft`, starting at `clients/list - session in progress` if proposal A was approved, otherwise at `client/overview`
+  - flow `Resume a draft`, starting at `clients/list - session in progress` if proposal A was approved, otherwise at `client/overview - draft exists`
 
 **Interfaces:**
 - Consumes: the approved boards from Task 3, and `checkLinks` from Task 1.
@@ -284,7 +287,7 @@ weight/history
 weight/add
 weight/edit
 weight/dialog - replace
-weight/dialog - delete
+weight/dialog - delete (proposal)
 history/list
 history/list - empty
 history/session
@@ -305,7 +308,8 @@ app/error - migration failed
 - `client/profile - me` has no Archive action.
 - `history/session - editing` shows the date control and the "Delete session" button.
 - `settings/import - error` shows the failing row and the unknown names.
-- `weight/dialog - delete` asks for confirmation. Its wording is a proposal: "Delete this weight entry?" (the spec gives no string).
+- `settings/import - done` (a count of sessions imported) and `settings/restore - done` are details the spec doesn't name. List them in the owner summary as proposals.
+- `weight/dialog - delete (proposal)` asks for confirmation. Its wording is a proposal: "Delete this weight entry?" (the spec gives no string).
 
 - [ ] **Step 1: Move the sub-task "Other wireframes" to In Progress, and run `checkBoards('Other screens', <the 28 names>)` to see it fail.**
   - Expected: all 28 names in `missing`.
@@ -325,7 +329,7 @@ app/error - migration failed
   4. recovery and progress;
   5. settings and the app error.
   - Iterate until each group is "approved".
-  - If the owner approves the proposed delete-weight wording, add it to the spec in a `needs-owner` PR `docs(design): GYM-14 Record the delete-weight confirmation`.
+  - Proposals the owner approves in this task (the delete-weight wording, the import count, the restore-done screen) go into the spec together: create the task "Record the Stage 1 screen details" under GYM-2 (key GYM-q), and open the `needs-owner` PR `docs(design): GYM-q Record the Stage 1 screen details` from `docs/GYM-q-screen-details`. Remove `(proposal)` from approved board names.
 - [ ] **Step 5: Add the Penpot links and board names to GYM-16, GYM-18 and GYM-22 to GYM-27.** Move the sub-task and GYM-14 to Done.
 
 ### Task 7: Design index and Stage 1 close-out
