@@ -3,6 +3,7 @@
 // Paste this file into the Penpot MCP `execute_code` tool, then call e.g.
 //   return storage.checkBoards('Log session', [...names]);
 //   return storage.checkLinks('Log session', ['clients/list']);
+// On pages whose boards are not phone screens (Kit, Flows), pass { ignoreSize: true }.
 
 const TARGET_COMPONENTS = [
   'kit/button primary',
@@ -15,7 +16,11 @@ const TARGET_COMPONENTS = [
 
 // Penpot shows a path as "kit / app bar"; the plan writes "kit/app bar". Compare both the same way.
 const norm = (name) => name.replace(/\s*\/\s*/g, '/').trim();
-const componentName = (c) => norm(c.path ? `${c.path}/${c.name}` : c.name);
+const componentName = (c) => {
+  const name = norm(c.name);
+  const folder = c.path ? norm(c.path) : '';
+  return folder && !name.startsWith(`${folder}/`) ? `${folder}/${name}` : name;
+};
 
 function pageBoards(pageName) {
   const page = penpotUtils.getPageByName(pageName);
@@ -54,8 +59,11 @@ storage.checkBoards = function checkBoards(pageName, expected, opts = {}) {
     for (const shape of shapes) {
       const where = `${board.name} > ${shape.name}`;
       if (shape.type === 'text') {
-        if (Number(shape.fontSize) < 14) result.smallText.push(where);
-        if (shape.parent && !inside(shape.textBounds, shape.parent.bounds)) {
+        // A text with several sizes reports 'mixed'; flag it so its smallest run gets checked by eye.
+        if (shape.fontSize === 'mixed' || Number(shape.fontSize) < 14) result.smallText.push(where);
+        // A group's bounds come from its children, so only board parents catch overflow here;
+        // the board check below is the fallback.
+        if (shape.parent && shape.textBounds && !inside(shape.textBounds, shape.parent.bounds)) {
           result.overflow.push(where);
         }
       }
@@ -84,7 +92,7 @@ storage.checkLinks = function checkLinks(pageName, startBoards) {
       for (const interaction of shape.interactions || []) {
         outgoing.set(board.id, outgoing.get(board.id) + 1);
         const destination = interaction.action && interaction.action.destination;
-        if (destination) incoming.add(destination.id);
+        if (destination && destination.id !== board.id) incoming.add(destination.id);
       }
     }
   }
