@@ -144,7 +144,10 @@ The items below came from a review of this spec, not from the user. In Jira they
 
 The session is saved as a draft after every set. If the app closes or the phone dies, the trainer continues the draft where they left off.
 
-**Getting back to a draft.** While a draft exists, the Clients screen shows a "Session in progress" bar with the client's name. Tapping it opens the draft where the trainer left off. Opening the app shows the Clients screen as usual; it does not jump into the draft.
+**Getting back to a draft.** While a draft exists, the Clients screen shows a "Session in progress" bar with the client's first and last name.
+- The bar sits at the bottom of the Clients screen, within thumb reach. The backup warning (section 5) sits at the top, so both can show at once.
+- Tapping the bar opens the draft where the trainer left off: the exercise screen if an exercise is still open (not finished), otherwise the choose-exercise page.
+- Opening the app shows the Clients screen as usual; it does not jump into the draft.
 
 **Finishing needs an exercise.** "Finish session" is available once the session has at least one exercise. A session with no exercises can only be cancelled.
 
@@ -215,7 +218,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 
 ### `app/`: screens
 
-- **Clients:** list, add, edit, archive. Adding a client needs only a first name. A client is shown by first name and last name.
+- **Clients:** list, add, edit, archive. Adding a client needs only a first name. A client is shown by first name and last name. While a draft exists, a "Session in progress" bar resumes it (section 4).
   - **"Me"** is created on first start with first name "Me", and is marked with `is_self = 1`. The trainer can rename it. It cannot be archived.
 - **Client:** that client's profile, history, recovery and progress.
   - **Profile:** first name (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm, and body weight in kg. Body weight is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?".
