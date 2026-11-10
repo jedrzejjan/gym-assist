@@ -1,6 +1,6 @@
 # Gym Assist app
 
-Gym Assist is an Android app for a personal trainer to log training sessions and track progress for their clients, and for themselves. The trainer is the only user. Each client is a profile, and the trainer is the first one ("Me").
+Gym Assist is an Android app for a personal trainer to log training sessions and track progress for their clients, and for themselves. The trainer is the only user. Each client is a profile, and the trainer can add their own profile ("Me"); it is optional.
 
 It's built and run like a real product: it goes on the user's phone first, then on the Play Store, and it may be sold one day. It's a general training and progress tracker, not a rehab app.
 
@@ -36,7 +36,7 @@ The full design is in `docs/superpowers/specs/2026-10-28-gym-assist-app-design.m
 
 0. **Foundations:** repo, Jira, MCP connections, CI, Expo skeleton.
 1. **UX design in Penpot:** flows, wireframes, then a clickable prototype. Each MVP ticket links to its Penpot board.
-2. **MVP on the phone:** a Home screen (Clients, Exercise library, Settings), an optional "Me" profile, clients with a basic profile (name, gender, date of birth, height, body-weight history), exercise library, log session (reorder and remove exercises), history (read-only, with edit and delete), recovery, progress (Strength with a stored 1RM, Body with body weight), weight entry in kg or % of 1RM, bodyweight exercises, optional CSV import, JSON export. Kilograms only.
+2. **MVP on the phone:** a Home screen (Clients, Settings, Exercise library), an optional "Me" profile, clients with a basic profile (name, gender, date of birth, height, body-weight history), log session (reorder and remove exercises), history (read-only, with edit and delete), recovery, progress (Strength with a stored 1RM, Body with body weight), weight entry in kg or % of 1RM, bodyweight exercises, optional CSV import, JSON export. Kilograms only.
 3. **Backlog after the MVP.** **Terraform for the GitHub repo comes first** (`terraform import`, with state kept out of git). **Planning a session in advance comes second** (GYM-55).
 4. **Play Store:** privacy policy, GDPR, AAB build, testing tracks.
 

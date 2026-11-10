@@ -5,7 +5,7 @@ Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions; GYM-
 
 ## 1. Purpose
 
-Gym Assist is an Android app for a personal trainer to log training sessions and track progress, for their clients and for themselves. The trainer is the only user. Each client, including the trainer, is a profile in the app.
+Gym Assist is an Android app for a personal trainer to log training sessions and track progress, for their clients and for themselves. The trainer is the only user. Each client is a profile in the app, and the trainer can add their own profile ("Me") if they want to track themselves.
 
 The project has three aims:
 
@@ -67,14 +67,14 @@ Done when the user approves the designs. Each MVP ticket links to its Penpot boa
 
 Two 2-week sprints:
 
-- **Sprint 1:** local database and migrations, exercise library with seed data, clients with their profile, log session. Result: a real session can be logged on the phone.
+- **Sprint 1:** local database and migrations, exercise library with seed data, Welcome, Home and the Exercise library screens, clients with their profile, log session. Result: a real session can be logged on the phone.
 - **Sprint 2:** history (including editing and deleting a finished session), recovery, progress, CSV import of the existing history, and the backup plan in section 5: JSON export, automatic backups, restore. Result: the app replaces the Python tool.
 
 **Done when:**
 
 - the APK is installed on the user's phone;
 - the user has logged three real sessions with it;
-- the recovery screen matches `python legacy/gym_tracker.py status` for the same data;
+- the recovery screen matches `python legacy/gym_tracker.py status` for the same data (on the owner's install, with their history imported into "Me");
 - a backup restores correctly on a reinstalled app;
 - CI is green.
 
@@ -126,7 +126,7 @@ The items below came from a review of this spec, not from the user. In Jira they
 
 ## 4. Log-session flow
 
-1. **Choose a client.** "Me" is a normal client.
+1. **Choose a client:** Home → Clients → a client → "Start session". "Me", if it exists, is a normal client here.
 2. **Start a session.** The date is today by default and can be changed.
 3. **Choose an exercise** in one of two ways:
    - by movement pattern, then an exercise from that pattern;
@@ -151,7 +151,7 @@ The session is saved as a draft after every set. If the app closes or the phone 
 **Getting back to a draft.** While a draft exists, the Home screen shows a "Session in progress" bar with the client's first and last name.
 - The bar sits at the bottom of the Home screen, within thumb reach. The backup warning (section 5) sits at the top, so both can show at once.
 - Tapping the bar opens the draft where the trainer left off: the exercise screen if an exercise is still open (not finished), otherwise the choose-exercise page.
-- Opening the app shows the Home screen as usual; it does not jump into the draft.
+- Opening the app shows the Home screen as usual (Welcome on the very first start); it does not jump into the draft.
 
 **Finishing needs an exercise.** "Finish session" is available once the session has at least one exercise. A session with no exercises can only be cancelled.
 
@@ -199,7 +199,7 @@ All domain functions are pure: data in, result out.
 ### `data/`
 
 - SQLite on the phone through `expo-sqlite`, with Drizzle ORM for typed queries and versioned migrations. A migration must upgrade existing data without loss.
-- **Seed:** the exercise library from `exercises.csv`, loaded on first start.
+- **Seed:** the exercise library from `exercises.csv`, loaded on first start before Welcome shows, so the library is never empty.
 - **Import:** a one-time CSV import of the existing history (section 6).
 - **Export:** JSON export of all data, on demand.
 
@@ -224,10 +224,13 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 
 ### `app/`: screens
 
-- **Welcome** (first start only): "Create my profile" or "Skip". "Create my profile" asks for the trainer's first name and body weight (the rest is optional, as for any client) and creates "Me". "Skip" goes straight to Home; then there is no "Me" and the client list starts empty.
-- **Home** (the start screen): links to Clients, Exercise library and Settings. While a draft exists, a "Session in progress" bar resumes it (section 4); the backup warning shows here too. Knowledge materials join Home later (backlog item 16).
-- **Clients:** list, add, edit, archive. The list can be empty. Adding a client needs a first name and a body weight; everything else is optional. A client is shown by first name and last name.
-  - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, or later with "Add my profile" on Clients while there is none. The trainer can rename it. It cannot be archived.
+- **Welcome** (first start only): "Create my profile" or "Skip". "Create my profile" asks for the trainer's first name and body weight (the rest is optional, as for any client) and creates "Me". "Skip" goes straight to Home; then there is no "Me" and the client list starts empty. If the app is closed before a choice, Welcome shows again next time.
+- **Home** (the start screen): three tiles, in this order: Clients, Settings, Exercise library. There is no placeholder for future items. While a draft exists, a "Session in progress" bar resumes it (section 4); the backup warning shows here too. Knowledge materials join Home later (backlog item 16).
+- **Clients:** list, add, edit, archive. Adding a client needs a first name and a body weight; everything else is optional. A client is shown by first name and last name.
+  - The trainer's own profile is pinned first and marked "me".
+  - While there is no "Me", an "Add my profile" row sits at the top of the list.
+  - An empty list says "No clients yet" above the "Add client" button.
+  - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, or later with "Add my profile" on Clients while there is none (only there, not in Settings). The trainer can rename it. It cannot be archived.
 - **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, category, training type, pattern, muscles and whether it uses body weight. Read-only in the MVP; adding exercises is backlog item 3, and then the library grows with use.
 - **Client:** that client's profile, history, recovery and progress.
   - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set. **Body**: the body weight history. More measurements join this category with backlog item 14.
