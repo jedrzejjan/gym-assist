@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library)
+Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP)
 
 ## 1. Purpose
 
@@ -67,7 +67,7 @@ Done when the user approves the designs. Each MVP ticket links to its Penpot boa
 
 Two 2-week sprints:
 
-- **Sprint 1:** local database and migrations, exercise library with seed data, Welcome, Home and the Exercise library screens, clients with their profile, log session. Result: a real session can be logged on the phone.
+- **Sprint 1:** local database and migrations, exercise library with seed data, Welcome, Home, the Exercise library screens and Add exercise, clients with their profile, log session. Result: a real session can be logged on the phone.
 - **Sprint 2:** history (including editing and deleting a finished session), recovery, progress, CSV import of the existing history, and the backup plan in section 5: JSON export, automatic backups, restore. Result: the app replaces the Python tool.
 
 **Done when:**
@@ -84,7 +84,7 @@ The order can change when the user reprioritises, but Terraform stays first. In 
 
 1. **Terraform for the GitHub repo.** Bring the existing repo, branch protection, labels and security settings under Terraform with `terraform import`. Use the `integrations/github` provider. Keep the state outside git (HCP Terraform free tier, or local state with backups; check the current limits at setup). Keep `EXPO_TOKEN` out of Terraform. Infra PRs run `terraform fmt -check`, `validate` and `plan`. The user runs `apply` by hand.
 2. **Plan a session in advance and run it live** (GYM-55, High). Before meeting a client, the trainer prepares the session: exercises and target sets. During the meeting they follow the plan and log it, and can change anything on the fly: swap an exercise or its variation, change weight or reps, add or remove exercises. It reuses the log-session screens. One possible model (to be designed, not decided): a planned session is a session with targets filled in ahead of time; a `planned` status would also need a rule next to the one-draft rule.
-3. **Add exercise page.** Lets the trainer create a custom exercise (`is_custom = 1`) with names, category, training type, pattern, muscles, and whether it uses body weight (for example dips, which are not in the seed library).
+3. **Add exercise page.** Moved to the MVP on 2026-11-10 (GYM-70, Jira GYM-29); see section 5, Exercise library. Editing and deleting custom exercises stay here.
 4. **Extra set properties per exercise.** UI for box height, cardio speed and minutes, and set notes. The columns already exist (section 6).
 5. **Left and right side (L/P) for sets.** The UI for the `side` column.
 6. **Choose and add a server.** For backup beyond the phone, sync across devices, and client logins. Candidates: Supabase, Firebase, AWS, Cloudflare Workers + D1, Google Cloud Run.
@@ -131,7 +131,7 @@ The items below came from a review of this spec, not from the user. In Jira they
 3. **Choose an exercise** in one of two ways:
    - by movement pattern, then an exercise from that pattern;
    - from the full exercise list, with search.
-   A third way, "New exercise", opens the Add exercise page. It is a backlog item.
+   A third way, "New exercise", opens the Add exercise page (section 5, Exercise library). After saving, the new exercise is chosen for the session.
    When an exercise is chosen, the screen shows that client's sets from the last session that had this exercise, for example "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6", or "Last time: BW + 10 kg × 6, BW × 8" for an exercise that uses body weight. If there is none, it shows "First time".
 4. **Add a set:** weight and reps. Both may be left blank.
    - **Weight in kg or %:** a "kg | %" switch next to the weight field lets the trainer type the weight in kg or as a % of the client's 1RM for this exercise (section 5, `progress.ts`). It starts on kg and keeps the last choice for the rest of that exercise in the session. A % is turned into kg (section 5, "% to kg") and the set is saved in kg only; the % is not stored, so editing the set shows kg. The % option is available only when the client has a 1RM for the exercise; otherwise the screen says "Set a 1RM in Progress to use %".
@@ -231,7 +231,9 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
   - While there is no "Me", an "Add my profile" row sits at the top of the list.
   - An empty list says "No clients yet" above the "Add client" button.
   - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, or later with "Add my profile" on Clients while there is none (only there, not in Settings). The trainer can rename it. It cannot be archived.
-- **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, category, training type, pattern, muscles and whether it uses body weight. Read-only in the MVP; adding exercises is backlog item 3, and then the library grows with use.
+- **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, category, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
+  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, category, training type and pattern (recovery needs the pattern). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique, because the CSV import matches exercises by it. The library grows with use.
+  - Editing and deleting custom exercises are not in the MVP (backlog item 3).
 - **Client:** that client's profile, history, recovery and progress.
   - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set. **Body**: the body weight history. More measurements join this category with backlog item 14.
   - **Profile:** first name (required), body weight (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm. Body weight (kg) is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted, except that the last remaining entry can only be edited, because every client must have a body weight. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?".
