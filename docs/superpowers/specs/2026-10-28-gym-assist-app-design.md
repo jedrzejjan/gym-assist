@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions)
+Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories)
 
 ## 1. Purpose
 
@@ -84,7 +84,7 @@ The order can change when the user reprioritises, but Terraform stays first. In 
 
 1. **Terraform for the GitHub repo.** Bring the existing repo, branch protection, labels and security settings under Terraform with `terraform import`. Use the `integrations/github` provider. Keep the state outside git (HCP Terraform free tier, or local state with backups; check the current limits at setup). Keep `EXPO_TOKEN` out of Terraform. Infra PRs run `terraform fmt -check`, `validate` and `plan`. The user runs `apply` by hand.
 2. **Plan a session in advance and run it live** (GYM-55, High). Before meeting a client, the trainer prepares the session: exercises and target sets. During the meeting they follow the plan and log it, and can change anything on the fly: swap an exercise or its variation, change weight or reps, add or remove exercises. It reuses the log-session screens. One possible model (to be designed, not decided): a planned session is a session with targets filled in ahead of time; a `planned` status would also need a rule next to the one-draft rule.
-3. **Add exercise page.** Lets the trainer create a custom exercise (`is_custom = 1`) with names, category, training type, pattern and muscles.
+3. **Add exercise page.** Lets the trainer create a custom exercise (`is_custom = 1`) with names, category, training type, pattern, muscles, and whether it uses body weight (for example dips, which are not in the seed library).
 4. **Extra set properties per exercise.** UI for box height, cardio speed and minutes, and set notes. The columns already exist (section 6).
 5. **Left and right side (L/P) for sets.** The UI for the `side` column.
 6. **Choose and add a server.** For backup beyond the phone, sync across devices, and client logins. Candidates: Supabase, Firebase, AWS, Cloudflare Workers + D1, Google Cloud Run.
@@ -131,10 +131,10 @@ The items below came from a review of this spec, not from the user. In Jira they
    - by movement pattern, then an exercise from that pattern;
    - from the full exercise list, with search.
    A third way, "New exercise", opens the Add exercise page. It is a backlog item.
-   When an exercise is chosen, the screen shows that client's sets from the last session that had this exercise, for example "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6". If there is none, it shows "First time".
+   When an exercise is chosen, the screen shows that client's sets from the last session that had this exercise, for example "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6", or "Last time: BW + 10 kg × 6, BW × 8" for an exercise that uses body weight. If there is none, it shows "First time".
 4. **Add a set:** weight and reps. Both may be left blank.
-   - **Weight in kg or %:** a switch lets the trainer type the weight in kg or as a % of the client's 1RM for this exercise (section 5, `progress.ts`). A % is turned into kg, rounded to the nearest 2.5 kg, and the set is saved in kg. The % option is available only when the client has a 1RM for the exercise; otherwise the screen says "Set a 1RM in Progress to use %".
-   - **Exercises that use body weight** (for example pull-ups): the weight typed is the added load, and the set shows as "BW + 10 kg" ("BW" alone with no added load). The load used for e1RM and % is the client's latest body weight on or before the session date plus the added load. If the client has no body weight yet, the screen asks to add one in Profile, and % is not available.
+   - **Weight in kg or %:** a "kg | %" switch next to the weight field lets the trainer type the weight in kg or as a % of the client's 1RM for this exercise (section 5, `progress.ts`). It starts on kg and keeps the last choice for the rest of that exercise in the session. A % is turned into kg (section 5, "% to kg") and the set is saved in kg only; the % is not stored, so editing the set shows kg. The % option is available only when the client has a 1RM for the exercise; otherwise the screen says "Set a 1RM in Progress to use %".
+   - **Exercises that use body weight** (for example pull-ups): the weight typed is the added load, and the set shows as "BW + 10 kg". A blank weight means no added load and shows as "BW", as in the Python tool. The load used for e1RM and % is the client's body weight on the session date plus the added load. The body weight on a date is the latest entry on or before it; for sessions before the first entry, the earliest entry is used. If the client has no body weight at all, the screen asks to add one in Profile, and % is not available.
    - **Edit a set:** tap a logged set to change its weight or reps.
    - **Delete a set:** removes the row. The remaining sets keep their numbers, and the next new set gets the next number.
 5. **Keep adding sets.** "Finish exercise" is available after any number of sets.
@@ -159,7 +159,7 @@ The session is saved as a draft after every set. If the app closes or the phone 
 - The session stays finished and does not count as a draft, so it can be edited while a draft is open elsewhere.
 - Removing the last exercise asks "Delete this session?" instead, because a finished session must have at least one exercise.
 - "Delete session" asks "Delete this session? This cannot be undone."
-- Recovery and progress update by themselves, because they are computed from sets.
+- Recovery and progress update by themselves, because they are computed from sets. The stored 1RM does not change (section 5).
 
 **One draft at a time.** Only one draft session can be open in the whole app. If the trainer starts a session while a draft exists, for the same client or another one, the app asks: "Resume", "Finish it" or "Discard it". For a draft with no exercises, it offers only "Resume" and "Discard it". Discard uses the same "Discard this session?" confirmation.
 
@@ -183,12 +183,12 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
   - 4 days or more: "due";
   - never trained: "never logged".
   Only finished sessions count. A draft does not.
-- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight + added load).
-  - **1RM per client and exercise** is a stored value, not a live calculation. It changes only when the trainer sets it on purpose in Progress: "Estimate from history" (the best e1RM from finished sessions, shown for the trainer to confirm) or "Set manually". Logging a session never changes it.
-  - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 2.5 kg. For an exercise that uses body weight, the added load is that total minus the body weight, and it is never below 0.
+- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight on the session date + added load, with a blank added load counted as 0); if the client has no body weight at all, those sets are not compared. This is an intended difference from the Python tool, which ranks such sets by the added load only, so parity checks against `gym_tracker.py` cover the other exercises.
+  - **1RM per client and exercise** is a stored value, not a live calculation. It changes only when the trainer sets it on purpose in Progress, one exercise at a time: "Estimate from history" (the best e1RM from finished sessions; a confirmation shows the value and the set it comes from, e.g. "102.5 kg, from 92.5 kg × 3 on 5 Nov") or "Set manually". Logging a session never changes it. Its date is the date it was set.
+  - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 2.5 kg. For an exercise that uses body weight, the added load is that total minus the body weight on the session date, rounded to the nearest 2.5 kg and never below 0 (so it matches real plates).
 - `sets.ts` gives the next set number in a session exercise and the display format, where a blank value shows as "-".
 - `catalogue.ts` holds the fixed lists:
-  - categories: KD, HD, Push, Pull, Core;
+  - categories: KD, HD, Push, Pull, Core (KD and HD shown as "Knee Dominant" and "Hip Dominant", as for patterns);
   - training types: Strength, Plyometric, Power, Cardio;
   - movement patterns: KD, HD, Push vertical, Push horizontal, Pull vertical, Pull horizontal, Anti flexion, Anti extension, Carries, none. The screens show KD as "Knee Dominant" and HD as "Hip Dominant";
   - the 12 muscles with English and Polish names.
@@ -215,7 +215,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | Layer | What it does | Protects against |
 |---|---|---|
 | **Pre-migration snapshot** | On start, before running any migration, the app copies the database file to `backups/pre-migration-v<N>.db` inside the app. It keeps the last 3 snapshots. If the migration fails, the app restores the snapshot and shows an error instead of opening a broken database. | Data loss from an app update |
-| **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements` and the profile columns. | Uninstall, lost phone |
+| **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, setting a 1RM, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements`, `one_rep_maxes`, the profile columns and `exercises.uses_bodyweight`. | Uninstall, lost phone |
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
 | **Warning** | If no backup folder is chosen, or the last automatic export failed, the Clients screen shows a warning until it is fixed. | A silent backup failure |
 
@@ -248,7 +248,8 @@ The MVP UI is in English. Exercise names show the English and Polish names. A fu
 
 ```
 clients ──< sessions ──< session_exercises ──< sets
-   └──< measurements
+   ├──< measurements
+   └──< one_rep_maxes >── exercises
                                │
 exercises ─────────────────────┘
    └──< exercise_muscles
@@ -275,7 +276,7 @@ exercises ─────────────────────┘
 - **Units:** weights in kg, heights and lengths in cm. There is no unit setting.
 - **Finished session:** a finished session counts as a gym visit. There is no separate visits table.
 - **Computed values:** recovery and progress are computed from sets and never stored. The 1RM is the exception: it is stored, because it changes only when the trainer sets it.
-- **1RM history:** each "Estimate from history" or "Set manually" adds a row to `one_rep_maxes`; the newest row per client and exercise is the current 1RM.
+- **1RM history:** each "Estimate from history" or "Set manually" adds a row to `one_rep_maxes`; the newest row (by `created_at`) per client and exercise is the current 1RM, and `created_at` is the date shown. Archiving a client keeps its 1RM rows, like its history.
 - **Body weight exercises:** `exercises.uses_bodyweight` is 1 for "Underhand pull-up" and "Overhand pull-up" in the seed, 0 for the rest. For those exercises `sets.weight_kg` holds the added load.
 
 ### Import of the existing history
