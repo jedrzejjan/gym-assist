@@ -29,7 +29,7 @@ The project has three aims:
 
 | Topic | Decision |
 |---|---|
-| Users | One trainer account, no login. Clients are profiles. The trainer is the first profile ("Me"). |
+| Users | One trainer account, no login. Clients are profiles. The trainer can also have their own profile ("Me"); it is optional. |
 | Units | Kilograms and centimetres only. |
 | App stack | React Native + Expo + TypeScript |
 | Platform | Android. iOS stays possible later from the same code. |
