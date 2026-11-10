@@ -185,7 +185,7 @@ log/exercise - after delete
 log/exercise - blank values
 clients/list - session in progress      (only if proposal A was approved)
 ```
-- `client/overview - draft exists` looks like `client/overview`, but its "Start session" opens the draft prompt. A Penpot button holds one interaction, so the draft case needs its own board.
+- `client/overview - draft exists` looks like `client/overview`, but its "Start session" opens the draft prompt. A Penpot button holds one interaction, so the draft case needs its own board. If proposal A is approved, tapping a client row on `clients/list - session in progress` leads to it.
 - `log/exercise - after delete` shows set numbers 1, 3 and 4 after set 2 was deleted.
 - `log/session - with exercises` shows one exercise marked finished, which can be opened again.
 
@@ -329,7 +329,7 @@ app/error - migration failed
   4. recovery and progress;
   5. settings and the app error.
   - Iterate until each group is "approved".
-  - Proposals the owner approves in this task (the delete-weight wording, the import count, the restore-done screen) go into the spec together: create the task "Record the Stage 1 screen details" under GYM-2 (key GYM-q), and open the `needs-owner` PR `docs(design): GYM-q Record the Stage 1 screen details` from `docs/GYM-q-screen-details`. Remove `(proposal)` from approved board names.
+  - Proposals the owner approves in this task (the delete-weight wording, the import count, the restore-done screen) go into the spec together: create the task "Record the Stage 1 screen details" under GYM-2 (key GYM-q), and open the `needs-owner` PR `docs(design): GYM-q Record the Stage 1 screen details` from `docs/GYM-q-screen-details`. Remove `(proposal)` from approved board names, and use the new names in the expected list for `checkBoards('Other screens', …)` here and in Task 7.
 - [ ] **Step 5: Add the Penpot links and board names to GYM-16, GYM-18 and GYM-22 to GYM-27.** Move the sub-task and GYM-14 to Done.
 
 ### Task 7: Design index and Stage 1 close-out
