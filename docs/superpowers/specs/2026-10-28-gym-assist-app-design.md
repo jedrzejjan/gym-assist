@@ -232,7 +232,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
   - An empty list says "No clients yet" above the "Add client" button.
   - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, or later with "Add my profile" on Clients while there is none (only there, not in Settings). The trainer can rename it. It cannot be archived.
 - **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, category, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
-  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, category, training type and pattern (recovery needs the pattern). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique, because the CSV import matches exercises by it. The library grows with use.
+  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, category, training type and pattern ("none" is allowed; such an exercise does not count in pattern recovery). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique (section 6); a duplicate shows "An exercise with this name already exists". The library grows with use.
   - Editing and deleting custom exercises are not in the MVP (backlog item 3).
 - **Client:** that client's profile, history, recovery and progress.
   - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set. **Body**: the body weight history. More measurements join this category with backlog item 14.
@@ -281,6 +281,7 @@ exercises ─────────────────────┘
 - **Archiving:** archiving a client hides the client and keeps their history.
 - **Profile fields:** `first_name` is required, and every client has at least one `measurements` row of type `weight` (added together with the client). The other profile columns are optional. `clients.height_cm` is the client's height; `sets.height_cm` is a box height and is unrelated. `gender` is one of `female`, `male`, `other`, `prefer_not_to_say`, or NULL. `date_of_birth` is stored instead of an age, so the age stays correct.
 - **"Me":** at most one client has `is_self = 1`.
+- **Exercise names:** `exercises.name_en` is unique, ignoring upper and lower case ("Dips" and "dips" are the same), because the CSV import matches exercises by it. If a later seed update brings a name that already exists as a custom exercise, the seed entry is skipped and the custom one stays.
 - **Measurements:** unique on (`client_id`, `type`, `date`). In the MVP `type` is always `weight` and `value` is in kg. Backlog item 14 adds new types (in cm) without a new table.
 - **Units:** weights in kg, heights and lengths in cm. There is no unit setting.
 - **Finished session:** a finished session counts as a gym visit. There is no separate visits table.
