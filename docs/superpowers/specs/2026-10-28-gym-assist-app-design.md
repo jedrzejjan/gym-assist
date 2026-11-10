@@ -153,7 +153,7 @@ The session is saved as a draft after every set. If the app closes or the phone 
 - "Delete session" asks "Delete this session? This cannot be undone."
 - Recovery and progress update by themselves, because they are computed from sets.
 
-**One draft at a time.** Only one draft session can be open in the whole app. If the trainer starts a session while a draft exists, for the same client or another one, the app asks: "Resume", "Finish it" or "Discard it". Discard uses the same "Discard this session?" confirmation.
+**One draft at a time.** Only one draft session can be open in the whole app. If the trainer starts a session while a draft exists, for the same client or another one, the app asks: "Resume", "Finish it" or "Discard it". For a draft with no exercises, it offers only "Resume" and "Discard it". Discard uses the same "Discard this session?" confirmation.
 
 ## 5. Architecture
 
@@ -205,7 +205,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | Layer | What it does | Protects against |
 |---|---|---|
 | **Pre-migration snapshot** | On start, before running any migration, the app copies the database file to `backups/pre-migration-v<N>.db` inside the app. It keeps the last 3 snapshots. If the migration fails, the app restores the snapshot and shows an error instead of opening a broken database. | Data loss from an app update |
-| **Automatic export after every change to finished data** | After "Finish session", and after any change to a finished session, a client's profile or a weight entry, the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements` and the profile columns. | Uninstall, lost phone |
+| **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements` and the profile columns. | Uninstall, lost phone |
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
 | **Warning** | If no backup folder is chosen, or the last automatic export failed, the Clients screen shows a warning until it is fixed. | A silent backup failure |
 
@@ -216,7 +216,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 - **Clients:** list, add, edit, archive. Adding a client needs only a first name. A client is shown by first name and last name.
   - **"Me"** is created on first start with first name "Me", and is marked with `is_self = 1`. The trainer can rename it. It cannot be archived.
 - **Client:** that client's profile, history, recovery and progress.
-  - **Profile:** first name (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm, and body weight in kg. Body weight is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted. A client has at most one weight per date: adding a second one for the same date asks "Replace the weight for this date?".
+  - **Profile:** first name (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm, and body weight in kg. Body weight is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?".
 - **Session:** the flow from section 4.
 - **Settings:** CSV import, JSON export, backup folder, restore from backup.
 
