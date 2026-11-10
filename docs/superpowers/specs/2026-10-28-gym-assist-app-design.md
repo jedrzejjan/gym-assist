@@ -144,6 +144,8 @@ The items below came from a review of this spec, not from the user. In Jira they
 
 The session is saved as a draft after every set. If the app closes or the phone dies, the trainer continues the draft where they left off.
 
+**Getting back to a draft.** While a draft exists, the Clients screen shows a "Session in progress" bar with the client's name. Tapping it opens the draft where the trainer left off. Opening the app shows the Clients screen as usual; it does not jump into the draft.
+
 **Finishing needs an exercise.** "Finish session" is available once the session has at least one exercise. A session with no exercises can only be cancelled.
 
 **Editing a finished session.** From a client's history, the trainer can open a finished session and change it with the same screens: its date, its exercises and their order, and its sets.
