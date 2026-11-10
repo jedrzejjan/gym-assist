@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions)
+Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories)
 
 ## 1. Purpose
 
@@ -84,7 +84,7 @@ The order can change when the user reprioritises, but Terraform stays first. In 
 
 1. **Terraform for the GitHub repo.** Bring the existing repo, branch protection, labels and security settings under Terraform with `terraform import`. Use the `integrations/github` provider. Keep the state outside git (HCP Terraform free tier, or local state with backups; check the current limits at setup). Keep `EXPO_TOKEN` out of Terraform. Infra PRs run `terraform fmt -check`, `validate` and `plan`. The user runs `apply` by hand.
 2. **Plan a session in advance and run it live** (GYM-55, High). Before meeting a client, the trainer prepares the session: exercises and target sets. During the meeting they follow the plan and log it, and can change anything on the fly: swap an exercise or its variation, change weight or reps, add or remove exercises. It reuses the log-session screens. One possible model (to be designed, not decided): a planned session is a session with targets filled in ahead of time; a `planned` status would also need a rule next to the one-draft rule.
-3. **Add exercise page.** Lets the trainer create a custom exercise (`is_custom = 1`) with names, category, training type, pattern and muscles.
+3. **Add exercise page.** Lets the trainer create a custom exercise (`is_custom = 1`) with names, category, training type, pattern, muscles, and whether it uses body weight (for example dips, which are not in the seed library).
 4. **Extra set properties per exercise.** UI for box height, cardio speed and minutes, and set notes. The columns already exist (section 6).
 5. **Left and right side (L/P) for sets.** The UI for the `side` column.
 6. **Choose and add a server.** For backup beyond the phone, sync across devices, and client logins. Candidates: Supabase, Firebase, AWS, Cloudflare Workers + D1, Google Cloud Run.
@@ -94,25 +94,26 @@ The order can change when the user reprioritises, but Terraform stays first. In 
 10. CI extras: EAS Submit to the Play Store, EAS Update (over-the-air updates), release notes generated from commit types.
 11. Full Polish translation of the UI.
 12. **One-month training plan** (GYM-56). A month of planned sessions for a client, built on item 2.
-13. **Extend the client profile with an intake questionnaire** (GYM-57). The user prepares the questions. It may hold health information, so it needs the GDPR basics (item 17) first.
-14. **Body measurements** (GYM-58): waist, biceps, legs and more, as new types in the `measurements` table (section 6).
+13. **Extend the client profile with an intake questionnaire** (GYM-57). The user prepares the questions. It may hold health information, so it needs the GDPR basics (item 18) first.
+14. **Body measurements** (GYM-58): waist, biceps, legs and more, as new types in the `measurements` table (section 6). They show in the Body category of Progress.
+15. **Motor ability of an exercise** (GYM-67, PL "zdolność motoryczna"): assess which ability the sets train (maximal strength, maximal power, functional strength, hypertrophy, strength endurance, power endurance) from reps, % of 1RM, sets, tempo and rest. The user's reference table is in GYM-67.
 
-The items below came from a review of this spec, not from the user. In Jira they get the label `ai-generated`. Items 16 to 20 also get priority Low.
+The items below came from a review of this spec, not from the user. In Jira they get the label `ai-generated`. Items 17 to 21 also get priority Low.
 
-15. **Test and CI hygiene** `[AI generated]`
+16. **Test and CI hygiene** `[AI generated]`
     - Run the data tests on `better-sqlite3` through Drizzle, because `expo-sqlite` does not run in Jest. Write down that Node's SQLite can behave slightly differently from the phone's.
     - Add a migration test that upgrades a database with realistic data from schema version N to N+1.
     - Set a coverage threshold of about 90% for `domain/` only.
     - Make Dependabot ignore Expo-managed packages, and upgrade those with `npx expo install --fix`.
-16. **Soft deletes for sync** `[AI generated, Low]`. Part of the server work in item 6. Add `deleted_at` or a tombstone table, designed for the chosen server. Until sync exists, deletes stay hard deletes, because there is no other device to tell.
-17. **App lock and GDPR basics** `[AI generated, Low]`
+17. **Soft deletes for sync** `[AI generated, Low]`. Part of the server work in item 6. Add `deleted_at` or a tombstone table, designed for the chosen server. Until sync exists, deletes stay hard deletes, because there is no other device to tell.
+18. **App lock and GDPR basics** `[AI generated, Low]`
     - PIN or fingerprint lock with `expo-local-authentication`.
     - A privacy notice and a client consent note.
     - Export and delete of all data for one client.
     Recommended before the first real client's data goes into the app.
-18. **EAS build status in GitHub** `[AI generated, Low]`. With `--no-wait`, a failed EAS build still shows green in GitHub. For now the failure shows on expo.dev and by email. This item reports the result back to GitHub, by polling `eas build:view` or through an Expo webhook.
-19. **Architecture Decision Records** `[AI generated, Low]`. Short records in `docs/adr/` of the key decisions: Expo over Kotlin, local-first, no AWS, Penpot, Terraform timing. The user writes the "no AWS" reason.
-20. **Expo SDK upgrade routine** `[AI generated, Low]`. A recurring chore for each new Expo SDK release: upgrade, run `npx expo install --fix`, run the tests, check on the phone.
+19. **EAS build status in GitHub** `[AI generated, Low]`. With `--no-wait`, a failed EAS build still shows green in GitHub. For now the failure shows on expo.dev and by email. This item reports the result back to GitHub, by polling `eas build:view` or through an Expo webhook.
+20. **Architecture Decision Records** `[AI generated, Low]`. Short records in `docs/adr/` of the key decisions: Expo over Kotlin, local-first, no AWS, Penpot, Terraform timing. The user writes the "no AWS" reason.
+21. **Expo SDK upgrade routine** `[AI generated, Low]`. A recurring chore for each new Expo SDK release: upgrade, run `npx expo install --fix`, run the tests, check on the phone.
 
 ### Stage 4: Play Store
 
@@ -130,8 +131,10 @@ The items below came from a review of this spec, not from the user. In Jira they
    - by movement pattern, then an exercise from that pattern;
    - from the full exercise list, with search.
    A third way, "New exercise", opens the Add exercise page. It is a backlog item.
-   When an exercise is chosen, the screen shows that client's sets from the last session that had this exercise, for example "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6". If there is none, it shows "First time".
+   When an exercise is chosen, the screen shows that client's sets from the last session that had this exercise, for example "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6", or "Last time: BW + 10 kg × 6, BW × 8" for an exercise that uses body weight. If there is none, it shows "First time".
 4. **Add a set:** weight and reps. Both may be left blank.
+   - **Weight in kg or %:** a "kg | %" switch next to the weight field lets the trainer type the weight in kg or as a % of the client's 1RM for this exercise (section 5, `progress.ts`). It starts on kg and keeps the last choice for the rest of that exercise in the session. A % is turned into kg (section 5, "% to kg") and the set is saved in kg only; the % is not stored, so editing the set shows kg. The % option is available only when the client has a 1RM for the exercise; otherwise the screen says "Set a 1RM in Progress to use %".
+   - **Exercises that use body weight** (for example pull-ups): the weight typed is the added load, and the set shows as "BW + 10 kg". A blank weight means no added load and shows as "BW", as in the Python tool. The load used for e1RM and % is the client's body weight on the session date plus the added load. The body weight on a date is the latest entry on or before it; for sessions before the first entry, the earliest entry is used. Every client has a body weight (section 5, Profile).
    - **Edit a set:** tap a logged set to change its weight or reps.
    - **Delete a set:** removes the row. The remaining sets keep their numbers, and the next new set gets the next number.
 5. **Keep adding sets.** "Finish exercise" is available after any number of sets.
@@ -151,12 +154,12 @@ The session is saved as a draft after every set. If the app closes or the phone 
 
 **Finishing needs an exercise.** "Finish session" is available once the session has at least one exercise. A session with no exercises can only be cancelled.
 
-**Editing a finished session.** From a client's history, the trainer can open a finished session and change it with the same screens: its date, its exercises and their order, and its sets.
+**Editing a finished session.** From a client's history, a finished session opens as a read-only summary with two buttons: "Edit" and "Delete session". After "Edit", the trainer changes it with the same screens: its date, its exercises and their order, and its sets.
 - Every change is saved at once, as in a draft. There is no separate Save step.
 - The session stays finished and does not count as a draft, so it can be edited while a draft is open elsewhere.
 - Removing the last exercise asks "Delete this session?" instead, because a finished session must have at least one exercise.
 - "Delete session" asks "Delete this session? This cannot be undone."
-- Recovery and progress update by themselves, because they are computed from sets.
+- Recovery and progress update by themselves, because they are computed from sets. The stored 1RM does not change (section 5).
 
 **One draft at a time.** Only one draft session can be open in the whole app. If the trainer starts a session while a draft exists, for the same client or another one, the app asks: "Resume", "Finish it" or "Discard it". For a draft with no exercises, it offers only "Resume" and "Discard it". Discard uses the same "Discard this session?" confirmation.
 
@@ -180,12 +183,14 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
   - 4 days or more: "due";
   - never trained: "never logged".
   Only finished sessions count. A draft does not.
-- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared.
+- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight on the session date + added load, with a blank added load counted as 0). This is an intended difference from the Python tool, which ranks such sets by the added load only, so parity checks against `gym_tracker.py` cover the other exercises.
+  - **1RM per client and exercise** is a stored value, not a live calculation. It changes only when the trainer sets it on purpose in Progress, one exercise at a time: "Estimate from history" (the best e1RM from finished sessions; a confirmation shows the value and the set it comes from, e.g. "101.75 kg, from 92.5 kg × 3 on 5 Nov") or "Set manually". Logging a session never changes it. Its date is the date it was set.
+  - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 1 kg (fine enough for small muscle groups such as biceps). For an exercise that uses body weight, the added load is that total minus the body weight on the session date, rounded to the nearest 1 kg and never below 0.
 - `sets.ts` gives the next set number in a session exercise and the display format, where a blank value shows as "-".
 - `catalogue.ts` holds the fixed lists:
-  - categories: KD, HD, Push, Pull, Core;
+  - categories: KD, HD, Push, Pull, Core (KD and HD shown as "Knee Dominant" and "Hip Dominant", as for patterns);
   - training types: Strength, Plyometric, Power, Cardio;
-  - movement patterns: KD, HD, Push vertical, Push horizontal, Pull vertical, Pull horizontal, Anti flexion, Anti extension, Carries, none;
+  - movement patterns: KD, HD, Push vertical, Push horizontal, Pull vertical, Pull horizontal, Anti flexion, Anti extension, Carries, none. The screens show KD as "Knee Dominant" and HD as "Hip Dominant";
   - the 12 muscles with English and Polish names.
 
 All domain functions are pure: data in, result out.
@@ -210,7 +215,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | Layer | What it does | Protects against |
 |---|---|---|
 | **Pre-migration snapshot** | On start, before running any migration, the app copies the database file to `backups/pre-migration-v<N>.db` inside the app. It keeps the last 3 snapshots. If the migration fails, the app restores the snapshot and shows an error instead of opening a broken database. | Data loss from an app update |
-| **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements` and the profile columns. | Uninstall, lost phone |
+| **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, setting a 1RM, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements`, `one_rep_maxes`, the profile columns and `exercises.uses_bodyweight`. | Uninstall, lost phone |
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
 | **Warning** | If no backup folder is chosen, or the last automatic export failed, the Clients screen shows a warning until it is fixed. | A silent backup failure |
 
@@ -218,10 +223,11 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 
 ### `app/`: screens
 
-- **Clients:** list, add, edit, archive. Adding a client needs only a first name. A client is shown by first name and last name. While a draft exists, a "Session in progress" bar resumes it (section 4).
-  - **"Me"** is created on first start with first name "Me", and is marked with `is_self = 1`. The trainer can rename it. It cannot be archived.
+- **Clients:** list, add, edit, archive. Adding a client needs a first name and a body weight; everything else is optional. A client is shown by first name and last name. While a draft exists, a "Session in progress" bar resumes it (section 4).
+  - **"Me"** is created on first start with first name "Me", and is marked with `is_self = 1`. On first start the app asks for the trainer's body weight before anything else. The trainer can rename it. It cannot be archived.
 - **Client:** that client's profile, history, recovery and progress.
-  - **Profile:** first name (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm, and body weight in kg. Body weight is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?".
+  - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set. **Body**: the body weight history. More measurements join this category with backlog item 14.
+  - **Profile:** first name (required), body weight (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm. Body weight (kg) is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted, except that the last remaining entry can only be edited, because every client must have a body weight. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?".
 - **Session:** the flow from section 4.
 - **Settings:** CSV import, JSON export, backup folder, restore from backup.
 
@@ -242,7 +248,8 @@ The MVP UI is in English. Exercise names show the English and Polish names. A fu
 
 ```
 clients ──< sessions ──< session_exercises ──< sets
-   └──< measurements
+   ├──< measurements
+   └──< one_rep_maxes >── exercises
                                │
 exercises ─────────────────────┘
    └──< exercise_muscles
@@ -252,7 +259,8 @@ exercises ─────────────────────┘
 |---|---|
 | `clients` | `id`, `first_name`, `last_name`, `gender`, `date_of_birth`, `height_cm`, `is_self`, `notes`, `created_at`, `updated_at`, `archived_at` |
 | `measurements` | `id`, `client_id`, `date`, `type`, `value`, `created_at`, `updated_at` |
-| `exercises` | `id`, `name_en`, `name_pl`, `category`, `training_type`, `pattern`, `is_custom`, `created_at`, `updated_at` |
+| `exercises` | `id`, `name_en`, `name_pl`, `category`, `training_type`, `pattern`, `uses_bodyweight`, `is_custom`, `created_at`, `updated_at` |
+| `one_rep_maxes` | `id`, `client_id`, `exercise_id`, `value_kg`, `source` (`estimated` or `manual`), `created_at`, `updated_at` |
 | `exercise_muscles` | `exercise_id`, `muscle` |
 | `sessions` | `id`, `client_id`, `date`, `status` (`draft` or `finished`), `started_at`, `finished_at`, `updated_at` |
 | `session_exercises` | `id`, `session_id`, `exercise_id`, `position`, `finished_at`, `updated_at` |
@@ -262,12 +270,14 @@ exercises ─────────────────────┘
 - **Every table has timestamps.** A future sync uses `updated_at`.
 - **Nullable columns:** `weight_kg` and `reps` can be NULL. `side`, `height_cm`, `speed_kmh`, `minutes` and `note` are nullable and have no UI in the MVP. They keep the imported history complete. Backlog items 4 and 5 add their UI.
 - **Archiving:** archiving a client hides the client and keeps their history.
-- **Profile fields:** only `first_name` is required. `clients.height_cm` is the client's height; `sets.height_cm` is a box height and is unrelated. `gender` is one of `female`, `male`, `other`, `prefer_not_to_say`, or NULL. `date_of_birth` is stored instead of an age, so the age stays correct.
+- **Profile fields:** `first_name` is required, and every client has at least one `measurements` row of type `weight` (added together with the client). The other profile columns are optional. `clients.height_cm` is the client's height; `sets.height_cm` is a box height and is unrelated. `gender` is one of `female`, `male`, `other`, `prefer_not_to_say`, or NULL. `date_of_birth` is stored instead of an age, so the age stays correct.
 - **"Me":** exactly one client has `is_self = 1`.
 - **Measurements:** unique on (`client_id`, `type`, `date`). In the MVP `type` is always `weight` and `value` is in kg. Backlog item 14 adds new types (in cm) without a new table.
 - **Units:** weights in kg, heights and lengths in cm. There is no unit setting.
 - **Finished session:** a finished session counts as a gym visit. There is no separate visits table.
-- **Computed values:** recovery and progress are computed from sets and never stored.
+- **Computed values:** recovery and progress are computed from sets and never stored. The 1RM is the exception: it is stored, because it changes only when the trainer sets it.
+- **1RM history:** each "Estimate from history" or "Set manually" adds a row to `one_rep_maxes`; the newest row (by `created_at`) per client and exercise is the current 1RM, and `created_at` is the date shown. Archiving a client keeps its 1RM rows, like its history.
+- **Body weight exercises:** `exercises.uses_bodyweight` is 1 for "Underhand pull-up" and "Overhand pull-up" in the seed, 0 for the rest. For those exercises `sets.weight_kg` holds the added load.
 
 ### Import of the existing history
 
@@ -275,6 +285,7 @@ exercises ─────────────────────┘
 - Rows are grouped by date into finished sessions.
 - Exercises are matched by `name_en`.
 - Set numbers and every column are kept.
+- For exercises that use body weight, the imported weight is treated as the added load, as in the Python tool.
 - An unknown exercise name stops the import and lists the unknown names. Nothing is imported partly.
 
 The personal CSV files (`legacy/data/*.csv`) are not committed to git. The user picks them from the phone at import time. Tests use a small anonymised sample.

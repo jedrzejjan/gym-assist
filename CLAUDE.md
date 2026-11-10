@@ -36,7 +36,7 @@ The full design is in `docs/superpowers/specs/2026-10-28-gym-assist-app-design.m
 
 0. **Foundations:** repo, Jira, MCP connections, CI, Expo skeleton.
 1. **UX design in Penpot:** flows, wireframes, then a clickable prototype. Each MVP ticket links to its Penpot board.
-2. **MVP on the phone:** clients with a basic profile (name, gender, date of birth, height, body-weight history), exercise library, log session (reorder and remove exercises), history (edit or delete a finished session), recovery, progress, CSV import, JSON export. Kilograms only.
+2. **MVP on the phone:** clients with a basic profile (name, gender, date of birth, height, body-weight history), exercise library, log session (reorder and remove exercises), history (read-only, with edit and delete), recovery, progress (Strength with a stored 1RM, Body with body weight), weight entry in kg or % of 1RM, bodyweight exercises, CSV import, JSON export. Kilograms only.
 3. **Backlog after the MVP.** **Terraform for the GitHub repo comes first** (`terraform import`, with state kept out of git). **Planning a session in advance comes second** (GYM-55).
 4. **Play Store:** privacy policy, GDPR, AAB build, testing tracks.
 
