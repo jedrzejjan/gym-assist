@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNull, sql } from 'drizzle-orm';
 
 import { clients, measurements, sessions } from './schema';
 import { type DbOrTx, newId, nowIso } from './types';
@@ -33,6 +33,7 @@ export function createClient(db: DbOrTx, c: NewClient): string {
   const firstName = clean(c.firstName);
   if (!firstName) throw new Error('A client needs a first name');
   if (!(c.weightKg > 0)) throw new Error('A client needs a body weight');
+  if (c.heightCm !== undefined && !(c.heightCm > 0)) throw new Error('Height must be positive');
   const id = newId();
   const now = nowIso();
   db.insert(clients)
@@ -98,5 +99,5 @@ export function getSelf(db: DbOrTx): ClientRow | null {
 }
 
 export function countClients(db: DbOrTx): number {
-  return db.select({ id: clients.id }).from(clients).where(isNull(clients.archivedAt)).all().length;
+  return db.select({ n: count() }).from(clients).where(isNull(clients.archivedAt)).get()!.n;
 }

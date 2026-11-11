@@ -13,7 +13,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 type Started = { db: Db; ok: true } | { ok: false; error: string };
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ Poppins_400Regular, Poppins_600SemiBold });
+  const [fontsLoaded, fontError] = useFonts({ Poppins_400Regular, Poppins_600SemiBold });
   const [started, setStarted] = useState<Started | null>(null);
 
   useEffect(() => {
@@ -24,7 +24,8 @@ export default function RootLayout() {
       );
   }, []);
 
-  const ready = fontsLoaded && started !== null;
+  // If the fonts fail to load, carry on with the system font rather than a stuck splash screen.
+  const ready = (fontsLoaded || fontError !== null) && started !== null;
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);

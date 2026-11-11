@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { createClient, type Gender } from '../../data/clients';
@@ -31,6 +31,7 @@ export default function AddClient() {
   const [gender, setGender] = useState<Gender | null>(null);
   const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
   const [height, setHeight] = useState('');
+  const saving = useRef(false); // a double tap must not create the client twice
 
   const weightKg = parseWeight(weight);
   const heightCm = parseWeight(height);
@@ -38,10 +39,12 @@ export default function AddClient() {
     firstName.trim() !== '' &&
     typeof weightKg === 'number' &&
     weightKg > 0 &&
-    heightCm !== 'invalid';
+    heightCm !== 'invalid' &&
+    heightCm !== 0;
 
   const save = () => {
-    if (!valid) return;
+    if (!valid || saving.current) return;
+    saving.current = true;
     mutate(db, (tx) =>
       createClient(tx, {
         firstName,

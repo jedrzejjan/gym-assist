@@ -7,6 +7,27 @@ import { mockRouter } from '../routerMock';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
+test('a double tap on Save client creates the client only once', async () => {
+  const { db } = await renderWithDb(<AddClient />);
+  await fireEvent.changeText(screen.getByLabelText('First name *'), 'Anna');
+  await fireEvent.changeText(screen.getByLabelText('Body weight (kg) *'), '63');
+  await fireEvent.press(save());
+  await fireEvent.press(save());
+  expect(db.select().from(clients).all()).toHaveLength(1);
+});
+
+test('a blank first name, or a height of 0 or text, keeps Save client disabled', async () => {
+  await renderWithDb(<AddClient />);
+  await fireEvent.changeText(screen.getByLabelText('First name *'), '   ');
+  await fireEvent.changeText(screen.getByLabelText('Body weight (kg) *'), '63');
+  expect(save()).toBeDisabled();
+  await fireEvent.changeText(screen.getByLabelText('First name *'), 'Anna');
+  await fireEvent.changeText(screen.getByLabelText('Height (cm)'), '0');
+  expect(save()).toBeDisabled();
+  await fireEvent.changeText(screen.getByLabelText('Height (cm)'), 'abc');
+  expect(save()).toBeDisabled();
+});
+
 const save = () => screen.getByRole('button', { name: 'Save client' });
 
 test('Save client needs a first name and a valid body weight', async () => {

@@ -21,7 +21,18 @@ test('createClient saves the first body weight as a weight measurement on weight
   expect(rows[0]).toMatchObject({ type: 'weight', value: 82, date: '2026-11-07' });
 });
 
-test('createClient refuses a missing or blank first name', () => {
+test('createClient refuses a body weight or height that is 0, negative or not a number', () => {
+  const db = createTestDb();
+  for (const weightKg of [0, -1, Number.NaN]) {
+    expect(() => createClient(db, { ...anna, weightKg })).toThrow();
+  }
+  for (const heightCm of [0, -170, Number.NaN]) {
+    expect(() => createClient(db, { ...anna, heightCm })).toThrow();
+  }
+  expect(countClients(db)).toBe(0);
+});
+
+test('createClient refuses a missing or blank first name (no rows written)', () => {
   const db = createTestDb();
   expect(() => createClient(db, { ...anna, firstName: '' })).toThrow();
   expect(() => createClient(db, { ...anna, firstName: '   ' })).toThrow();

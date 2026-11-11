@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { mutate, useDb } from '../data/live';
-import { setSetting, WELCOME_DONE } from '../data/settings';
+import { mutate, useDb, useLive } from '../data/live';
+import { getSetting, setSetting, WELCOME_DONE } from '../data/settings';
 import { Button } from '../ui/Button';
 import { Screen } from '../ui/Screen';
 import { Text } from '../ui/Text';
@@ -11,18 +11,22 @@ import { colors, sizes } from '../ui/theme';
 /** Board `app/welcome`: first start only (spec section 5). */
 export default function Welcome() {
   const db = useDb();
+  const answered = useLive((d) => getSetting(d, WELCOME_DONE) === '1', []);
 
   const skip = () => {
     mutate(db, (tx) => setSetting(tx, WELCOME_DONE, '1'));
     router.replace('/');
   };
 
+  // Welcome is for the first start only (spec section 5).
+  if (answered) return <Redirect href="/" />;
+
   return (
     <Screen
       footer={
         <>
           <Button label="Create my profile" onPress={() => router.push('/create-profile')} />
-          <Button label="Skip for now" variant="secondary" onPress={skip} />
+          <Button label="Skip" variant="secondary" onPress={skip} />
         </>
       }
     >

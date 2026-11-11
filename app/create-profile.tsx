@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { createClient } from '../data/clients';
@@ -24,12 +24,14 @@ export default function CreateProfile() {
   const fromClients = from === 'clients';
   const [firstName, setFirstName] = useState('');
   const [weight, setWeight] = useState('');
+  const saving = useRef(false); // a double tap must not create "Me" twice
 
   const weightKg = parseWeight(weight);
   const valid = firstName.trim() !== '' && typeof weightKg === 'number' && weightKg > 0;
 
   const save = () => {
-    if (!valid) return;
+    if (!valid || saving.current) return;
+    saving.current = true;
     mutate(db, (tx) => {
       createClient(tx, {
         firstName,
@@ -39,8 +41,13 @@ export default function CreateProfile() {
       });
       setSetting(tx, WELCOME_DONE, '1');
     });
-    if (fromClients) router.back();
-    else router.replace('/');
+    if (fromClients) {
+      router.back();
+    } else {
+      // Clear Welcome from the history, so Back on Home doesn't show it again.
+      if (router.canDismiss()) router.dismissAll();
+      router.replace('/');
+    }
   };
 
   return (

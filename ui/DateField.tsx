@@ -16,6 +16,12 @@ type Props = {
   toIsoDate: (d: Date) => string;
 };
 
+/** 'YYYY-MM-DD' → a local Date at noon, so no time zone shifts it to another day. */
+function localNoon(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d, 12);
+}
+
 export function DateField({ label, value, display, onChange, toIsoDate }: Props) {
   const [open, setOpen] = useState(false);
   return (
@@ -23,7 +29,7 @@ export function DateField({ label, value, display, onChange, toIsoDate }: Props)
       <Text variant="label">{label}</Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={value ? `${label}, ${display}` : label}
         onPress={() => setOpen(true)}
         style={styles.field}
       >
@@ -32,7 +38,7 @@ export function DateField({ label, value, display, onChange, toIsoDate }: Props)
       {open ? (
         <DateTimePicker
           mode="date"
-          value={value ? new Date(`${value}T12:00:00`) : new Date()}
+          value={value ? localNoon(value) : new Date()}
           maximumDate={new Date()}
           onChange={(event, date) => {
             setOpen(false);

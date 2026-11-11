@@ -11,12 +11,12 @@ test('Welcome shows the question and both choices', async () => {
   await renderWithDb(<Welcome />);
   expect(screen.getByText('Do you want to track your own training too?')).toBeTruthy();
   expect(screen.getByText('Create my profile')).toBeTruthy();
-  expect(screen.getByText('Skip for now')).toBeTruthy();
+  expect(screen.getByText('Skip')).toBeTruthy();
 });
 
-test('"Skip for now" remembers the choice and goes Home', async () => {
+test('"Skip" remembers the choice and goes Home', async () => {
   const { db } = await renderWithDb(<Welcome />);
-  await fireEvent.press(screen.getByText('Skip for now'));
+  await fireEvent.press(screen.getByText('Skip'));
   expect(getSetting(db, WELCOME_DONE)).toBe('1');
   expect(mockRouter.replace).toHaveBeenCalledWith('/');
 });

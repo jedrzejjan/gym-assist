@@ -21,8 +21,8 @@ export function Chips<T extends string>({ label, options, value, onChange }: Pro
           return (
             <Pressable
               key={o.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
               onPress={() => onChange(selected ? null : o.value)}
               style={[styles.chip, selected && styles.selected]}
             >
