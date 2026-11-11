@@ -3,8 +3,7 @@ import { eq } from 'drizzle-orm';
 
 import CreateProfile from '../../app/create-profile';
 import { getSelf } from '../../data/clients';
-import { measurements } from '../../data/schema';
-import { clients } from '../../data/schema';
+import { clients, measurements } from '../../data/schema';
 import { getSetting, WELCOME_DONE } from '../../data/settings';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';

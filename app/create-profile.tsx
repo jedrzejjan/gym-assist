@@ -32,15 +32,20 @@ export default function CreateProfile() {
   const save = () => {
     if (!valid || saving.current) return;
     saving.current = true;
-    mutate(db, (tx) => {
-      createClient(tx, {
-        firstName,
-        isSelf: true,
-        weightKg: weightKg as number,
-        weightDate: todayLocal(new Date()),
+    try {
+      mutate(db, (tx) => {
+        createClient(tx, {
+          firstName,
+          isSelf: true,
+          weightKg: weightKg as number,
+          weightDate: todayLocal(new Date()),
+        });
+        setSetting(tx, WELCOME_DONE, '1');
       });
-      setSetting(tx, WELCOME_DONE, '1');
-    });
+    } catch (e) {
+      saving.current = false; // let the trainer try again
+      throw e;
+    }
     if (fromClients) {
       router.back();
     } else {

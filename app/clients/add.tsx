@@ -45,17 +45,22 @@ export default function AddClient() {
   const save = () => {
     if (!valid || saving.current) return;
     saving.current = true;
-    mutate(db, (tx) =>
-      createClient(tx, {
-        firstName,
-        lastName,
-        gender: gender ?? undefined,
-        dateOfBirth: dateOfBirth ?? undefined,
-        heightCm: typeof heightCm === 'number' ? heightCm : undefined,
-        weightKg: weightKg as number,
-        weightDate: todayLocal(new Date()),
-      }),
-    );
+    try {
+      mutate(db, (tx) =>
+        createClient(tx, {
+          firstName,
+          lastName,
+          gender: gender ?? undefined,
+          dateOfBirth: dateOfBirth ?? undefined,
+          heightCm: typeof heightCm === 'number' ? heightCm : undefined,
+          weightKg: weightKg as number,
+          weightDate: todayLocal(new Date()),
+        }),
+      );
+    } catch (e) {
+      saving.current = false; // let the trainer try again
+      throw e;
+    }
     router.back();
   };
 
