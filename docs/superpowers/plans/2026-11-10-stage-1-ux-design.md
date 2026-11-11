@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Approved low-fidelity designs for every MVP screen in Penpot, plus a clickable prototype of the log-session flow that the owner has tested in the gym, so Stage 2 can build screens without guessing.
+**Goal:** Approved designs for every MVP screen in Penpot, plus a clickable prototype of the log-session flow that the owner has tested in the gym, so Stage 2 can build screens without guessing.
 
 **Architecture:**
 - The Penpot file **Gym Assist UX** holds the design. It has four pages: `Kit`, `Flows`, `Log session`, `Other screens`.
@@ -30,8 +30,8 @@
 ## Global Constraints
 
 - **Boards:** 360 × 800 (a standard Android phone). One board per screen state.
-- **Dialog boards:** 360 × 800, made of a dim layer (`#212121` at 50%) plus a `kit/dialog`, with no copy of the screen underneath. The prototype opens them as overlays over the current screen.
-- **Palette (changed by the owner in Task 3):** the plan started grey only. The owner replaced it with a navy palette like trainwell.pl, then changed the electric blue accent to a lighter navy: navy `#0F172A`, accent `#233662` (primary action), white, background `#F2F2F2`, text `#364151`, muted `#94A3B8`, lines `#E2E8F0`, Poppins, pill buttons. The full list is in `docs/design/README.md`. No images, and no icons beyond simple shapes or text labels.
+- **Dialog boards:** 360 × 800, made of a dim layer (muted `#94A3B8` at 50%, the owner's choice in Task 4) plus a `kit/dialog`, with no copy of the screen underneath. The prototype opens them as overlays over the current screen.
+- **Palette (changed by the owner in Task 3):** the plan started grey only. The owner replaced it with a navy palette like trainwell.pl, then changed the electric blue accent to a lighter navy: navy `#0F172A`, accent `#233662` (primary action), white, background `#F2F2F2`, secondary text `#364151`, muted `#94A3B8`, lines `#E2E8F0`, Poppins, pill buttons. The full list is in `docs/design/README.md`. No images, and no icons beyond simple shapes or text labels.
 - **One-handed use:** tap targets are at least 48 × 48. Text is at least 14 px (body 16, titles 20). The primary action of each screen sits in the bottom third.
 - **Copy:** UI in English. Exercise names show the English name with the Polish one under it. Use the spec's exact strings:
   - "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6" and "First time";
@@ -43,7 +43,7 @@
   - "Replace the weight for this date?";
   - "This replaces all data in the app".
 - **Units:** kg and cm only. A blank value shows as "-".
-- **Out of scope:** don't draw the Add exercise / New exercise page, box height, cardio, set notes, the left/right side, planning, measurements other than weight, charts, or the questionnaire.
+- **Out of scope:** don't draw box height, cardio, set notes, the left/right side, planning, measurements other than weight, charts, or the questionnaire. (The Add exercise page started out of scope; GYM-70 moved it into the MVP, and it is drawn as `library/add exercise`.)
 - **No new product decisions in boards.** If a screen needs behaviour the spec doesn't describe, draw it as a **proposal**: the board name ends in `(proposal)`, and the summary posted to the owner asks a yes or no question. Owner-approved proposals are written into the spec before the task closes, each through its own ticket (a new task under GYM-2) and its own `needs-owner` PR, so every ticket keeps one PR. Rejected ones are deleted. Details the spec doesn't name, such as a count shown after an import or a "restore done" screen, are proposals too: list them in the owner summary.
 - **Naming:**
   - boards: `<area>/<screen>[ - <state>]`, for example `log/exercise - first time` or `log/dialog - discard session`;

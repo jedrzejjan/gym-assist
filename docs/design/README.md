@@ -28,7 +28,7 @@ Penpot shows a "/" in a name as "a / b". This index writes names the way the pla
 | Warning | `#FEF3C7` with navy text | Backup warning banner on Home |
 
 - **Font:** Poppins, 400 for body text and 600 for titles and buttons. Text is at least 14 px.
-- **Buttons:** pills with radius 28, and 56 px high. Every tap target is at least 48 × 48 px.
+- **Buttons:** pill-shaped (corner radius 28), 56 px high. Every tap target is at least 48 × 48 px.
 - **Thumb reach:** the main actions sit at the bottom of the screen.
 
 ## Kit components (`Kit` page)
@@ -41,10 +41,10 @@ Penpot shows a "/" in a name as "a / b". This index writes names the way the pla
 |---|---|
 | `home` | GYM-18 |
 | `home - session in progress` | GYM-21 |
-| `clients/list` | GYM-19 |
-| `clients/list - draft exists` | GYM-19 |
-| `client/overview` | GYM-19 |
-| `client/overview - draft exists` | GYM-19 |
+| `clients/list` | GYM-18, GYM-19 |
+| `clients/list - draft exists` | GYM-18, GYM-19, GYM-21 |
+| `client/overview` | GYM-18, GYM-19 |
+| `client/overview - draft exists` | GYM-18, GYM-19, GYM-21 |
 | `log/start - date` | GYM-19 |
 | `log/session - empty` | GYM-19 |
 | `log/choose - patterns` | GYM-19 |
@@ -67,6 +67,8 @@ Penpot shows a "/" in a name as "a / b". This index writes names the way the pla
 | `log/dialog - draft exists (empty)` | GYM-21 |
 
 ## `Other screens` page → Stage 2 tickets
+
+`home` is on both pages. The copy on `Other screens` is the source of truth. The copy on `Log session` exists so the prototype can start from Home.
 
 | Board | Ticket |
 |---|---|
@@ -110,6 +112,8 @@ Penpot shows a "/" in a name as "a / b". This index writes names the way the pla
 
 Each ticket also has a Jira comment that lists its boards and the details to build.
 
+**Not drawn:** the spec also puts a "New exercise" entry in the log-session choose screens. No `log/choose` board shows it. GYM-29 builds it with the same form as `library/add exercise`.
+
 ## Prototype
 
 The clickable prototype is on the `Log session` page. To open it, open the file, go to `Log session`, press **View mode** (the play button), and pick a flow:
@@ -137,7 +141,7 @@ The `Other screens` boards are static, not linked.
    - boards that are not 360 × 800;
    - text under 14 px (or with mixed sizes);
    - kit tap targets under 48 px;
-   - shapes that overflow their board.
+   - shapes that leave their board, and text that leaves its parent shape.
 
    Use `{ ignoreSize: true }` on `Kit` and `Flows`.
 3. Run `return storage.checkLinks('Log session', ['home', 'home - session in progress', 'log/dialog - draft exists (empty)'])`. It reports boards no link reaches, boards with no way out, and dialogs with fewer than two actions.
