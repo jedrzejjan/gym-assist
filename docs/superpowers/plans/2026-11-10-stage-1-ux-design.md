@@ -134,7 +134,7 @@
   - entry: Clients → Client → "Start session".
   - **decision "Draft exists?"**: yes → the draft prompt (Resume / Finish it / Discard it; for an empty draft, Resume / Discard it). Discard it → "Discard this session?".
   - Start session: the date is today, or a changed date.
-  - Session (choose-exercise page): by pattern → pattern list → exercise, or full list + search → exercise. "New exercise" is shown as a greyed **backlog** node with no arrow.
+  - Session (choose-exercise page): by pattern → pattern list → exercise, or full list + search → exercise. "New exercise" is shown as a greyed **backlog** node with no arrow (drawn before GYM-70 moved Add exercise into the MVP; GYM-29 builds it).
   - Exercise: shows "Last time: …" or "First time"; Add set (weight, reps, either blank); tap a set → edit; delete set (the remaining sets keep their numbers); "Finish exercise" → back to the Session.
   - Session: reorder exercises, remove an exercise ("Remove this exercise and its sets?"), open a finished exercise again.
   - "Finish session" (needs at least one exercise) → the automatic backup export → Client.
