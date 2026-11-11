@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details)
+Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up)
 
 ## 1. Purpose
 
@@ -58,7 +58,7 @@ Each stage is a Jira epic.
 Stage 1 can overlap with Stage 0.
 
 1. User flows, starting with the log-session flow in section 4.
-2. Low-fidelity wireframes, discussed screen by screen.
+2. Wireframes, discussed screen by screen.
 3. A clickable prototype of the log-session flow.
 
 Done when the user approves the designs. Each MVP ticket links to its Penpot board.
@@ -94,27 +94,28 @@ The order can change when the user reprioritises, but Terraform stays first. In 
 10. CI extras: EAS Submit to the Play Store, EAS Update (over-the-air updates), release notes generated from commit types.
 11. Full Polish translation of the UI.
 12. **One-month training plan** (GYM-56). A month of planned sessions for a client, built on item 2.
-13. **Extend the client profile with an intake questionnaire** (GYM-57). The user prepares the questions. It may hold health information, so it needs the GDPR basics (item 19) first.
+13. **Extend the client profile with an intake questionnaire** (GYM-57). The user prepares the questions. It may hold health information, so it needs the GDPR basics (item 20) first.
 14. **Body measurements** (GYM-58): waist, biceps, legs and more, as new types in the `measurements` table (section 6). They show in the Body category of Progress.
 15. **Motor ability of an exercise** (GYM-67, PL "zdolność motoryczna"): assess which ability the sets train (maximal strength, maximal power, functional strength, hypertrophy, strength endurance, power endurance) from reps, % of 1RM, sets, tempo and rest. The user's reference table is in GYM-67.
 16. **Knowledge materials on Home** (GYM-69): informative materials for trainers, reached from the Home screen. The first one is the motor ability parameters table from GYM-67.
+17. **Reorder exercises by press-and-hold and drag** (GYM-66). Replaces the up and down buttons on the reorder page with a drag handle.
 
-The items below came from a review of this spec, not from the user. In Jira they get the label `ai-generated`. Items 18 to 22 also get priority Low.
+The items below came from a review of this spec, not from the user. In Jira they get the label `ai-generated`. Items 19 to 23 also get priority Low.
 
-17. **Test and CI hygiene** `[AI generated]`
+18. **Test and CI hygiene** `[AI generated]`
     - Run the data tests on `better-sqlite3` through Drizzle, because `expo-sqlite` does not run in Jest. Write down that Node's SQLite can behave slightly differently from the phone's.
     - Add a migration test that upgrades a database with realistic data from schema version N to N+1.
     - Set a coverage threshold of about 90% for `domain/` only.
     - Make Dependabot ignore Expo-managed packages, and upgrade those with `npx expo install --fix`.
-18. **Soft deletes for sync** `[AI generated, Low]`. Part of the server work in item 6. Add `deleted_at` or a tombstone table, designed for the chosen server. Until sync exists, deletes stay hard deletes, because there is no other device to tell.
-19. **App lock and GDPR basics** `[AI generated, Low]`
+19. **Soft deletes for sync** `[AI generated, Low]`. Part of the server work in item 6. Add `deleted_at` or a tombstone table, designed for the chosen server. Until sync exists, deletes stay hard deletes, because there is no other device to tell.
+20. **App lock and GDPR basics** `[AI generated, Low]`
     - PIN or fingerprint lock with `expo-local-authentication`.
     - A privacy notice and a client consent note.
     - Export and delete of all data for one client.
     Recommended before the first real client's data goes into the app.
-20. **EAS build status in GitHub** `[AI generated, Low]`. With `--no-wait`, a failed EAS build still shows green in GitHub. For now the failure shows on expo.dev and by email. This item reports the result back to GitHub, by polling `eas build:view` or through an Expo webhook.
-21. **Architecture Decision Records** `[AI generated, Low]`. Short records in `docs/adr/` of the key decisions: Expo over Kotlin, local-first, no AWS, Penpot, Terraform timing. The user writes the "no AWS" reason.
-22. **Expo SDK upgrade routine** `[AI generated, Low]`. A recurring chore for each new Expo SDK release: upgrade, run `npx expo install --fix`, run the tests, check on the phone.
+21. **EAS build status in GitHub** `[AI generated, Low]`. With `--no-wait`, a failed EAS build still shows green in GitHub. For now the failure shows on expo.dev and by email. This item reports the result back to GitHub, by polling `eas build:view` or through an Expo webhook.
+22. **Architecture Decision Records** `[AI generated, Low]`. Short records in `docs/adr/` of the key decisions: Expo over Kotlin, local-first, no AWS, Penpot, Terraform timing. The user writes the "no AWS" reason.
+23. **Expo SDK upgrade routine** `[AI generated, Low]`. A recurring chore for each new Expo SDK release: upgrade, run `npx expo install --fix`, run the tests, check on the phone.
 
 ### Stage 4: Play Store
 
@@ -150,7 +151,7 @@ The session is saved as a draft after every set. If the app closes or the phone 
 
 **Getting back to a draft.** While a draft exists, the Home screen shows a "Session in progress" bar with the client's first and last name.
 - The bar sits at the bottom of the Home screen, within thumb reach. The backup warning (section 5) sits at the top, so both can show at once.
-- Tapping the bar opens the draft where the trainer left off: the exercise screen if an exercise is still open (not finished), otherwise the choose-exercise page.
+- Tapping the bar opens the draft where the trainer left off: the add-set page if an exercise is still open (not finished), otherwise the choose-exercise page.
 - Opening the app shows the Home screen as usual (Welcome on the very first start); it does not jump into the draft.
 
 **Finishing needs an exercise.** "Finish session" is available once the session has at least one exercise. A session with no exercises can only be cancelled.
@@ -162,7 +163,7 @@ The session is saved as a draft after every set. If the app closes or the phone 
 - "Delete session" asks "Delete this session? This cannot be undone."
 - Recovery and progress update by themselves, because they are computed from sets. The stored 1RM does not change (section 5).
 
-**One draft at a time.** Only one draft session can be open in the whole app. If the trainer starts a session while a draft exists, for the same client or another one, the app asks: "Resume", "Finish it" or "Discard it". For a draft with no exercises, it offers only "Resume" and "Discard it". Discard uses the same "Discard this session?" confirmation.
+**One draft at a time.** Only one draft session can be open in the whole app. If the trainer starts a session while a draft exists, for the same client or another one, the app asks "A session is already in progress", with "Resume", "Finish it" or "Discard it". For a draft with no exercises, it offers only "Resume" and "Discard it". Discard uses the same "Discard this session?" confirmation.
 
 ## 5. Architecture
 
@@ -218,7 +219,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | **Pre-migration snapshot** | On start, before running any migration, the app copies the database file to `backups/pre-migration-v<N>.db` inside the app. It keeps the last 3 snapshots. If the migration fails, the app restores the snapshot and shows an error instead of opening a broken database. | Data loss from an app update |
 | **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, setting a 1RM, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements`, `one_rep_maxes`, the profile columns and `exercises.uses_bodyweight`. | Uninstall, lost phone |
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
-| **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning until it is fixed: "Backups are off: choose a folder" when no folder is chosen, or "Last backup failed: check the folder" when the last export failed, with a "Fix" action that opens Settings. | A silent backup failure |
+| **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning at the top until it is fixed: "Backups are off: choose a folder" when no folder is chosen, or "Last backup failed: check the folder" when the last export failed, with a "Fix" action that opens Settings. | A silent backup failure |
 
 **Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). When it finishes, the app shows "Restore done" with the backup's date and how many clients and sessions it brought back, and a "Go to clients" button. A restore test on a reinstalled app is part of the MVP's "done when" check.
 

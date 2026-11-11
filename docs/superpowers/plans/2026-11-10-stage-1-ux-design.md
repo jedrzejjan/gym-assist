@@ -1,5 +1,11 @@
 # Stage 1: UX Design in Penpot Implementation Plan
 
+> **Done 2026-11-11 (epic GYM-2). Superseded by `docs/design/README.md`.** Some details below changed during Stage 1, so trust the README and the spec over this plan:
+> - The board lists are final in the README: 26 boards on `Log session` and 37 on `Other screens`.
+> - The "Session in progress" bar moved from Clients to Home, and the prototype flows start from Home.
+> - The owner reviewed in Penpot view mode, not from PNG exports, because exports timed out.
+> - Body weight is required for every client, not only the first name.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Approved designs for every MVP screen in Penpot, plus a clickable prototype of the log-session flow that the owner has tested in the gym, so Stage 2 can build screens without guessing.
