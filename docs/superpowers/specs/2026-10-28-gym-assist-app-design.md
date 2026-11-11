@@ -314,7 +314,7 @@ Runs on every pull request to `main`, after every merge, and when called by anot
 | Lint | ESLint and Prettier check |
 | Type-check | `tsc --noEmit` |
 | Unit tests | Jest with a coverage report |
-| Expo check | `npx expo-doctor` |
+| Expo check | `npx expo-doctor@1.21.6` (pinned because 1.21.7 is broken, GYM-73) |
 
 All steps are required status checks on `main`.
 
