@@ -40,9 +40,9 @@ test('after Welcome → Create my profile → Save, Home has no way back to Welc
   expect(router.canGoBack()).toBe(false);
 });
 
-test('after "Skip", Home has no way back to Welcome', async () => {
+test('after "Skip for now", Home has no way back to Welcome', async () => {
   await renderApp(createTestDb());
-  await fireEvent.press(screen.getByText('Skip'));
+  await fireEvent.press(screen.getByText('Skip for now'));
   expect(screen).toHavePathname('/');
   expect(router.canGoBack()).toBe(false);
 });

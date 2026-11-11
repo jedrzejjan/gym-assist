@@ -26,7 +26,7 @@ export default function Welcome() {
       footer={
         <>
           <Button label="Create my profile" onPress={() => router.push('/create-profile')} />
-          <Button label="Skip" variant="secondary" onPress={skip} />
+          <Button label="Skip for now" variant="secondary" onPress={skip} />
         </>
       }
     >

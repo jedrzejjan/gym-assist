@@ -225,7 +225,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 
 ### `app/`: screens
 
-- **Welcome** (first start only): "Create my profile" or "Skip". "Create my profile" asks for the trainer's first name and body weight (the rest is optional, as for any client) and creates "Me". "Skip" goes straight to Home; then there is no "Me" and the client list starts empty. If the app is closed before a choice, Welcome shows again next time.
+- **Welcome** (first start only): "Create my profile" or "Skip for now". "Create my profile" asks for the trainer's first name and body weight (the rest is optional, as for any client) and creates "Me". "Skip for now" goes straight to Home; then there is no "Me" and the client list starts empty. If the app is closed before a choice, Welcome shows again next time.
 - **Home** (the start screen): three tiles, in this order: Clients, Settings, Exercise library. There is no placeholder for future items. While a draft exists, a "Session in progress" bar resumes it (section 4); the backup warning shows here too. Knowledge materials join Home later (backlog item 16).
 - **Clients:** list, add, edit, archive. Adding a client needs a first name and a body weight; everything else is optional. A client is shown by first name and last name.
   - The trainer's own profile is pinned first and marked "me".
