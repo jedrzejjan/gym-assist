@@ -6,7 +6,9 @@ import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
 import { Directory, File, Paths } from 'expo-file-system';
 import { defaultDatabaseDirectory, openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 
+import { seedExercises } from '../exercises';
 import migrations from '../migrations/migrations';
+import { SEED_EXERCISES } from '../seed/exercises';
 import * as schema from '../schema';
 import type { Db } from '../types';
 import { prepareDatabase, type PrepareResult } from './prepare';
@@ -91,6 +93,8 @@ export async function openAppDatabase(): Promise<{ db: Db; result: PrepareResult
   // Every start, including the usual one with nothing to migrate.
   raw.execSync('PRAGMA foreign_keys = ON');
   const db = drizzle(raw, { schema }) as unknown as Db;
-  // Task 4 (GYM-17) seeds the exercise library here, inside one transaction.
+  // The library is never empty: seed before Welcome shows (spec section 5, Seed), in one
+  // transaction so a crash can't leave an exercise without its muscles. Adds only new names.
+  if (result.ok) db.transaction((tx) => seedExercises(tx, SEED_EXERCISES));
   return { db, result };
 }

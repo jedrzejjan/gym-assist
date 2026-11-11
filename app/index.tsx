@@ -38,11 +38,10 @@ export default function Home() {
         <View style={styles.row}>
           {/* Settings arrives in Sprint 2 (GYM-25, GYM-26): dimmed until then (PR #21, decision 6). */}
           <Tile title="Settings" subtitle="Backup, import" disabled />
-          {/* The library screens arrive with GYM-17. */}
           <Tile
             title="Exercise library"
             subtitle={plural(home.exercises, 'exercise', 'exercises')}
-            disabled
+            onPress={() => router.push('/library')}
           />
         </View>
       </View>
