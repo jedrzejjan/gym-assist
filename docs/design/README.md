@@ -4,7 +4,7 @@ The owner approved these UX designs in Stage 1 (epic GYM-2). Stage 2 builds each
 
 ## Penpot file
 
-- **File:** "Gym Assist UX" on design.penpot.app (file id `17092c62-56e2-8122-8008-ebb90156d9dd`). The owner's Penpot account holds it.
+- **File:** "Gym Assist UX" ([open in Penpot](https://design.penpot.app/?screen=workspace&team-id=bfddaaba-4180-81d4-8008-dbc5d8e4b68c&project-id=17092c62-56e2-8122-8008-ebb8fb72a67c&file-id=17092c62-56e2-8122-8008-ebb90156d9dd), file id `17092c62-56e2-8122-8008-ebb90156d9dd`). The owner's Penpot account holds it, and the link works only when signed in to an account with access.
 - **Pages:**
   - `Kit`: the 10 shared components, listed below.
   - `Flows`: the user-flow diagrams (`flow/*` groups).
