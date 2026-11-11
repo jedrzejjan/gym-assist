@@ -6,7 +6,7 @@
 
 **Architecture:**
 - The Penpot file **Gym Assist UX** holds the design. It has four pages: `Kit`, `Flows`, `Log session`, `Other screens`.
-- Low-fidelity grey components on `Kit` are reused on every board.
+- Kit components on `Kit` are reused on every board.
 - Two check functions kept in the repo (`docs/design/penpot-checks.js`) are pasted into the Penpot MCP's `execute_code`. They are the automated "tests" for the boards and the prototype links.
 - The owner approves every flow and screen from screenshots exported into chat.
 - **Work order B** (owner's choice): the log-session flow goes end to end first (flow, wireframes, prototype), then the other screens.
@@ -31,7 +31,7 @@
 
 - **Boards:** 360 × 800 (a standard Android phone). One board per screen state.
 - **Dialog boards:** 360 × 800, made of a dim layer (`#212121` at 50%) plus a `kit/dialog`, with no copy of the screen underneath. The prototype opens them as overlays over the current screen.
-- **Low fidelity:** grey only. The colours are `#FFFFFF`, `#F2F2F2`, `#E0E0E0`, `#9E9E9E`, `#616161` and `#212121`. One accent, `#424242`, marks the primary action. No brand colours, images or icons beyond simple shapes or text labels.
+- **Palette (changed by the owner in Task 3):** the plan started grey only. The owner replaced it with a navy palette like trainwell.pl, then changed the electric blue accent to a lighter navy: navy `#0F172A`, accent `#233662` (primary action), white, background `#F2F2F2`, text `#364151`, muted `#94A3B8`, lines `#E2E8F0`, Poppins, pill buttons. The full list is in `docs/design/README.md`. No images, and no icons beyond simple shapes or text labels.
 - **One-handed use:** tap targets are at least 48 × 48. Text is at least 14 px (body 16, titles 20). The primary action of each screen sits in the bottom third.
 - **Copy:** UI in English. Exercise names show the English name with the Polish one under it. Use the spec's exact strings:
   - "Last time: 60 kg × 8, 60 kg × 8, 62.5 kg × 6" and "First time";
