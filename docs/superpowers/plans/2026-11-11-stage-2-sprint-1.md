@@ -18,7 +18,7 @@
 ## Global Constraints
 
 - **Layers:** `app/` → `data/` → `domain/`, and each layer imports only the layer below it. `ui/` is presentation only: it imports neither `data/` nor `domain/`. `domain/` imports no React, Expo or Drizzle.
-- **Every table** has UUID `id`s from `expo-crypto` `randomUUID()` (on the phone) and `updated_at`. All timestamps are ISO strings. Dates are `YYYY-MM-DD`, using the phone's **local** date.
+- **Every table** has UUID `id`s from `expo-crypto` `randomUUID()` and `updated_at`. There are two exceptions: `exercise_muscles` (composite key) and `app_settings` (keyed by `key`) have `updated_at` but no UUID. All timestamps are ISO strings. Dates are `YYYY-MM-DD`, using the phone's **local** date.
 - **Units:** kg and cm only. A blank value displays as `-`.
 - **Number input:** weight accepts `22,5` or `22.5` (both mean 22.5). Reps accept whole numbers only. Negative numbers and text are blocked in the field. Blank is saved as NULL.
 - **UI:** English. Exercise names show the English name with the Polish one under it. Patterns and categories `KD` and `HD` display as "Knee Dominant" and "Hip Dominant".
@@ -116,7 +116,7 @@ These come with the plan PR. The spec is updated in the task named.
 - Produces:
   - `type Db = BaseSQLiteDatabase<'sync', unknown, typeof schema>`, and `type Tx` for the transaction handle Drizzle passes to `db.transaction` (`data/types.ts`).
   - `type DbOrTx = Db | Tx`. **Every repository function in later tasks takes `DbOrTx` as its first argument and never calls `mutate` itself.** Nested transactions are savepoints on better-sqlite3 but throw on the phone's expo-sqlite.
-  - `createTestDb(): Db` returns an in-memory better-sqlite3 database, migrated from `data/migrations` with `PRAGMA foreign_keys = ON`.
+  - `createTestDb(): Db` returns an in-memory better-sqlite3 database. It is migrated from `data/migrations` with foreign keys **off**, then `PRAGMA foreign_keys = ON`.
   - `newId(): string` (`data/types.ts`) uses `expo-crypto` `randomUUID()`. A Jest setup file (`jest.setup.ts`) mocks `expo-crypto` with Node's `crypto.randomUUID`.
   - `nowIso(): string`.
   - Drizzle tables: `clients`, `measurements`, `exercises`, `exerciseMuscles`, `oneRepMaxes`, `sessions`, `sessionExercises`, `sets`, `appSettings`.
@@ -174,15 +174,21 @@ These come with the plan PR. The spec is updated in the task named.
   - `test('applied 1, target 2: snapshots pre-migration-v2.db, then migrates')`.
   - `test('keeps only the last 3 snapshots')`: existing snapshots v1, v2 and v3, then v4 is taken, so v1 is deleted. Include v9 and v10 to prove the sort is numeric.
   - `test('a rejected migrate restores the snapshot and resolves ok:false with the message')`.
+  - In `schema.test.ts`: `test('a table-rebuild migration keeps child rows')`. Create a client with a weight, run a raw `DROP TABLE`-and-recreate of `clients` the way `createTestDb` migrates (foreign keys off), and the `measurements` row is still there.
 - [ ] **Step 7: Implement `prepareDatabase`.** It's async and awaits `migrate()`, so a rejected promise is caught. Sort snapshots by version number, not as text.
 
   Write `openAppDatabase` for the phone with the SDK 58 `expo-file-system` API (`Paths`, `Directory`, `File`):
-  1. Open the raw database: `openDatabaseSync('gym-assist.db')`, then `PRAGMA foreign_keys = ON`.
+  1. Open the raw database: `openDatabaseSync('gym-assist.db')`, with `PRAGMA foreign_keys = OFF`. The Drizzle migrator runs all pending migrations inside one transaction, where drizzle-kit's own `PRAGMA foreign_keys=OFF` has no effect. With foreign keys on, a migration that rebuilds a table (`DROP TABLE`) would cascade and **silently delete** the exercises, sets or weights that belong to it.
   2. `appliedVersion`: the row count of `__drizzle_migrations`, or 0 when that table doesn't exist yet (fresh install).
   3. `targetVersion`: the number of entries in the migration journal.
   4. `snapshotTo`: create the `backups/` directory if it's missing, delete any existing target file, then run `VACUUM INTO` on the plain file path, not the `file://` URI.
-  5. `restoreFrom`: close the database, delete the `-wal` and `-shm` files, copy the snapshot over the database file (path from `defaultDatabaseDirectory`), and reopen it.
-  6. `migrate`: the `drizzle-orm/expo-sqlite/migrator` `migrate` with `data/migrations/migrations.js`.
+  5. `restoreFrom`:
+     1. Close the database.
+     2. Delete the database file and its `-wal` and `-shm` files, because `File.copy` may not overwrite.
+     3. Copy the snapshot into place. `defaultDatabaseDirectory` is a plain path, so build the `File` from it explicitly.
+     4. Reopen the database and run `PRAGMA foreign_keys = ON`.
+  6. `migrate`: the `drizzle-orm/expo-sqlite/migrator` `migrate` with `data/migrations/migrations.js`. After it succeeds, run `PRAGMA foreign_key_check`. Any row it reports counts as a failed migration, so the snapshot is restored. Then run `PRAGMA foreign_keys = ON`.
+  7. Seed (Task 4) inside one `db.transaction`, so a crash mid-seed leaves no exercise without its muscles.
 
   `openAppDatabase` is phone-only glue; the review checks it by reading. The owner's phone test in Task 10 exercises it for real.
 - [ ] **Step 8: Write the failing `live` test** (`data/__tests__/live.test.tsx`).
@@ -248,7 +254,7 @@ These come with the plan PR. The spec is updated in the task named.
   ```
 
 - [ ] **Step 2: Write the failing domain tests:**
-  - `todayLocal(new Date(2026, 10, 11, 23, 30))` is `'2026-11-11'` (local date, not UTC). Set `process.env.TZ = 'Europe/Warsaw'` in this test file's setup, because CI runs in UTC.
+  - `todayLocal(new Date(2026, 10, 11, 0, 30))` is `'2026-11-11'`. That's 23:30 UTC on 10 November, so a UTC-based implementation (`toISOString`) fails. `jest.setup.ts` sets `process.env.TZ = 'Europe/Warsaw'`, because CI runs in UTC.
   - `formatDayMonth('2026-11-07')` is `'7 Nov'`, and `formatDayMonthYear('2026-10-27')` is `'27 Oct 2026'`.
   - `isValidDate('2026-02-30')` is `false`.
   - `fullName('Anna', null)` is `'Anna'`, and `fullName('Anna', 'Kowalska')` is `'Anna Kowalska'`.
@@ -261,11 +267,11 @@ These come with the plan PR. The spec is updated in the task named.
 - [ ] **Step 4: Write the failing screen tests.** Each one renders the screen inside `DbProvider` with `createTestDb()`, and mocks expo-router's `router`:
   - `welcome`: "Skip" sets `welcome_done` and goes to Home. "Create my profile" goes to `create-profile`.
   - `create-profile`: "Save" stays disabled until the first name and body weight are filled in. Saving creates "Me" and sets `welcome_done`.
-  - `home`: three tiles in the order Clients, Settings, Exercise library. The Clients tile shows "0 clients", then "1 client" after `createClient`. The Settings tile is disabled.
+  - `home`: three tiles in the order Clients, Settings, Exercise library. The Clients tile shows "0 clients", then "1 client" after `act(() => mutate(db, tx => createClient(tx, …)))`. The Settings tile is disabled.
   - `clients`:
     - with no clients, it shows "No clients yet", the "Add client" button and the "Add my profile" row;
     - with "Me", it shows "Me" first, marked "me", and no "Add my profile" row.
-  - `startup error`: when `openAppDatabase` resolves `{ ok: false, error: 'migration v4 failed' }`, the layout shows "The update could not finish" and "Error: migration v4 failed". The `app/error - migration failed` board belongs to GYM-18; note the move from GYM-16 in the PR.
+  - `startup error` (`jest.mock` `data/db/open`, `@expo-google-fonts/poppins` and `expo-splash-screen`, because the real modules load native code): when `openAppDatabase` resolves `{ ok: false, error: 'migration v4 failed' }`, the layout shows "The update could not finish" and "Error: migration v4 failed". The `app/error - migration failed` board belongs to GYM-18; note the move from GYM-16 in the PR.
 - [ ] **Step 5: Run the tests.** Expected: FAIL.
 - [ ] **Step 6: Implement.**
   - `ui/theme.ts` holds the Global Constraints tokens. Build the components to match the boards.
@@ -276,7 +282,7 @@ These come with the plan PR. The spec is updated in the task named.
     4. Redirect to `/welcome` while `welcome_done` is unset.
   - The Home tile counts use `useLive`.
 - [ ] **Step 7: Run `npm run lint && npm run typecheck && npx jest`.** Expected: all pass.
-- [ ] **Step 8: Commit.** First rename GYM-18 in Jira to "Welcome, Home and clients list", and create the Task 6 ticket so that the profile part moves to it. Then open PR `feat(clients): GYM-18 Welcome, Home and clients list`, labelled `needs-owner` (new libraries and the `ui/` folder). The title must match the renamed ticket.
+- [ ] **Step 8: Commit.** First rename GYM-18 in Jira to "Welcome, Home and clients list", and create the Task 6 ticket so that the profile part moves to it. Then open PR `feat(clients): GYM-18 Welcome, Home and clients list`, labelled `needs-owner` (new libraries and the `ui/` folder). Cite PR #21, decision 6, for the dimmed Settings tile. The title must match the renamed ticket.
 
 ### Task 4: Exercise catalogue, seed and library screens (GYM-17)
 
@@ -381,6 +387,7 @@ These come with the plan PR. The spec is updated in the task named.
 - [ ] **Step 2: Write the failing screen tests:**
   - With date of birth `1992-03-15` and today `2026-11-11`, the profile shows "34 years" and the latest weight.
   - "Me" has no Archive button.
+  - For another client, Archive opens the `client/dialog - archive` dialog. Confirming it removes the client from the Clients list.
   - Adding a weight on an existing date shows "Replace the weight for this date?".
   - Deleting shows "Delete this weight entry?" with "64.2 kg · 27 Oct 2026". On the last entry, Delete is hidden.
 - [ ] **Step 3: Implement.** Profile editing reuses the `clients/add` form, filled in, with "Save" (the GYM-18 default). Run the full checks. Expected: PASS.
@@ -443,7 +450,7 @@ These come with the plan PR. The spec is updated in the task named.
   - Search "xyz" shows the no-results state.
   - The "New exercise" row goes to `/library/add?returnTo=session&sessionId=…`. After saving, that exercise is added to the session.
 - [ ] **Step 4: Implement.** Run the full checks. Expected: PASS.
-- [ ] **Step 5: Commit.** PR `feat(log): GYM-19 Log session: choose exercise and last time`.
+- [ ] **Step 5: Commit.** PR `feat(log): GYM-19 Log session: choose exercise and last time`. Cite PR #21, decision 7, for the client screen.
 
 ### Task 8: Add, edit and delete sets; kg | %; body weight (GYM-20)
 
@@ -471,7 +478,7 @@ These come with the plan PR. The spec is updated in the task named.
   - `addSet(db, seId, v: SetValue): string`, `updateSet(db, setId, v: SetValue): void` and `deleteSet(db, setId): void`.
   - `finishExercise(db, seId): void` and `reopenExercise(db, seId): void`.
   - `currentOneRepMax(db, clientId, exerciseId): number | null`, the newest `one_rep_maxes` row by `created_at`.
-  - `exerciseScreenData(db, seId)` returns the sets, `usesBodyweight`, the 1RM, and the body weight on the session date.
+  - `exerciseScreenData(db, seId): { exercise: { id: string; nameEn: string; namePl: string | null; usesBodyweight: boolean }; sets: { id: string; setNo: number; weightKg: number | null; reps: number | null }[]; oneRepMaxKg: number | null; bodyWeight: { valueKg: number; date: string } | null; lastTime: SetValue[] | null }`.
 
 - [ ] **Step 1: Write the failing domain tests:**
   - **`parseWeight`:**
@@ -483,11 +490,11 @@ These come with the plan PR. The spec is updated in the task named.
     | `''`, `'  '` | `null` |
     | `'22,,5'`, `'-5'`, `'1e3'`, `'abc'` | `'invalid'` |
 
-  - **`parseReps`:** `'8'` → `8`; `'0'` → `0`; `' 8 '` → `8`; `'8.5'`, `'-1'` → `'invalid'`; `''` → `null`.
-  - **`parseWeight(' 22,5 ')`** → `22.5`, because padding is trimmed.
+  - **`parseReps`:** `'8'` → `8`; `' 8 '` → `8`; `'0'`, `'8.5'`, `'-1'` → `'invalid'` (a set needs at least 1 rep, as in `gym_tracker.py`); `''` → `null`.
+  - **`parseWeight`:** `' 22,5 '` → `22.5` (padding is trimmed); `'22.'` → `22`; `'.5'` → `0.5`; `'0'` → `0` (a set with no load).
   - **`nextSetNo`:** `[1, 3, 4]` → `5`; `[]` → `1`.
   - **`percentToKg(60, 85)`** → `51`. `percentToKg(101.75, 80)` → `81`.
-  - **`addedLoadFromPercent`:** `(99, 80, 82)` → `-2.8`, rounded to `-3`, clamped to `0`. `(120, 85, 82)` → `20`. `(100, 85, 82.4)` → `85 − 82.4 = 2.6` → `3`. That pins the order: subtract the unrounded total, then round.
+  - **`addedLoadFromPercent`:** `(99, 80, 82)` → `-2.8`, rounded to `-3`, clamped to `0`. `(120, 85, 82)` → `20`. `(101, 85, 82.4)` → `3`, because 85.85 − 82.4 = 3.45 rounds to 3. Rounding the total first would give 86 − 82.4 = 3.6 → 4, so this case pins the order: subtract the unrounded total, then round.
   - **`bodyWeightOn`:** with entries `[{ '2026-10-01', 80 }, { '2026-11-01', 82 }]`:
     - `'2026-10-15'` → `{ valueKg: 80, date: '2026-10-01' }`;
     - `'2026-09-01'` → `{ valueKg: 80, date: '2026-10-01' }` (before the first entry, the earliest one is used);
@@ -501,7 +508,8 @@ These come with the plan PR. The spec is updated in the task named.
   - Typing `22,5` and `8` and tapping "Add set" adds the row "22.5 kg × 8".
   - The % chip is disabled with "Set a 1RM in Progress to use %" when there's no 1RM.
   - With a 1RM of 60, "85" in % mode saves 51 kg.
-  - On a bodyweight exercise with body weight 82, a set shows "BW + 10 kg × 6", and the line "Body weight 82 kg (7 Nov) is added to the load." shows.
+  - On a bodyweight exercise for a client whose weight entry is 82 kg on `2026-11-07`, in a session on or after that date: a set shows "BW + 10 kg × 6", and the line "Body weight 82 kg (7 Nov) is added to the load." shows.
+  - Tapping a logged set opens it for editing. Changing its reps to 10 and saving updates the row.
   - "Finish exercise" goes back to the session page.
 - [ ] **Step 4: Implement.** The kg | % choice is screen state, kept for the rest of that exercise in this session (the spec allows memory only). Run the full checks. Expected: PASS.
 - [ ] **Step 5: Commit.** PR `feat(log): GYM-20 Log session: add, edit and delete sets`.
