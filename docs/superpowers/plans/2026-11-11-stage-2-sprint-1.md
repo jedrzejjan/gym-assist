@@ -102,29 +102,34 @@ These come with the plan PR. The spec is updated in the task named.
   - `drizzle.config.ts`
   - `babel.config.js`
   - `metro.config.js`
+  - `jest.setup.ts`
 - Test:
   - `data/__tests__/schema.test.ts`
   - `data/__tests__/prepare.test.ts`
   - `data/__tests__/live.test.tsx`
 - Modify:
-  - `package.json`
+  - `package.json`, `jest.config.js`, `.prettierignore`, `eslint.config.js`
   - `app.json` (expo-sqlite plugin)
-  - the spec: the `app_settings` table in section 6, and the hook in section 5's `app/` paragraph
+  - the spec: the `app_settings` table and the `exercise_muscles` key in section 6, and the hook in section 5's `app/` paragraph
 
 **Interfaces:**
 - Produces:
-  - `type Db = BaseSQLiteDatabase<'sync', unknown, typeof schema>` (`data/types.ts`).
+  - `type Db = BaseSQLiteDatabase<'sync', unknown, typeof schema>`, and `type Tx` for the transaction handle Drizzle passes to `db.transaction` (`data/types.ts`).
+  - `type DbOrTx = Db | Tx`. **Every repository function in later tasks takes `DbOrTx` as its first argument and never calls `mutate` itself.** Nested transactions are savepoints on better-sqlite3 but throw on the phone's expo-sqlite.
   - `createTestDb(): Db` returns an in-memory better-sqlite3 database, migrated from `data/migrations` with `PRAGMA foreign_keys = ON`.
-  - `newId(): string` (`data/types.ts`) uses `expo-crypto` on the phone and `crypto.randomUUID` in Node.
+  - `newId(): string` (`data/types.ts`) uses `expo-crypto` `randomUUID()`. A Jest setup file (`jest.setup.ts`) mocks `expo-crypto` with Node's `crypto.randomUUID`.
   - `nowIso(): string`.
   - Drizzle tables: `clients`, `measurements`, `exercises`, `exerciseMuscles`, `oneRepMaxes`, `sessions`, `sessionExercises`, `sets`, `appSettings`.
-  - `getSetting(db, key: string): string | null` and `setSetting(db, key: string, value: string): void` (`data/settings.ts`).
-  - `notifyDataChanged(): void` and `useLive<T>(read: (db: Db) => T, deps: unknown[]): T` (`data/live.ts`).
-  - `DbProvider` and `useDb(): Db` (`data/live.ts`).
-  - `prepareDatabase(deps: PrepareDeps): PrepareResult` (`data/db/prepare.ts`), where:
-    - `PrepareDeps = { pendingVersion(): number | null; snapshotTo(name: string): void; listSnapshots(): string[]; deleteSnapshot(name: string): void; restoreFrom(name: string): void; migrate(): void }`;
+  - `getSetting(db: DbOrTx, key: string): string | null` and `setSetting(db: DbOrTx, key: string, value: string): void` (`data/settings.ts`).
+  - In `data/live.ts`:
+    - `mutate<T>(db: Db, write: (tx: Tx) => T): T` runs `write` in one transaction, then calls `notifyDataChanged()`. Screens call it **once per user action**, for example `mutate(db, tx => createClient(tx, input))`.
+    - `notifyDataChanged(): void`.
+    - `useLive<T>(read: (db: Db) => T, deps: unknown[]): T`.
+    - `DbProvider` and `useDb(): Db`.
+  - `prepareDatabase(deps: PrepareDeps): Promise<PrepareResult>` (`data/db/prepare.ts`), where:
+    - `PrepareDeps = { appliedVersion(): number; targetVersion(): number; snapshotTo(name: string): void; listSnapshots(): string[]; deleteSnapshot(name: string): void; restoreFrom(name: string): void; migrate(): Promise<void> }`;
     - `PrepareResult = { ok: true } | { ok: false; error: string }`.
-  - `openAppDatabase(): { db: Db; result: PrepareResult }` (`data/db/open.ts`, phone only).
+  - `openAppDatabase(): Promise<{ db: Db; result: PrepareResult }>` (`data/db/open.ts`, phone only). The Drizzle `db` is built only **after** prepare finishes, because a restore closes the first connection. `openAppDatabase` also seeds the exercise library once Task 4 exists.
 
 - [ ] **Step 1: Install.**
 
@@ -136,8 +141,15 @@ These come with the plan PR. The spec is updated in the task named.
 
   Set up `drizzle.config.ts` (`dialect: 'sqlite'`, `driver: 'expo'`, `schema: './data/schema.ts'`, `out: './data/migrations'`). The `.sql` files need two settings: `babel.config.js` uses `babel-preset-expo` plus `['inline-import', { extensions: ['.sql'] }]`, and `metro.config.js` adds `sql` to `resolver.sourceExts`.
 
+  Add `data/migrations/` to `.prettierignore` and to the ESLint `ignores`. Generated files would fail CI's format and lint checks.
+
+  Add `jest.setup.ts` (the `expo-crypto` mock) through `setupFiles` in `jest.config.js`.
+
 - [ ] **Step 2: Write the failing schema tests** in `data/__tests__/schema.test.ts` (`@jest-environment node`). Each test uses `createTestDb()`:
-  - `test('every table has id and updated_at')`: read `PRAGMA table_info` for every table. Each one has `id` and `updated_at`, except `exercise_muscles`, which has `updated_at` and `exercise_id`.
+  - `test('every table has id and updated_at')`: take the table list from the Drizzle schema, not from `sqlite_master`, which also holds `__drizzle_migrations`. Read `PRAGMA table_info` for each. Each one has `id` and `updated_at`, with two exceptions:
+    - `exercise_muscles` has `updated_at` and a composite primary key (`exercise_id`, `muscle`);
+    - `app_settings` has `key` as its primary key, plus `updated_at`.
+  - `test('only one draft session')`: a second `status = 'draft'` session throws, and two finished sessions are fine.
   - `test('exercise name_en is unique ignoring case')`: inserting "Dips" and then "dips" throws.
   - `test('only one client can be Me')`: a second `is_self = 1` insert throws, and a second `is_self = 0` insert works.
   - `test('one weight per client, type and date')`: a duplicate (`client_id`, `type`, `date`) throws.
@@ -150,36 +162,43 @@ These come with the plan PR. The spec is updated in the task named.
   - Indexes:
     - a unique index on `lower(name_en)`;
     - a partial unique index on `clients(is_self) WHERE is_self = 1`;
+    - a partial unique index on `sessions(status) WHERE status = 'draft'` (the one-draft rule, enforced by the database too);
     - a unique index on `measurements(client_id, type, date)`.
   - Foreign keys use `ON DELETE CASCADE` from sessions → session_exercises → sets, and from clients → measurements.
 
   Run `npx drizzle-kit generate`. Then write `createTestDb`, which uses the `drizzle-orm/better-sqlite3/migrator` `migrate` with `migrationsFolder: 'data/migrations'`.
 - [ ] **Step 5: Run the schema tests.** Expected: PASS.
 - [ ] **Step 6: Write the failing `prepare` tests** with fake deps that record their calls:
-  - `test('no pending migration: no snapshot, no migrate')`.
-  - `test('pending v2: snapshots pre-migration-v2.db, then migrates')`.
-  - `test('keeps only the last 3 snapshots')`: existing snapshots v1, v2 and v3, then v4 is taken, so v1 is deleted.
-  - `test('failed migration restores the snapshot and returns ok:false with the message')`.
-- [ ] **Step 7: Implement `prepareDatabase`.** Sort snapshots by version number, not as text (v10 comes after v9).
+  - `test('applied equals target: no snapshot, no migrate')`.
+  - `test('fresh install (applied 0): migrates without a snapshot')`.
+  - `test('applied 1, target 2: snapshots pre-migration-v2.db, then migrates')`.
+  - `test('keeps only the last 3 snapshots')`: existing snapshots v1, v2 and v3, then v4 is taken, so v1 is deleted. Include v9 and v10 to prove the sort is numeric.
+  - `test('a rejected migrate restores the snapshot and resolves ok:false with the message')`.
+- [ ] **Step 7: Implement `prepareDatabase`.** It's async and awaits `migrate()`, so a rejected promise is caught. Sort snapshots by version number, not as text.
 
-  Write `openAppDatabase` for the phone:
-  1. `openDatabaseSync('gym-assist.db')`, then `PRAGMA foreign_keys = ON`.
-  2. `pendingVersion` compares the migration journal with `__drizzle_migrations`.
-  3. `snapshotTo` runs `VACUUM INTO '<documentDirectory>backups/<name>'`.
-  4. `restoreFrom` closes the database, copies the file back with expo-file-system, and reopens it.
-  5. `migrate` uses the `drizzle-orm/expo-sqlite/migrator` `migrate` with `data/migrations/migrations.js`.
+  Write `openAppDatabase` for the phone with the SDK 58 `expo-file-system` API (`Paths`, `Directory`, `File`):
+  1. Open the raw database: `openDatabaseSync('gym-assist.db')`, then `PRAGMA foreign_keys = ON`.
+  2. `appliedVersion`: the row count of `__drizzle_migrations`, or 0 when that table doesn't exist yet (fresh install).
+  3. `targetVersion`: the number of entries in the migration journal.
+  4. `snapshotTo`: create the `backups/` directory if it's missing, delete any existing target file, then run `VACUUM INTO` on the plain file path, not the `file://` URI.
+  5. `restoreFrom`: close the database, delete the `-wal` and `-shm` files, copy the snapshot over the database file (path from `defaultDatabaseDirectory`), and reopen it.
+  6. `migrate`: the `drizzle-orm/expo-sqlite/migrator` `migrate` with `data/migrations/migrations.js`.
 
-  `openAppDatabase` is phone-only glue; the review checks it by reading.
+  `openAppDatabase` is phone-only glue; the review checks it by reading. The owner's phone test in Task 10 exercises it for real.
 - [ ] **Step 8: Write the failing `live` test** (`data/__tests__/live.test.tsx`).
 
   `test('useLive re-runs after notifyDataChanged')`:
   1. Render a component that shows `useLive(db => db.select().from(clients).all().length, [])` inside a `DbProvider` with a test database.
   2. Insert a client, then call `notifyDataChanged()` inside `act`.
   3. The text changes from `0` to `1`.
-- [ ] **Step 9: Implement `data/live.ts`.** A module-level set of listeners: `useLive` subscribes and re-reads on each notify. Add `mutate<T>(db: Db, write: (tx) => T): T`, which runs `write` in a transaction and then calls `notifyDataChanged()`. Every later repository write goes through `mutate`.
+- [ ] **Step 9: Implement `data/live.ts`.**
+  - A module-level version counter and a set of listeners.
+  - `useLive` uses `useSyncExternalStore` with the **version number** as its snapshot. It re-runs `read` when the version changes. Returning a fresh query result as the snapshot would loop forever.
+  - Write `mutate` as in the Interfaces block. Add `test('mutate rolls back and does not notify when write throws')`.
 - [ ] **Step 10: Run `npm run lint && npm run typecheck && npx jest`.** Expected: all pass.
-- [ ] **Step 11: Update the spec** with two lines:
+- [ ] **Step 11: Update the spec:**
   - section 6: `app_settings` (`key`, `value`, `updated_at`): app-wide settings such as the Welcome choice;
+  - section 6: `exercise_muscles` gets `updated_at`, with (`exercise_id`, `muscle`) as its key;
   - section 5: "screens read through `useLive` in `data/live.ts`, which re-runs after every write made through `data/`" replaces the `useLiveQuery` sentence.
 - [ ] **Step 12: Commit.** PR `feat(db): GYM-16 Database schema, migrations and pre-migration snapshot`, labelled `needs-owner` (schema, libraries, spec).
 
@@ -212,13 +231,13 @@ These come with the plan PR. The spec is updated in the task named.
 **Interfaces:**
 - Consumes: `Db`, `mutate`, `useLive`, `useDb`, `getSetting`, `setSetting`, `openAppDatabase` (Task 2).
 - Produces:
-  - `todayLocal(now: Date): string` and `isValidDate(s: string): boolean` (`domain/dates.ts`).
+  - `todayLocal(now: Date): string`, `isValidDate(s: string): boolean`, `formatDayMonth(d: string): string` (`'2026-11-07'` → `'7 Nov'`) and `formatDayMonthYear(d: string): string` (`'2026-10-27'` → `'27 Oct 2026'`), all in `domain/dates.ts`. Tasks 6 and 8 use the formatters.
   - `fullName(first: string, last: string | null): string` and `ageOn(dateOfBirth: string, today: string): number` (`domain/clients.ts`).
   - `type NewClient = { firstName: string; lastName?: string; gender?: Gender; dateOfBirth?: string; heightCm?: number; isSelf?: boolean; weightKg: number; weightDate: string }`.
-  - `createClient(db, c: NewClient): string` inserts the client and its first weight in one `mutate`.
+  - `createClient(db: DbOrTx, c: NewClient): string` inserts the client and its first weight. The screen wraps it in one `mutate`.
   - `listClients(db): ClientListItem[]` returns active clients, "Me" first, then by first name and last name.
   - `getSelf(db): ClientRow | null`.
-  - `countClients(db): number`.
+  - `countClients(db): number` counts active clients, including "Me".
   - `WELCOME_DONE = 'welcome_done'` (settings key).
   - The ui kit's props are free for the implementer to choose; later tasks reuse the components.
 
@@ -229,7 +248,8 @@ These come with the plan PR. The spec is updated in the task named.
   ```
 
 - [ ] **Step 2: Write the failing domain tests:**
-  - `todayLocal(new Date(2026, 10, 11, 23, 30))` is `'2026-11-11'` (local date, not UTC).
+  - `todayLocal(new Date(2026, 10, 11, 23, 30))` is `'2026-11-11'` (local date, not UTC). Set `process.env.TZ = 'Europe/Warsaw'` in this test file's setup, because CI runs in UTC.
+  - `formatDayMonth('2026-11-07')` is `'7 Nov'`, and `formatDayMonthYear('2026-10-27')` is `'27 Oct 2026'`.
   - `isValidDate('2026-02-30')` is `false`.
   - `fullName('Anna', null)` is `'Anna'`, and `fullName('Anna', 'Kowalska')` is `'Anna Kowalska'`.
   - `ageOn('1990-11-12', '2026-11-11')` is `35`, and `ageOn('1990-11-11', '2026-11-11')` is `36`.
@@ -245,17 +265,18 @@ These come with the plan PR. The spec is updated in the task named.
   - `clients`:
     - with no clients, it shows "No clients yet", the "Add client" button and the "Add my profile" row;
     - with "Me", it shows "Me" first, marked "me", and no "Add my profile" row.
+  - `startup error`: when `openAppDatabase` resolves `{ ok: false, error: 'migration v4 failed' }`, the layout shows "The update could not finish" and "Error: migration v4 failed". The `app/error - migration failed` board belongs to GYM-18; note the move from GYM-16 in the PR.
 - [ ] **Step 5: Run the tests.** Expected: FAIL.
 - [ ] **Step 6: Implement.**
   - `ui/theme.ts` holds the Global Constraints tokens. Build the components to match the boards.
   - `app/_layout.tsx`:
-    1. Load the Poppins 400 and 600 fonts.
-    2. Call `openAppDatabase()`. If `ok` is false, render the `app/error - migration failed` content: "The update could not finish", the error text and "Close app".
+    1. Keep the splash screen up (`SplashScreen.preventAutoHideAsync`) until the fonts are loaded and `await openAppDatabase()` resolves.
+    2. If `ok` is false, render the `app/error - migration failed` content: "The update could not finish", the error text and "Close app".
     3. Wrap the app in `DbProvider`.
     4. Redirect to `/welcome` while `welcome_done` is unset.
   - The Home tile counts use `useLive`.
 - [ ] **Step 7: Run `npm run lint && npm run typecheck && npx jest`.** Expected: all pass.
-- [ ] **Step 8: Commit.** PR `feat(clients): GYM-18 Welcome, Home, clients list and profile`, labelled `needs-owner` (new libraries and the `ui/` folder). Update GYM-18's title to "Welcome, Home and clients list", and give GYM-p (Task 6) the profile part.
+- [ ] **Step 8: Commit.** First rename GYM-18 in Jira to "Welcome, Home and clients list", and create the Task 6 ticket so that the profile part moves to it. Then open PR `feat(clients): GYM-18 Welcome, Home and clients list`, labelled `needs-owner` (new libraries and the `ui/` folder). The title must match the renamed ticket.
 
 ### Task 4: Exercise catalogue, seed and library screens (GYM-17)
 
@@ -266,7 +287,7 @@ These come with the plan PR. The spec is updated in the task named.
   - `data/exercises.ts`
   - `app/library/index.tsx`, `app/library/[id].tsx`
 - Modify:
-  - `app/_layout.tsx` (seed after the migrations, before Welcome)
+  - `data/db/open.ts` (seed after the migrations, so it happens before Welcome shows)
   - `app/index.tsx` (the library tile count and navigation)
 - Test:
   - `domain/__tests__/catalogue.test.ts`
@@ -280,7 +301,7 @@ These come with the plan PR. The spec is updated in the task named.
   - `displayName(code: string): string` turns `'KD'` into `'Knee Dominant'` and `'HD'` into `'Hip Dominant'`, and returns anything else unchanged.
   - `muscleName(m: Muscle): { en: string; pl: string }`.
   - `type SeedExercise = { nameEn; namePl; category: Category; trainingType: TrainingType; pattern: Pattern; usesBodyweight: boolean; muscles: Muscle[] }` and `SEED_EXERCISES: SeedExercise[]`.
-  - `seedExercises(db, seed: SeedExercise[]): number` returns the number of rows inserted.
+  - `seedExercises(db: DbOrTx, seed: SeedExercise[]): number` returns the number of rows inserted. Count them with `.returning()`, because `.run()` returns `unknown` on the shared `Db` type.
   - `listExercises(db, f: { pattern?: Pattern; search?: string }): ExerciseListItem[]`.
   - `getExercise(db, id): ExerciseDetail | null`.
   - `countExercises(db): number`.
@@ -297,8 +318,8 @@ These come with the plan PR. The spec is updated in the task named.
   - "Underhand pull-up" and "Overhand pull-up" have `uses_bodyweight = 1`; every other seed exercise has 0.
   - `listExercises({ search: 'przysiad' })` finds "Back squat" and "Bulgarian split squat".
   - `listExercises({ pattern: 'KD' })` returns only KD exercises.
-- [ ] **Step 3: Write `data/seed/exercises.ts`.** Convert the 23 rows of `legacy/data/exercises.csv` by hand or with a one-off script that isn't committed. Category "Knee dominant" becomes `KD`, and "Hip dominant" becomes `HD`.
-- [ ] **Step 4: Implement the catalogue and the repository.** Search is a case-insensitive substring match on `name_en` or `name_pl`, after trimming. Run the tests. Expected: PASS.
+- [ ] **Step 3: Write `data/seed/exercises.ts`.** Convert the 23 rows of `legacy/data/exercises.csv` with a one-off script that isn't committed. That file is git-ignored and exists only in the owner's working copy, which this session uses. The committed TypeScript file is the source of truth from then on. Category "Knee dominant" becomes `KD`, and "Hip dominant" becomes `HD`.
+- [ ] **Step 4: Implement the catalogue and the repository.** Search is a case-insensitive substring match on `name_en` or `name_pl`, after trimming. Fold case in JavaScript (`toLocaleLowerCase('pl')`), not with SQL `lower()`, which folds ASCII only, so "Ż" and "Ł" would not match. Add a test: `search: 'ŁYDKI'` matches an exercise whose Polish name contains "łydki". Run the tests. Expected: PASS.
 - [ ] **Step 5: Write the failing screen test, then build the library screens.**
   - Test: the list shows "Back squat" with the subtitle "Przysiad ze sztangą · Knee Dominant", and a bodyweight exercise shows "BW". Tapping a row opens the detail screen, which shows "Uses body weight".
   - Screens: search, pattern chips and "+ Add exercise" (which goes to the Task 5 route).
@@ -315,7 +336,7 @@ These come with the plan PR. The spec is updated in the task named.
 **Interfaces:**
 - Produces:
   - `type NewExercise = { nameEn; namePl?; category; trainingType; pattern; usesBodyweight; muscles: Muscle[] }`.
-  - `addCustomExercise(db, e: NewExercise): string` throws `DuplicateNameError` (exported).
+  - `addCustomExercise(db: DbOrTx, e: NewExercise): string` throws `DuplicateNameError` (exported). It checks duplicates in JavaScript with locale case folding first. The `lower(name_en)` index is the backstop.
   - The route `/library/add` accepts the query `?returnTo=session&sessionId=<id>`. Task 7 uses it to choose the new exercise.
 
 - [ ] **Step 1: Write the failing tests:**
@@ -326,7 +347,7 @@ These come with the plan PR. The spec is updated in the task named.
 - [ ] **Step 2: Implement.** Run `npm run lint && npm run typecheck && npx jest`. Expected: PASS.
 - [ ] **Step 3: Commit.** PR `feat(exercises): GYM-29 Add exercise page`.
 
-### Task 6: Client profile, edit, archive and body-weight history (new ticket GYM-p under GYM-3)
+### Task 6: Client profile, edit, archive and body-weight history (new ticket, created in Task 3)
 
 **Files:**
 - Create:
@@ -358,12 +379,12 @@ These come with the plan PR. The spec is updated in the task named.
   - `archiveClient(me)` throws.
   - An archived client keeps its weights.
 - [ ] **Step 2: Write the failing screen tests:**
-  - The profile shows the age ("34 years") and the latest weight.
+  - With date of birth `1992-03-15` and today `2026-11-11`, the profile shows "34 years" and the latest weight.
   - "Me" has no Archive button.
   - Adding a weight on an existing date shows "Replace the weight for this date?".
   - Deleting shows "Delete this weight entry?" with "64.2 kg · 27 Oct 2026". On the last entry, Delete is hidden.
 - [ ] **Step 3: Implement.** Profile editing reuses the `clients/add` form, filled in, with "Save" (the GYM-18 default). Run the full checks. Expected: PASS.
-- [ ] **Step 4: Commit.** Create the ticket first: "Client profile, edit, archive and body-weight history" under GYM-3. PR `feat(clients): GYM-p Client profile, edit, archive and body-weight history`.
+- [ ] **Step 4: Commit.** PR `feat(clients): GYM-<n> Client profile, edit, archive and body-weight history`, using the real key of the ticket created in Task 3. Cite PR #21, decision 7, for the client screen without tabs. If the owner hasn't seen that screen yet, label the PR `needs-owner`. Update `docs/design/README.md` so the profile and weight boards map to the new ticket instead of GYM-18.
 
 ### Task 7: Start a session, choose an exercise and "Last time" (GYM-19)
 
@@ -415,7 +436,8 @@ These come with the plan PR. The spec is updated in the task named.
     - a session back-dated to before an older one;
     - a draft that has the exercise is ignored;
     - another client's session is ignored;
-    - no history returns `null`.
+    - no history returns `null`;
+    - the latest finished session has the exercise but **no sets**: it returns `[]`, and the screen shows "First time". So `formatLastTime([])` also returns "First time".
 - [ ] **Step 3: Write the failing screen test.**
   - Choose by pattern: Knee Dominant → Back squat. The exercise screen shows "Back squat" and "Przysiad ze sztangą". With history it shows "Last time: …", and without it "First time".
   - Search "xyz" shows the no-results state.
@@ -445,7 +467,7 @@ These come with the plan PR. The spec is updated in the task named.
   - `nextSetNo(existing: number[]): number`.
   - `percentToKg(oneRmKg: number, percent: number): number`.
   - `addedLoadFromPercent(oneRmKg: number, percent: number, bodyWeightKg: number): number`.
-  - `bodyWeightOn(entries: { date: string; valueKg: number }[], date: string): number | null`.
+  - `bodyWeightOn(entries: { date: string; valueKg: number }[], date: string): { valueKg: number; date: string } | null`. It returns the entry, so the screen can show "Body weight 82 kg (7 Nov)" with `formatDayMonth`.
   - `addSet(db, seId, v: SetValue): string`, `updateSet(db, setId, v: SetValue): void` and `deleteSet(db, setId): void`.
   - `finishExercise(db, seId): void` and `reopenExercise(db, seId): void`.
   - `currentOneRepMax(db, clientId, exerciseId): number | null`, the newest `one_rep_maxes` row by `created_at`.
@@ -461,14 +483,16 @@ These come with the plan PR. The spec is updated in the task named.
     | `''`, `'  '` | `null` |
     | `'22,,5'`, `'-5'`, `'1e3'`, `'abc'` | `'invalid'` |
 
-  - **`parseReps`:** `'8'` → `8`; `'8.5'`, `'-1'` → `'invalid'`; `''` → `null`.
+  - **`parseReps`:** `'8'` → `8`; `'0'` → `0`; `' 8 '` → `8`; `'8.5'`, `'-1'` → `'invalid'`; `''` → `null`.
+  - **`parseWeight(' 22,5 ')`** → `22.5`, because padding is trimmed.
   - **`nextSetNo`:** `[1, 3, 4]` → `5`; `[]` → `1`.
   - **`percentToKg(60, 85)`** → `51`. `percentToKg(101.75, 80)` → `81`.
-  - **`addedLoadFromPercent`:** `(99, 80, 82)` → `-2.8`, rounded to `-3`, clamped to `0`. `(120, 85, 82)` → `20`.
+  - **`addedLoadFromPercent`:** `(99, 80, 82)` → `-2.8`, rounded to `-3`, clamped to `0`. `(120, 85, 82)` → `20`. `(100, 85, 82.4)` → `85 − 82.4 = 2.6` → `3`. That pins the order: subtract the unrounded total, then round.
   - **`bodyWeightOn`:** with entries `[{ '2026-10-01', 80 }, { '2026-11-01', 82 }]`:
-    - `'2026-10-15'` → `80`;
-    - `'2026-09-01'` → `80` (before the first entry, the earliest one is used);
-    - `'2026-11-05'` → `82`.
+    - `'2026-10-15'` → `{ valueKg: 80, date: '2026-10-01' }`;
+    - `'2026-09-01'` → `{ valueKg: 80, date: '2026-10-01' }` (before the first entry, the earliest one is used);
+    - `'2026-11-05'` → `{ valueKg: 82, date: '2026-11-01' }`;
+    - `[]` → `null`.
 - [ ] **Step 2: Write the failing data tests:**
   - Sets 1, 2, 3, 4: delete 2, then `addSet` creates set 5, and the numbers left are 1, 3, 4, 5.
   - `addSet` with `{ weightKg: null, reps: null }` saves NULLs.
@@ -507,7 +531,7 @@ These come with the plan PR. The spec is updated in the task named.
 
 - [ ] **Step 1: Write the failing data tests:**
   - `finishSession` with no exercises throws. With one exercise it sets `status = 'finished'` and `finished_at`, and `getDraft` becomes `null`.
-  - `moveExercise` up on the first exercise, or down on the last, changes nothing. Otherwise positions swap.
+  - `moveExercise` up on the first exercise, or down on the last, changes nothing. Otherwise positions swap. It also works after removing a middle exercise, which leaves a gap in the positions: it swaps with the neighbour, not with `position ± 1`.
   - `removeExercise` deletes its sets.
   - `discardSession` deletes everything.
   - `resumePoint` returns `'exercise'` for an exercise without `finished_at`, and `'session'` when every exercise is finished.
@@ -532,4 +556,6 @@ These come with the plan PR. The spec is updated in the task named.
   - adding a client;
   - the session itself;
   - closing the app mid-session and resuming from the Home bar.
+
+  % mode can't be tried yet: setting a 1RM arrives with GYM-24 in Sprint 2, so the % chip shows "Set a 1RM in Progress to use %". Body-weight exercises can be tried.
 - [ ] **Step 3:** Record the findings as tickets. Comment the sprint summary on GYM-3, then write the Sprint 2 plan.
