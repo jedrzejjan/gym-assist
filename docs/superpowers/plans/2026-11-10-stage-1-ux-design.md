@@ -2,7 +2,7 @@
 
 > **Done 2026-11-11 (epic GYM-2). Superseded by `docs/design/README.md`.** Some details below changed during Stage 1, so trust the README and the spec over this plan:
 > - The board lists are final in the README: 26 boards on `Log session` and 37 on `Other screens`.
-> - The "Session in progress" bar moved from Clients to Home, and the prototype flows start on `home`.
+> - The "Session in progress" bar moved from Clients to Home, and the prototype flows start from Home.
 > - The owner reviewed in Penpot view mode, not from PNG exports, because exports timed out.
 > - Body weight is required for every client, not only the first name.
 
