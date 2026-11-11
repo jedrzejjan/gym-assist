@@ -1,6 +1,6 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
-import { clients, measurements } from './schema';
+import { clients, measurements, sessions } from './schema';
 import { type DbOrTx, newId, nowIso } from './types';
 
 export type Gender = 'female' | 'male' | 'other' | 'prefer_not_to_say';
@@ -18,7 +18,10 @@ export type NewClient = {
 };
 
 export type ClientRow = typeof clients.$inferSelect;
-export type ClientListItem = Pick<ClientRow, 'id' | 'firstName' | 'lastName' | 'isSelf'>;
+export type ClientListItem = Pick<ClientRow, 'id' | 'firstName' | 'lastName' | 'isSelf'> & {
+  /** Date of the last finished session, or null. A draft does not count. */
+  lastSessionDate: string | null;
+};
 
 const clean = (s: string | undefined | null) => {
   const t = s?.trim();
@@ -71,6 +74,12 @@ export function listClients(db: DbOrTx): ClientListItem[] {
       firstName: clients.firstName,
       lastName: clients.lastName,
       isSelf: clients.isSelf,
+      // The outer column is spelled out: Drizzle writes ${clients.id} as a bare "id" here,
+      // which inside the subquery would mean sessions.id.
+      lastSessionDate: sql<string | null>`(
+        SELECT max(${sessions.date}) FROM ${sessions}
+        WHERE ${sessions.clientId} = "clients"."id" AND ${sessions.status} = 'finished'
+      )`,
     })
     .from(clients)
     .where(isNull(clients.archivedAt))

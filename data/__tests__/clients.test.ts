@@ -4,9 +4,14 @@
 import { createClient, countClients, getSelf, listClients, type NewClient } from '../clients';
 import { measurements, clients } from '../schema';
 import { createTestDb } from '../testing/testDb';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
-const anna: NewClient = { firstName: 'Anna', lastName: 'Kowalska', weightKg: 64, weightDate: '2026-11-11' };
+const anna: NewClient = {
+  firstName: 'Anna',
+  lastName: 'Kowalska',
+  weightKg: 64,
+  weightDate: '2026-11-11',
+};
 
 test('createClient saves the first body weight as a weight measurement on weightDate', () => {
   const db = createTestDb();
@@ -37,9 +42,27 @@ test('listClients puts Me first, then by first and last name, and hides archived
   const tomek = createClient(db, { ...anna, firstName: 'Tomasz', lastName: 'Nowak' });
   createClient(db, { ...anna, firstName: 'Anna', lastName: 'Kowalska' });
   createClient(db, { ...anna, firstName: 'Jan', isSelf: true });
-  db.update(clients).set({ archivedAt: '2026-11-11T10:00:00.000Z' }).where(eq(clients.id, tomek)).run();
+  db.update(clients)
+    .set({ archivedAt: '2026-11-11T10:00:00.000Z' })
+    .where(eq(clients.id, tomek))
+    .run();
   expect(listClients(db).map((c) => c.firstName)).toEqual(['Jan', 'Anna', 'Zofia']);
   expect(listClients(db)[0].isSelf).toBe(true);
+});
+
+test('listClients gives each client the date of their last finished session', () => {
+  const db = createTestDb();
+  const id = createClient(db, anna);
+  const add = (sid: string, date: string, status: 'draft' | 'finished') =>
+    db.run(
+      sql`INSERT INTO sessions (id, client_id, date, status, started_at, updated_at)
+          VALUES (${sid}, ${id}, ${date}, ${status}, 'x', 'x')`,
+    );
+  expect(listClients(db)[0].lastSessionDate).toBeNull();
+  add('s1', '2026-11-01', 'finished');
+  add('s2', '2026-11-07', 'finished');
+  add('s3', '2026-11-10', 'draft'); // a draft is not a session yet
+  expect(listClients(db)[0].lastSessionDate).toBe('2026-11-07');
 });
 
 test('createClient refuses a second Me', () => {

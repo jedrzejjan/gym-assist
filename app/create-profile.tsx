@@ -1,0 +1,69 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { createClient } from '../data/clients';
+import { mutate, useDb } from '../data/live';
+import { setSetting, WELCOME_DONE } from '../data/settings';
+import { todayLocal } from '../domain/dates';
+import { parseWeight } from '../domain/sets';
+import { AppBar } from '../ui/AppBar';
+import { Button } from '../ui/Button';
+import { Screen } from '../ui/Screen';
+import { Text } from '../ui/Text';
+import { NumberField, TextField } from '../ui/TextField';
+import { sizes } from '../ui/theme';
+
+/**
+ * Board `app/create my profile`: creates "Me" with a first name and body weight. Reached from
+ * Welcome, or from "Add my profile" on Clients (`?from=clients`), where it returns to the list.
+ */
+export default function CreateProfile() {
+  const db = useDb();
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const fromClients = from === 'clients';
+  const [firstName, setFirstName] = useState('');
+  const [weight, setWeight] = useState('');
+
+  const weightKg = parseWeight(weight);
+  const valid = firstName.trim() !== '' && typeof weightKg === 'number' && weightKg > 0;
+
+  const save = () => {
+    if (!valid) return;
+    mutate(db, (tx) => {
+      createClient(tx, {
+        firstName,
+        isSelf: true,
+        weightKg: weightKg as number,
+        weightDate: todayLocal(new Date()),
+      });
+      setSetting(tx, WELCOME_DONE, '1');
+    });
+    if (fromClients) router.back();
+    else router.replace('/');
+  };
+
+  return (
+    <Screen
+      header={
+        <AppBar
+          title="My profile"
+          back={{ label: fromClients ? '‹ Clients' : '‹ Welcome', onPress: () => router.back() }}
+        />
+      }
+      footer={<Button label="Save and continue" onPress={save} disabled={!valid} />}
+    >
+      <View style={styles.form}>
+        <TextField label="First name *" value={firstName} onChangeText={setFirstName} />
+        <NumberField label="Body weight (kg) *" value={weight} onChangeText={setWeight} />
+        <Text variant="small">
+          Last name, gender, date of birth and height can be added later in Profile.
+        </Text>
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  form: { padding: sizes.gutter, gap: sizes.gutter },
+});
