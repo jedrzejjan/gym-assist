@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-10 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP)
+Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details)
 
 ## 1. Purpose
 
@@ -218,9 +218,9 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | **Pre-migration snapshot** | On start, before running any migration, the app copies the database file to `backups/pre-migration-v<N>.db` inside the app. It keeps the last 3 snapshots. If the migration fails, the app restores the snapshot and shows an error instead of opening a broken database. | Data loss from an app update |
 | **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, setting a 1RM, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements`, `one_rep_maxes`, the profile columns and `exercises.uses_bodyweight`. | Uninstall, lost phone |
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
-| **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning until it is fixed: "Backups are off: choose a folder" (or that the last export failed), with a "Fix" action that opens Settings. | A silent backup failure |
+| **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning until it is fixed: "Backups are off: choose a folder" when no folder is chosen, or "Last backup failed: check the folder" when the last export failed, with a "Fix" action that opens Settings. | A silent backup failure |
 
-**Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). When it finishes, the app shows "Restore done" with the backup's date and how many clients and sessions it brought back. A restore test on a reinstalled app is part of the MVP's "done when" check.
+**Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). When it finishes, the app shows "Restore done" with the backup's date and how many clients and sessions it brought back, and a "Go to clients" button. A restore test on a reinstalled app is part of the MVP's "done when" check.
 
 ### `app/`: screens
 
@@ -297,7 +297,7 @@ exercises ─────────────────────┘
 - Set numbers and every column are kept.
 - For exercises that use body weight, the imported weight is treated as the added load, as in the Python tool.
 - An unknown exercise name stops the import and lists the unknown names. Nothing is imported partly.
-- When it succeeds, the app shows how many sessions it imported into "Me" (for example "52 sessions imported into Me.").
+- When it succeeds, the app shows how many sessions it imported into "Me" (for example "52 sessions imported into Me.", using that profile's current name), and that they are in its History.
 
 The personal CSV files (`legacy/data/*.csv`) are not committed to git. The user picks them from the phone at import time. Tests use a small anonymised sample.
 
