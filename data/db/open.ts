@@ -30,9 +30,15 @@ function openRaw(): SQLiteDatabase {
 }
 
 export async function openAppDatabase(): Promise<{ db: Db; result: PrepareResult }> {
-  let raw = openRaw();
   const backups = new Directory(Paths.document, 'backups');
   const dbFile = (suffix = '') => new File(asUri(defaultDatabaseDirectory), DB_NAME + suffix);
+
+  // A restore killed after the live files were deleted leaves only the staged copy: finish it,
+  // so the next start doesn't look like a fresh install with the data sitting unused.
+  const staged = dbFile('.restoring');
+  if (staged.exists && !dbFile().exists) staged.moveSync(dbFile());
+
+  let raw = openRaw();
 
   const result = await prepareDatabase({
     appliedVersion: () => {

@@ -38,6 +38,7 @@ export function mutate<T>(db: Db, write: (tx: Tx) => T): T {
     const value = write(tx);
     if (value instanceof Promise) {
       // Drizzle's synchronous transaction would commit before the awaited writes run.
+      value.catch(() => {}); // we refuse it; don't leave its rejection unhandled
       throw new Error('mutate needs a synchronous write');
     }
     return value;
