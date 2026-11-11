@@ -39,7 +39,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:ci": "jest --ci --coverage",
-    "doctor": "npx expo-doctor"
+    "doctor": "npx expo-doctor@1.21.6"
   },
   "private": true,
   "engines": {
