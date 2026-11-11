@@ -102,7 +102,8 @@ These come with the plan PR. The spec is updated in the task named.
   - `drizzle.config.ts`
   - `babel.config.js`
   - `metro.config.js`
-  - `jest.setup.ts`
+  - `jest.setup.ts` (the `expo-crypto` mock)
+  - `jest.global-setup.js`: sets `process.env.TZ = 'Europe/Warsaw'`. Jest's `globalSetup` runs before the test workers start, so they inherit the zone. A `setupFiles` module would be too late.
 - Test:
   - `data/__tests__/schema.test.ts`
   - `data/__tests__/prepare.test.ts`
@@ -116,7 +117,7 @@ These come with the plan PR. The spec is updated in the task named.
 - Produces:
   - `type Db = BaseSQLiteDatabase<'sync', unknown, typeof schema>`, and `type Tx` for the transaction handle Drizzle passes to `db.transaction` (`data/types.ts`).
   - `type DbOrTx = Db | Tx`. **Every repository function in later tasks takes `DbOrTx` as its first argument and never calls `mutate` itself.** Nested transactions are savepoints on better-sqlite3 but throw on the phone's expo-sqlite.
-  - `createTestDb(): Db` returns an in-memory better-sqlite3 database. It is migrated from `data/migrations` with foreign keys **off**, then `PRAGMA foreign_keys = ON`.
+  - `createTestDb(): Db` returns an in-memory better-sqlite3 database. Before migrating it runs an explicit `PRAGMA foreign_keys = OFF`, because better-sqlite3 turns foreign keys on by default. It migrates from `data/migrations`, then runs `PRAGMA foreign_keys = ON`.
   - `newId(): string` (`data/types.ts`) uses `expo-crypto` `randomUUID()`. A Jest setup file (`jest.setup.ts`) mocks `expo-crypto` with Node's `crypto.randomUUID`.
   - `nowIso(): string`.
   - Drizzle tables: `clients`, `measurements`, `exercises`, `exerciseMuscles`, `oneRepMaxes`, `sessions`, `sessionExercises`, `sets`, `appSettings`.
@@ -143,13 +144,14 @@ These come with the plan PR. The spec is updated in the task named.
 
   Add `data/migrations/` to `.prettierignore` and to the ESLint `ignores`. Generated files would fail CI's format and lint checks.
 
-  Add `jest.setup.ts` (the `expo-crypto` mock) through `setupFiles` in `jest.config.js`.
+  Add `jest.setup.ts` (the `expo-crypto` mock) through `setupFiles`, and `jest.global-setup.js` (the `TZ`) through `globalSetup`, both in `jest.config.js`.
 
 - [ ] **Step 2: Write the failing schema tests** in `data/__tests__/schema.test.ts` (`@jest-environment node`). Each test uses `createTestDb()`:
   - `test('every table has id and updated_at')`: take the table list from the Drizzle schema, not from `sqlite_master`, which also holds `__drizzle_migrations`. Read `PRAGMA table_info` for each. Each one has `id` and `updated_at`, with two exceptions:
     - `exercise_muscles` has `updated_at` and a composite primary key (`exercise_id`, `muscle`);
     - `app_settings` has `key` as its primary key, plus `updated_at`.
   - `test('only one draft session')`: a second `status = 'draft'` session throws, and two finished sessions are fine.
+  - `test('foreign keys are on after createTestDb')`: `PRAGMA foreign_keys` returns 1, and deleting a client deletes its `measurements` rows.
   - `test('exercise name_en is unique ignoring case')`: inserting "Dips" and then "dips" throws.
   - `test('only one client can be Me')`: a second `is_self = 1` insert throws, and a second `is_self = 0` insert works.
   - `test('one weight per client, type and date')`: a duplicate (`client_id`, `type`, `date`) throws.
@@ -174,7 +176,6 @@ These come with the plan PR. The spec is updated in the task named.
   - `test('applied 1, target 2: snapshots pre-migration-v2.db, then migrates')`.
   - `test('keeps only the last 3 snapshots')`: existing snapshots v1, v2 and v3, then v4 is taken, so v1 is deleted. Include v9 and v10 to prove the sort is numeric.
   - `test('a rejected migrate restores the snapshot and resolves ok:false with the message')`.
-  - In `schema.test.ts`: `test('a table-rebuild migration keeps child rows')`. Create a client with a weight, run a raw `DROP TABLE`-and-recreate of `clients` the way `createTestDb` migrates (foreign keys off), and the `measurements` row is still there.
 - [ ] **Step 7: Implement `prepareDatabase`.** It's async and awaits `migrate()`, so a rejected promise is caught. Sort snapshots by version number, not as text.
 
   Write `openAppDatabase` for the phone with the SDK 58 `expo-file-system` API (`Paths`, `Directory`, `File`):
@@ -186,9 +187,10 @@ These come with the plan PR. The spec is updated in the task named.
      1. Close the database.
      2. Delete the database file and its `-wal` and `-shm` files, because `File.copy` may not overwrite.
      3. Copy the snapshot into place. `defaultDatabaseDirectory` is a plain path, so build the `File` from it explicitly.
-     4. Reopen the database and run `PRAGMA foreign_keys = ON`.
-  6. `migrate`: the `drizzle-orm/expo-sqlite/migrator` `migrate` with `data/migrations/migrations.js`. After it succeeds, run `PRAGMA foreign_key_check`. Any row it reports counts as a failed migration, so the snapshot is restored. Then run `PRAGMA foreign_keys = ON`.
-  7. Seed (Task 4) inside one `db.transaction`, so a crash mid-seed leaves no exercise without its muscles.
+     4. Reopen the database. Foreign keys stay off here; step 8 turns them on.
+  6. `migrate`: the `drizzle-orm/expo-sqlite/migrator` `migrate` with `data/migrations/migrations.js`. After it succeeds, run `PRAGMA foreign_key_check`. Any row it reports counts as a failed migration, so the snapshot is restored. On a fresh install there is no snapshot, so it returns `ok: false` without a restore.
+  7. **Always**, after `prepareDatabase` returns and before building Drizzle, run `PRAGMA foreign_keys = ON`. That covers every start, including the usual one with nothing to migrate, where neither `migrate` nor `restoreFrom` runs. Without it, cascade deletes would silently do nothing on the phone.
+  8. Seed (Task 4) inside one `db.transaction`, so a crash mid-seed leaves no exercise without its muscles.
 
   `openAppDatabase` is phone-only glue; the review checks it by reading. The owner's phone test in Task 10 exercises it for real.
 - [ ] **Step 8: Write the failing `live` test** (`data/__tests__/live.test.tsx`).
@@ -254,7 +256,7 @@ These come with the plan PR. The spec is updated in the task named.
   ```
 
 - [ ] **Step 2: Write the failing domain tests:**
-  - `todayLocal(new Date(2026, 10, 11, 0, 30))` is `'2026-11-11'`. That's 23:30 UTC on 10 November, so a UTC-based implementation (`toISOString`) fails. `jest.setup.ts` sets `process.env.TZ = 'Europe/Warsaw'`, because CI runs in UTC.
+  - `todayLocal(new Date(2026, 10, 11, 0, 30))` is `'2026-11-11'`. That's 23:30 UTC on 10 November, so a UTC-based implementation (`toISOString`) fails. The zone comes from `jest.global-setup.js` (Task 2), because CI runs in UTC. A guard in the same test proves it's in effect: `expect(new Date(2026, 10, 11, 0, 30).getTimezoneOffset()).toBe(-60)`.
   - `formatDayMonth('2026-11-07')` is `'7 Nov'`, and `formatDayMonthYear('2026-10-27')` is `'27 Oct 2026'`.
   - `isValidDate('2026-02-30')` is `false`.
   - `fullName('Anna', null)` is `'Anna'`, and `fullName('Anna', 'Kowalska')` is `'Anna Kowalska'`.
