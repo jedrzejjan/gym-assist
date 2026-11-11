@@ -31,7 +31,7 @@
   - "Replace the weight for this date?", "Delete this weight entry?";
   - "An exercise with this name already exists";
   - "Set a 1RM in Progress to use %";
-  - "Create my profile", "Skip", "No clients yet", "Add client", "Add my profile";
+  - "Create my profile", "Skip for now", "No clients yet", "Add client", "Add my profile";
   - "The update could not finish".
 - **Style (design README):**
   - colours: navy `#0F172A`, accent `#233662`, white, background `#F2F2F2`, slate `#364151`, muted `#94A3B8`, line `#E2E8F0`, on-navy `#CBD5E1`, warning `#FEF3C7`;
@@ -270,7 +270,7 @@ These come with the plan PR. The spec is updated in the task named.
   - `listClients` puts "Me" first and leaves out archived clients.
   - `createClient({isSelf: true})` throws when a "Me" already exists.
 - [ ] **Step 4: Write the failing screen tests.** Each one renders the screen inside `DbProvider` with `createTestDb()`, and mocks expo-router's `router`:
-  - `welcome`: "Skip" sets `welcome_done` and goes to Home. "Create my profile" goes to `create-profile`.
+  - `welcome`: "Skip for now" sets `welcome_done` and goes to Home. "Create my profile" goes to `create-profile`.
   - `create-profile`: "Save" stays disabled until the first name and body weight are filled in. Saving creates "Me" and sets `welcome_done`.
   - `home`: three tiles in the order Clients, Settings, Exercise library. The Clients tile shows "0 clients", then "1 client" after `act(() => mutate(db, tx => createClient(tx, …)))`. The Settings tile is disabled.
   - `clients`:
