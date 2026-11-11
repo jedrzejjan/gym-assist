@@ -55,3 +55,10 @@ test('mutate rolls back and does not notify when write throws', () => {
   expect(db.select().from(clients).all()).toHaveLength(0);
   expect(listener).not.toHaveBeenCalled();
 });
+
+test('mutate refuses an async write, because the transaction would commit before it runs', () => {
+  const db = createTestDb();
+  expect(() => mutate(db, (async () => undefined) as unknown as () => void)).toThrow(
+    'mutate needs a synchronous write',
+  );
+});

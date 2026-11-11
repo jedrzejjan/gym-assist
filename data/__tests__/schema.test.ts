@@ -78,6 +78,15 @@ test('every table has id and updated_at', () => {
   }
 });
 
+test('session_exercises has an index on exercise_id (Last time, progress, recovery)', () => {
+  const db = createTestDb();
+  const indexed = db
+    .all<{ name: string }>(sql`PRAGMA index_list(session_exercises)`)
+    .flatMap((i) => db.all<{ name: string }>(sql.raw(`PRAGMA index_info(${i.name})`)))
+    .map((c) => c.name);
+  expect(indexed).toContain('exercise_id');
+});
+
 test('only one draft session', () => {
   const db = createTestDb();
   addClient(db, 'c1');

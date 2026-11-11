@@ -78,6 +78,7 @@ CREATE TABLE `session_exercises` (
 );
 --> statement-breakpoint
 CREATE INDEX `session_exercises_session` ON `session_exercises` (`session_id`);--> statement-breakpoint
+CREATE INDEX `session_exercises_exercise` ON `session_exercises` (`exercise_id`);--> statement-breakpoint
 CREATE TABLE `sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`client_id` text NOT NULL,

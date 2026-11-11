@@ -55,13 +55,22 @@ export async function openAppDatabase(): Promise<{ db: Db; result: PrepareResult
       if (file.exists) file.delete();
     },
     restoreFrom: (name) => {
+      // Stage the copy first: the live files are only touched once it exists, so a failed copy
+      // (or the app being killed here) leaves the current database as it was.
+      // copySync/moveSync: in SDK 58 copy() and move() are async and would race the reopen.
+      const staged = dbFile('.restoring');
+      if (staged.exists) staged.delete();
+      new File(backups, name).copySync(staged);
       raw.closeSync();
-      for (const suffix of ['', '-wal', '-shm']) {
-        const file = dbFile(suffix);
-        if (file.exists) file.delete(); // copy may not overwrite
+      try {
+        for (const suffix of ['', '-wal', '-shm']) {
+          const file = dbFile(suffix);
+          if (file.exists) file.delete(); // move may not overwrite
+        }
+        staged.moveSync(dbFile());
+      } finally {
+        raw = openRaw(); // never leave the app without a connection
       }
-      new File(backups, name).copy(dbFile());
-      raw = openRaw();
     },
     migrate: async () => {
       await migrate(drizzle(raw, { schema }), migrations);

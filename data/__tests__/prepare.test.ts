@@ -94,3 +94,48 @@ test('fresh install: a rejected migrate resolves ok:false and does not call rest
   await expect(prepareDatabase(deps)).resolves.toEqual({ ok: false, error: 'boom' });
   expect(calls).toEqual(['migrate']);
 });
+
+test('a failing snapshot resolves ok:false and does not migrate', async () => {
+  const { deps, calls } = fakeDeps({ applied: 1, target: 2 });
+  deps.snapshotTo = () => {
+    throw new Error('disk full');
+  };
+  await expect(prepareDatabase(deps)).resolves.toEqual({ ok: false, error: 'disk full' });
+  expect(calls).not.toContain('migrate');
+});
+
+test('a failing restore resolves ok:false with both messages', async () => {
+  const { deps } = fakeDeps({ applied: 1, target: 2, migrateError: new Error('bad migration') });
+  deps.restoreFrom = () => {
+    throw new Error('copy failed');
+  };
+  await expect(prepareDatabase(deps)).resolves.toEqual({
+    ok: false,
+    error: 'bad migration (restore failed: copy failed)',
+  });
+});
+
+test('pruning never deletes files that are not snapshots', async () => {
+  const { deps, snapshots } = fakeDeps({
+    applied: 4,
+    target: 5,
+    snapshots: [
+      'notes.txt',
+      'pre-migration-v2.db',
+      'pre-migration-v3.db',
+      'pre-migration-v4.db',
+      'gym-assist-backup-2026-11-09.json',
+    ],
+  });
+  await prepareDatabase(deps);
+  expect(snapshots).toContain('notes.txt');
+  expect(snapshots).toContain('gym-assist-backup-2026-11-09.json');
+  expect(snapshots).not.toContain('pre-migration-v2.db');
+});
+
+test('a database newer than the app (applied > target) opens without migrating', async () => {
+  // Android refuses to install an older build over a newer one, so this only happens by hand.
+  const { deps, calls } = fakeDeps({ applied: 3, target: 2 });
+  await expect(prepareDatabase(deps)).resolves.toEqual({ ok: true });
+  expect(calls).toEqual([]);
+});

@@ -34,7 +34,14 @@ export function notifyDataChanged(): void {
  * Call it once per action; repository functions take the `tx` and never call mutate themselves.
  */
 export function mutate<T>(db: Db, write: (tx: Tx) => T): T {
-  const result = db.transaction((tx) => write(tx));
+  const result = db.transaction((tx) => {
+    const value = write(tx);
+    if (value instanceof Promise) {
+      // Drizzle's synchronous transaction would commit before the awaited writes run.
+      throw new Error('mutate needs a synchronous write');
+    }
+    return value;
+  });
   notifyDataChanged();
   return result;
 }

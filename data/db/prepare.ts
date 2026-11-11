@@ -32,6 +32,8 @@ function pruneSnapshots(deps: PrepareDeps): void {
   for (const old of versions.slice(KEEP_SNAPSHOTS)) deps.deleteSnapshot(old.name);
 }
 
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
 export async function prepareDatabase(deps: PrepareDeps): Promise<PrepareResult> {
   const applied = deps.appliedVersion();
   const target = deps.targetVersion();
@@ -40,15 +42,26 @@ export async function prepareDatabase(deps: PrepareDeps): Promise<PrepareResult>
   // A fresh install has no data to protect, so there is nothing to snapshot.
   const snapshot = applied > 0 ? snapshotName(target) : null;
   if (snapshot) {
-    deps.snapshotTo(snapshot);
-    pruneSnapshots(deps);
+    try {
+      deps.snapshotTo(snapshot);
+      pruneSnapshots(deps);
+    } catch (e) {
+      // No copy, no migration: the database stays as it was.
+      return { ok: false, error: message(e) };
+    }
   }
 
   try {
     await deps.migrate();
     return { ok: true };
   } catch (e) {
-    if (snapshot) deps.restoreFrom(snapshot);
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    const error = message(e);
+    if (!snapshot) return { ok: false, error };
+    try {
+      deps.restoreFrom(snapshot);
+      return { ok: false, error };
+    } catch (restoreError) {
+      return { ok: false, error: `${error} (restore failed: ${message(restoreError)})` };
+    }
   }
 }

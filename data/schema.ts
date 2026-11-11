@@ -64,7 +64,9 @@ export const exercises = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (t) => [
-    // "Dips" and "dips" are the same exercise (the CSV import matches by name).
+    // "Dips" and "dips" are the same exercise (the CSV import matches by name). SQLite's
+    // lower() folds ASCII only and keeps spaces, so data/exercises.ts trims names and checks
+    // duplicates in JS too; this index is the backstop.
     uniqueIndex('exercises_name_en_nocase').on(sql`lower(${t.nameEn})`),
   ],
 );
@@ -135,7 +137,11 @@ export const sessionExercises = sqliteTable(
     finishedAt: text('finished_at'),
     updatedAt: text('updated_at').notNull(),
   },
-  (t) => [index('session_exercises_session').on(t.sessionId)],
+  (t) => [
+    index('session_exercises_session').on(t.sessionId),
+    // "Last time", progress and recovery look sessions up by exercise.
+    index('session_exercises_exercise').on(t.exerciseId),
+  ],
 );
 
 export const sets = sqliteTable(

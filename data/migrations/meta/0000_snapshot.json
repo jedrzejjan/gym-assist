@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5d5a4626-927a-4a54-a2d0-f2534b155f54",
+  "id": "3b12aadb-336d-4cd3-b4b4-bc86da1756d1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "app_settings": {
@@ -504,6 +504,13 @@
           "name": "session_exercises_session",
           "columns": [
             "session_id"
+          ],
+          "isUnique": false
+        },
+        "session_exercises_exercise": {
+          "name": "session_exercises_exercise",
+          "columns": [
+            "exercise_id"
           ],
           "isUnique": false
         }
