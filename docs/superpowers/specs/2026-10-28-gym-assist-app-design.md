@@ -218,9 +218,9 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | **Pre-migration snapshot** | On start, before running any migration, the app copies the database file to `backups/pre-migration-v<N>.db` inside the app. It keeps the last 3 snapshots. If the migration fails, the app restores the snapshot and shows an error instead of opening a broken database. | Data loss from an app update |
 | **Automatic export after every change to finished data** | After "Finish session", and after any other write except a change to a draft (for example editing or deleting a finished session, adding, editing or archiving a client, a weight entry, setting a 1RM, or a CSV import), the app writes a full JSON export to a folder the trainer picks once, through Android's folder picker. The folder can be a Google Drive folder. The file name is `gym-assist-backup-YYYY-MM-DD.json`, and the app keeps the last 10 files. Several changes on the same day overwrite that day's file. The export covers every table, including `measurements`, `one_rep_maxes`, the profile columns and `exercises.uses_bodyweight`. | Uninstall, lost phone |
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
-| **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning until it is fixed. | A silent backup failure |
+| **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning until it is fixed: "Backups are off: choose a folder" (or that the last export failed), with a "Fix" action that opens Settings. | A silent backup failure |
 
-**Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). A restore test on a reinstalled app is part of the MVP's "done when" check.
+**Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). When it finishes, the app shows "Restore done" with the backup's date and how many clients and sessions it brought back. A restore test on a reinstalled app is part of the MVP's "done when" check.
 
 ### `app/`: screens
 
@@ -236,7 +236,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
   - Editing and deleting custom exercises are not in the MVP (backlog item 3).
 - **Client:** that client's profile, history, recovery and progress.
   - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set. **Body**: the body weight history. More measurements join this category with backlog item 14.
-  - **Profile:** first name (required), body weight (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm. Body weight (kg) is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted, except that the last remaining entry can only be edited, because every client must have a body weight. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?".
+  - **Profile:** first name (required), body weight (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm. Body weight (kg) is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted, except that the last remaining entry can only be edited, because every client must have a body weight. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?". Deleting an entry asks "Delete this weight entry?" and shows its weight and date.
 - **Session:** the flow from section 4.
 - **Settings:** CSV import (optional, for the trainer's own history), JSON export, backup folder, restore from backup.
 
@@ -297,6 +297,7 @@ exercises ─────────────────────┘
 - Set numbers and every column are kept.
 - For exercises that use body weight, the imported weight is treated as the added load, as in the Python tool.
 - An unknown exercise name stops the import and lists the unknown names. Nothing is imported partly.
+- When it succeeds, the app shows how many sessions it imported into "Me" (for example "52 sessions imported into Me.").
 
 The personal CSV files (`legacy/data/*.csv`) are not committed to git. The user picks them from the phone at import time. Tests use a small anonymised sample.
 
