@@ -176,6 +176,7 @@ These come with the plan PR. The spec is updated in the task named.
   - `test('applied 1, target 2: snapshots pre-migration-v2.db, then migrates')`.
   - `test('keeps only the last 3 snapshots')`: existing snapshots v1, v2 and v3, then v4 is taken, so v1 is deleted. Include v9 and v10 to prove the sort is numeric.
   - `test('a rejected migrate restores the snapshot and resolves ok:false with the message')`.
+  - `test('fresh install: a rejected migrate resolves ok:false and does not call restoreFrom')`.
 - [ ] **Step 7: Implement `prepareDatabase`.** It's async and awaits `migrate()`, so a rejected promise is caught. Sort snapshots by version number, not as text.
 
   Write `openAppDatabase` for the phone with the SDK 58 `expo-file-system` API (`Paths`, `Directory`, `File`):
@@ -187,7 +188,7 @@ These come with the plan PR. The spec is updated in the task named.
      1. Close the database.
      2. Delete the database file and its `-wal` and `-shm` files, because `File.copy` may not overwrite.
      3. Copy the snapshot into place. `defaultDatabaseDirectory` is a plain path, so build the `File` from it explicitly.
-     4. Reopen the database. Foreign keys stay off here; step 8 turns them on.
+     4. Reopen the database. Foreign keys stay off here; item 7 turns them on.
   6. `migrate`: the `drizzle-orm/expo-sqlite/migrator` `migrate` with `data/migrations/migrations.js`. After it succeeds, run `PRAGMA foreign_key_check`. Any row it reports counts as a failed migration, so the snapshot is restored. On a fresh install there is no snapshot, so it returns `ok: false` without a restore.
   7. **Always**, after `prepareDatabase` returns and before building Drizzle, run `PRAGMA foreign_keys = ON`. That covers every start, including the usual one with nothing to migrate, where neither `migrate` nor `restoreFrom` runs. Without it, cascade deletes would silently do nothing on the phone.
   8. Seed (Task 4) inside one `db.transaction`, so a crash mid-seed leaves no exercise without its muscles.
@@ -199,10 +200,12 @@ These come with the plan PR. The spec is updated in the task named.
   1. Render a component that shows `useLive(db => db.select().from(clients).all().length, [])` inside a `DbProvider` with a test database.
   2. Insert a client, then call `notifyDataChanged()` inside `act`.
   3. The text changes from `0` to `1`.
+
+  `test('mutate rolls back and does not notify when write throws')`: a `write` that inserts a client and then throws leaves 0 clients, and no listener is called.
 - [ ] **Step 9: Implement `data/live.ts`.**
   - A module-level version counter and a set of listeners.
   - `useLive` uses `useSyncExternalStore` with the **version number** as its snapshot. It re-runs `read` when the version changes. Returning a fresh query result as the snapshot would loop forever.
-  - Write `mutate` as in the Interfaces block. Add `test('mutate rolls back and does not notify when write throws')`.
+  - Write `mutate` as in the Interfaces block.
 - [ ] **Step 10: Run `npm run lint && npm run typecheck && npx jest`.** Expected: all pass.
 - [ ] **Step 11: Update the spec:**
   - section 6: `app_settings` (`key`, `value`, `updated_at`): app-wide settings such as the Welcome choice;
