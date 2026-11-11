@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up)
+Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`)
 
 ## 1. Purpose
 
@@ -241,7 +241,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 - **Session:** the flow from section 4.
 - **Settings:** CSV import (optional, for the trainer's own history), JSON export, backup folder, restore from backup.
 
-There is no global state library. The database is the source of truth, and screens read from it through reactive queries (Drizzle's `useLiveQuery`). A screen updates by itself after any write, so it never shows stale data. The app has no network code.
+There is no global state library. The database is the source of truth, and screens read from it through `useLive` in `data/live.ts`, which re-runs after every write made through `data/` (`mutate`). A screen updates by itself after any write, so it never shows stale data. (Drizzle's own `useLiveQuery` only runs on the phone's database, so it could not be tested in Jest.) The app has no network code.
 
 ### Language
 
@@ -271,12 +271,13 @@ exercises ─────────────────────┘
 | `measurements` | `id`, `client_id`, `date`, `type`, `value`, `created_at`, `updated_at` |
 | `exercises` | `id`, `name_en`, `name_pl`, `category`, `training_type`, `pattern`, `uses_bodyweight`, `is_custom`, `created_at`, `updated_at` |
 | `one_rep_maxes` | `id`, `client_id`, `exercise_id`, `value_kg`, `source` (`estimated` or `manual`), `created_at`, `updated_at` |
-| `exercise_muscles` | `exercise_id`, `muscle` |
+| `exercise_muscles` | `exercise_id`, `muscle`, `updated_at` (key: `exercise_id` + `muscle`) |
 | `sessions` | `id`, `client_id`, `date`, `status` (`draft` or `finished`), `started_at`, `finished_at`, `updated_at` |
 | `session_exercises` | `id`, `session_id`, `exercise_id`, `position`, `finished_at`, `updated_at` |
 | `sets` | `id`, `session_exercise_id`, `set_no`, `weight_kg`, `reps`, `side`, `height_cm`, `speed_kmh`, `minutes`, `note`, `created_at`, `updated_at` |
+| `app_settings` | `key`, `value`, `updated_at`: app-wide settings, such as whether Welcome was answered (later the backup folder and the last export status) |
 
-- **IDs are UUIDs,** so a future server can sync records from several devices without ID collisions.
+- **IDs are UUIDs,** so a future server can sync records from several devices without ID collisions. Two tables have a natural key instead: `exercise_muscles` (`exercise_id` + `muscle`) and `app_settings` (`key`).
 - **Every table has timestamps.** A future sync uses `updated_at`.
 - **Nullable columns:** `weight_kg` and `reps` can be NULL. `side`, `height_cm`, `speed_kmh`, `minutes` and `note` are nullable and have no UI in the MVP. They keep the imported history complete. Backlog items 4 and 5 add their UI.
 - **Archiving:** archiving a client hides the client and keeps their history.
