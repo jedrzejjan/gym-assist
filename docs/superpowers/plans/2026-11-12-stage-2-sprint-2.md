@@ -478,6 +478,6 @@ The owner runs **build-android → preview** and installs the APK over the Sprin
   - Compare the Recovery tab with `python legacy/gym_tracker.py status` on the same day: the days and the status for each row. The wording differs ("48-72 h" with a hyphen).
   - Set a 1RM with Estimate, then log a set in %.
   - Edit and delete a finished session.
-- [ ] **Step 2: Restore test.** Before uninstalling, note the newest backup file's name and its clients and sessions. Uninstall, reinstall, choose the same folder (no file must appear), restore from the noted file, and check the counts.
+- [ ] **Step 2: Restore test.** Before uninstalling, note the newest backup file's name and its clients and sessions. Uninstall, reinstall, choose the same folder (no file must appear), restore from the noted file, and check the counts. Restore before making any other change: a weight entry or a new client made first would be backed up over today's file.
 - [ ] **Step 3: Real use.** Three real sessions logged with the app (the spec's "done when").
 - [ ] **Step 4: Record the outcome.** Write the findings as Jira tickets, the sprint summary on GYM-3, and close GYM-3 when every "done when" item holds.
