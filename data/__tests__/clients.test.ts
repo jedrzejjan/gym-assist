@@ -1,7 +1,17 @@
 /**
  * @jest-environment node
  */
-import { createClient, countClients, getSelf, listClients, type NewClient } from '../clients';
+import {
+  archiveClient,
+  CannotArchiveSelfError,
+  countClients,
+  createClient,
+  getClient,
+  getSelf,
+  listClients,
+  type NewClient,
+  updateClient,
+} from '../clients';
 import { measurements, clients } from '../schema';
 import { createTestDb } from '../testing/testDb';
 import { eq, sql } from 'drizzle-orm';
@@ -89,4 +99,29 @@ test('getSelf returns Me or null, and countClients counts active clients includi
   createClient(db, { ...anna, firstName: 'Jan' });
   expect(getSelf(db)?.firstName).toBe('Anna');
   expect(countClients(db)).toBe(2);
+});
+
+test('updateClient changes the profile and keeps the first name required', () => {
+  const db = createTestDb();
+  const id = createClient(db, anna);
+  updateClient(db, id, { firstName: ' Ania ', lastName: '', gender: 'female', heightCm: 168 });
+  expect(getClient(db, id)).toMatchObject({
+    firstName: 'Ania',
+    lastName: null,
+    gender: 'female',
+    heightCm: 168,
+  });
+  expect(() => updateClient(db, id, { firstName: '  ' })).toThrow();
+  expect(() => updateClient(db, id, { heightCm: 0 })).toThrow();
+});
+
+test('archiving hides a client and keeps their weights; Me cannot be archived', () => {
+  const db = createTestDb();
+  const me = createClient(db, { ...anna, firstName: 'Jan', isSelf: true });
+  const id = createClient(db, anna);
+  archiveClient(db, id);
+  expect(listClients(db).map((c) => c.id)).toEqual([me]);
+  expect(db.select().from(measurements).where(eq(measurements.clientId, id)).all()).toHaveLength(1);
+  expect(() => archiveClient(db, me)).toThrow(CannotArchiveSelfError);
+  expect(getClient(db, 'missing')).toBeNull();
 });
