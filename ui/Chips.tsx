@@ -38,7 +38,12 @@ export function Chips<T extends string>({
     );
   });
   return (
-    <View style={styles.wrap} accessibilityRole="radiogroup" accessibilityLabel={label}>
+    <View
+      style={styles.wrap}
+      accessibilityRole="radiogroup"
+      accessibilityLabel={label}
+      testID={label ? `chips:${label}` : undefined}
+    >
       {label ? <Text variant="label">{label}</Text> : null}
       {scroll ? (
         <ScrollView

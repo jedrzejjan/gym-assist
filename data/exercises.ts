@@ -1,6 +1,12 @@
 import { asc, count, eq, sql } from 'drizzle-orm';
 
-import { type Muscle, type Pattern, PATTERNS } from '../domain/catalogue';
+import {
+  type Category,
+  type Muscle,
+  type Pattern,
+  PATTERNS,
+  type TrainingType,
+} from '../domain/catalogue';
 import { exerciseMuscles, exercises } from './schema';
 import type { SeedExercise } from './seed/exercises';
 import { type DbOrTx, newId, nowIso } from './types';
@@ -130,4 +136,69 @@ export function countByPattern(db: DbOrTx): Record<Pattern, number> {
     if (r.pattern in counts) counts[r.pattern as Pattern] = r.n;
   }
   return counts;
+}
+
+export type NewExercise = {
+  nameEn: string;
+  namePl?: string;
+  category: Category;
+  trainingType: TrainingType;
+  pattern: Pattern;
+  usesBodyweight: boolean;
+  muscles: Muscle[];
+};
+
+/** "An exercise with this name already exists" (spec section 5, Add exercise). */
+export class DuplicateNameError extends Error {
+  constructor(name: string) {
+    super(`An exercise named "${name}" already exists`);
+    this.name = 'DuplicateNameError';
+  }
+}
+
+/**
+ * Saves a custom exercise (`is_custom = 1`) with its muscles. The English name is trimmed and must
+ * be unique ignoring case; the check is in JS (Polish letters fold too), the index is the backstop.
+ * Call it inside one `mutate` from the screen.
+ */
+export function addCustomExercise(db: DbOrTx, e: NewExercise): string {
+  const nameEn = e.nameEn.trim();
+  if (!nameEn) throw new Error('An exercise needs an English name');
+  const key = foldName(nameEn);
+  const taken = db
+    .select({ nameEn: exercises.nameEn })
+    .from(exercises)
+    .all()
+    .some((x) => foldName(x.nameEn) === key);
+  if (taken) throw new DuplicateNameError(nameEn);
+  const id = newId();
+  const now = nowIso();
+  try {
+    insertCustom(db, id, nameEn, e, now);
+  } catch (err) {
+    // The lower(name_en) index is the backstop: report it the same way as the JS check.
+    if (String(err).includes('UNIQUE')) throw new DuplicateNameError(nameEn);
+    throw err;
+  }
+  for (const muscle of e.muscles) {
+    db.insert(exerciseMuscles).values({ exerciseId: id, muscle, updatedAt: now }).run();
+  }
+  return id;
+}
+
+function insertCustom(db: DbOrTx, id: string, nameEn: string, e: NewExercise, now: string) {
+  db.insert(exercises)
+    .values({
+      id,
+      nameEn,
+      namePl: e.namePl?.trim() || null,
+      category: e.category,
+      trainingType: e.trainingType,
+      pattern: e.pattern,
+      usesBodyweight: e.usesBodyweight,
+      isCustom: true,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
 }
