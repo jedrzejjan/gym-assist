@@ -173,6 +173,20 @@ export function addCustomExercise(db: DbOrTx, e: NewExercise): string {
   if (taken) throw new DuplicateNameError(nameEn);
   const id = newId();
   const now = nowIso();
+  try {
+    insertCustom(db, id, nameEn, e, now);
+  } catch (err) {
+    // The lower(name_en) index is the backstop: report it the same way as the JS check.
+    if (String(err).includes('UNIQUE')) throw new DuplicateNameError(nameEn);
+    throw err;
+  }
+  for (const muscle of e.muscles) {
+    db.insert(exerciseMuscles).values({ exerciseId: id, muscle, updatedAt: now }).run();
+  }
+  return id;
+}
+
+function insertCustom(db: DbOrTx, id: string, nameEn: string, e: NewExercise, now: string) {
   db.insert(exercises)
     .values({
       id,
@@ -187,8 +201,4 @@ export function addCustomExercise(db: DbOrTx, e: NewExercise): string {
       updatedAt: now,
     })
     .run();
-  for (const muscle of e.muscles) {
-    db.insert(exerciseMuscles).values({ exerciseId: id, muscle, updatedAt: now }).run();
-  }
-  return id;
 }

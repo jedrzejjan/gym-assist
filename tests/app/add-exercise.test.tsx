@@ -77,3 +77,22 @@ test('the required note from the design is shown', async () => {
   await renderWithDb(<AddExercise />);
   expect(screen.getByText('* required · the English name must be unique')).toBeTruthy();
 });
+
+test('a double tap on Save exercise saves once', async () => {
+  const { db } = await renderWithDb(<AddExercise />);
+  await fillRequired();
+  await fireEvent.press(save());
+  await fireEvent.press(save());
+  expect(countExercises(db)).toBe(1);
+});
+
+test('the duplicate message clears as soon as the name changes', async () => {
+  const db = createTestDb();
+  seedExercises(db, SEED_EXERCISES);
+  await renderWithDb(<AddExercise />, db);
+  await fillRequired('Deadlift');
+  await fireEvent.press(save());
+  expect(screen.getByText('An exercise with this name already exists')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('English name *'), 'Deadlift 2');
+  expect(screen.queryByText('An exercise with this name already exists')).toBeNull();
+});

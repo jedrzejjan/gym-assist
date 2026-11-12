@@ -94,7 +94,9 @@ export default function AddExercise() {
           }}
         />
         {duplicate ? (
-          <Text style={styles.error}>An exercise with this name already exists</Text>
+          <Text style={styles.error} accessibilityRole="alert" accessibilityLiveRegion="polite">
+            An exercise with this name already exists
+          </Text>
         ) : null}
         <TextField label="Polish name" value={namePl} onChangeText={setNamePl} />
         <Chips

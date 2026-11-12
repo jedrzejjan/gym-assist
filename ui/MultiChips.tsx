@@ -14,7 +14,7 @@ type Props<T extends string> = {
 /** Chips where several can be selected (e.g. muscles). Each chip is a checkbox. */
 export function MultiChips<T extends string>({ label, options, value, onChange }: Props<T>) {
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} accessibilityLabel={label} testID={`chips:${label}`}>
       <Text variant="label">{label}</Text>
       <View style={styles.row}>
         {options.map((o) => {
