@@ -30,14 +30,16 @@ export default function SessionPage() {
         />
       }
     >
-      {items.map((e) => (
-        <ListRow
-          key={e.id}
-          title={e.nameEn}
-          subtitle={e.namePl ?? undefined}
-          onPress={() => router.push(`/session/${id}/exercise/${e.id}`)}
-        />
-      ))}
+      <View testID="session-exercises">
+        {items.map((e) => (
+          <ListRow
+            key={e.id}
+            title={e.nameEn}
+            subtitle={e.namePl ?? undefined}
+            onPress={() => router.push(`/session/${id}/exercise/${e.id}`)}
+          />
+        ))}
+      </View>
       <View style={styles.choose}>
         <Text variant="small">
           {items.length === 0 ? 'No exercises yet. Add the first one:' : 'Add an exercise:'}

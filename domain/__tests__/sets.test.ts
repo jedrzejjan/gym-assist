@@ -1,4 +1,4 @@
-import { formatKg, formatLastTime, formatSet, parseWeight } from '../sets';
+import { formatKg, formatLastTime, formatSet, nextSetNo, parseReps, parseWeight } from '../sets';
 
 test('parseWeight accepts a comma or a dot', () => {
   expect(parseWeight('22,5')).toBe(22.5);
@@ -59,4 +59,17 @@ test('formatLastTime lists the sets, or says "First time"', () => {
   ).toBe('Last time: BW + 10 kg × 6, BW × 8');
   expect(formatLastTime(null, false)).toBe('First time');
   expect(formatLastTime([], false)).toBe('First time');
+});
+
+test('parseReps takes a whole number of at least 1', () => {
+  expect(parseReps('8')).toBe(8);
+  expect(parseReps(' 8 ')).toBe(8);
+  expect(parseReps('')).toBeNull();
+  expect(parseReps('  ')).toBeNull();
+  for (const bad of ['0', '8.5', '8,5', '-1', 'abc', '1e2']) expect(parseReps(bad)).toBe('invalid');
+});
+
+test('nextSetNo continues after the highest number, even after a delete', () => {
+  expect(nextSetNo([1, 3, 4])).toBe(5);
+  expect(nextSetNo([])).toBe(1);
 });

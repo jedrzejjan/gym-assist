@@ -3,8 +3,18 @@
  */
 import { createClient } from '../clients';
 import { listExercises, seedExercises } from '../exercises';
+import { oneRepMaxes } from '../schema';
 import {
   addExerciseToSession,
+  addSet,
+  currentOneRepMax,
+  deleteSet,
+  exerciseScreenData,
+  finishExercise,
+  getSessionExercise,
+  listSets,
+  reopenExercise,
+  updateSet,
   DraftExistsError,
   getDraft,
   getSession,
@@ -155,4 +165,92 @@ test('lastTimeSets keeps blank values', () => {
     { weightKg: null, reps: 10 },
     { weightKg: 60, reps: null },
   ]);
+});
+
+describe('sets', () => {
+  function withExercise() {
+    const s = setup();
+    const sid = startSession(s.db, s.anna, '2026-11-10');
+    const seId = addExerciseToSession(s.db, sid, s.bench);
+    return { ...s, sid, seId };
+  }
+  const numbers = (db: Parameters<typeof listSets>[0], seId: string) =>
+    listSets(db, seId).map((x) => x.setNo);
+
+  test('numbers continue after a delete: 1, 3, 4 → 5', () => {
+    const { db, seId } = withExercise();
+    const ids = [1, 2, 3, 4].map(() => addSet(db, seId, { weightKg: 60, reps: 8 }));
+    deleteSet(db, ids[1]);
+    addSet(db, seId, { weightKg: 62.5, reps: 6 });
+    expect(numbers(db, seId)).toEqual([1, 3, 4, 5]);
+  });
+
+  test('blank weight and reps are saved as NULL', () => {
+    const { db, seId } = withExercise();
+    addSet(db, seId, { weightKg: null, reps: null });
+    expect(listSets(db, seId)[0]).toMatchObject({ setNo: 1, weightKg: null, reps: null });
+  });
+
+  test('updateSet changes the values and keeps the number', () => {
+    const { db, seId } = withExercise();
+    const id = addSet(db, seId, { weightKg: 60, reps: 8 });
+    updateSet(db, id, { weightKg: 60, reps: 10 });
+    expect(listSets(db, seId)).toMatchObject([{ id, setNo: 1, weightKg: 60, reps: 10 }]);
+  });
+
+  test('invalid values are refused', () => {
+    const { db, seId } = withExercise();
+    expect(() => addSet(db, seId, { weightKg: -5, reps: 8 })).toThrow();
+    expect(() => addSet(db, seId, { weightKg: 60, reps: 0 })).toThrow();
+    expect(() => addSet(db, seId, { weightKg: 60, reps: 8.5 })).toThrow();
+  });
+
+  test('finishing an exercise, and a new set reopens it', () => {
+    const { db, seId } = withExercise();
+    finishExercise(db, seId);
+    expect(getSessionExercise(db, seId)!.finishedAt).not.toBeNull();
+    addSet(db, seId, { weightKg: 60, reps: 8 });
+    expect(getSessionExercise(db, seId)!.finishedAt).toBeNull();
+    finishExercise(db, seId);
+    reopenExercise(db, seId);
+    expect(getSessionExercise(db, seId)!.finishedAt).toBeNull();
+  });
+
+  test('currentOneRepMax is the newest row by created_at', () => {
+    const { db, anna, bench } = withExercise();
+    expect(currentOneRepMax(db, anna, bench)).toBeNull();
+    const row = (id: string, valueKg: number, createdAt: string, source: 'manual' | 'estimated') =>
+      db
+        .insert(oneRepMaxes)
+        .values({
+          id,
+          clientId: anna,
+          exerciseId: bench,
+          valueKg,
+          source,
+          createdAt,
+          updatedAt: createdAt,
+        })
+        .run();
+    row('a', 55, '2026-09-01T10:00:00.000Z', 'estimated');
+    row('b', 60, '2026-10-20T10:00:00.000Z', 'manual');
+    expect(currentOneRepMax(db, anna, bench)).toEqual({
+      valueKg: 60,
+      source: 'manual',
+      createdAt: '2026-10-20T10:00:00.000Z',
+    });
+  });
+
+  test('exerciseScreenData gathers sets, 1RM, body weight on the session date and last time', () => {
+    const { db, anna, bench, seId } = withExercise();
+    addSet(db, seId, { weightKg: 60, reps: 8 });
+    const d = exerciseScreenData(db, seId)!;
+    expect(d.exercise).toMatchObject({ id: bench, nameEn: 'Bench press', usesBodyweight: false });
+    expect(d.sets.map((x) => [x.setNo, x.weightKg, x.reps])).toEqual([[1, 60, 8]]);
+    expect(d.oneRepMax).toBeNull();
+    expect(d.bodyWeight).toEqual({ valueKg: 63.5, date: '2026-10-01' });
+    expect(d.lastTime).toBeNull();
+    expect(d.clientId).toBe(anna);
+    expect(d.finished).toBe(false);
+  });
 });
