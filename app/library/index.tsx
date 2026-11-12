@@ -6,6 +6,7 @@ import { listExercises } from '../../data/exercises';
 import { useLive } from '../../data/live';
 import { displayName, exerciseSubtitle, type Pattern, PATTERNS } from '../../domain/catalogue';
 import { AppBar } from '../../ui/AppBar';
+import { Button } from '../../ui/Button';
 import { Chips } from '../../ui/Chips';
 import { ListRow } from '../../ui/ListRow';
 import { Screen } from '../../ui/Screen';
@@ -34,6 +35,7 @@ export default function Library() {
       header={
         <AppBar title="Exercise library" back={{ label: '‹ Home', onPress: () => router.back() }} />
       }
+      footer={<Button label="+ Add exercise" onPress={() => router.push('/library/add')} />}
     >
       <View style={styles.controls}>
         <SearchField label="Search exercises" value={search} onChangeText={setSearch} />

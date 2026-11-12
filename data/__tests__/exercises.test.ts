@@ -4,7 +4,9 @@
 import { sql } from 'drizzle-orm';
 
 import {
+  addCustomExercise,
   countByPattern,
+  DuplicateNameError,
   countExercises,
   getExercise,
   listExercises,
@@ -100,4 +102,43 @@ test('countByPattern counts every pattern, with 0 for empty ones', () => {
   expect(counts.Carries).toBe(0);
   expect(counts.HD).toBe(3);
   expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(23);
+});
+
+const dips = {
+  nameEn: '  dips ',
+  namePl: 'Pompki na poręczach',
+  category: 'Push' as const,
+  trainingType: 'Strength' as const,
+  pattern: 'Push vertical' as const,
+  usesBodyweight: true,
+  muscles: ['chest' as const, 'triceps' as const],
+};
+
+test('addCustomExercise saves a trimmed, custom exercise with its muscles', () => {
+  const db = createTestDb();
+  const id = addCustomExercise(db, dips);
+  expect(getExercise(db, id)).toMatchObject({
+    nameEn: 'dips',
+    namePl: 'Pompki na poręczach',
+    isCustom: true,
+    usesBodyweight: true,
+    muscles: ['chest', 'triceps'],
+  });
+});
+
+test('addCustomExercise refuses a name that already exists, ignoring case and spaces', () => {
+  const db = createTestDb();
+  seedExercises(db, SEED_EXERCISES);
+  addCustomExercise(db, dips);
+  expect(() => addCustomExercise(db, { ...dips, nameEn: 'Dips' })).toThrow(DuplicateNameError);
+  expect(() => addCustomExercise(db, { ...dips, nameEn: 'bench PRESS' })).toThrow(
+    DuplicateNameError,
+  );
+});
+
+test('addCustomExercise refuses a blank English name, and stores a blank Polish name as none', () => {
+  const db = createTestDb();
+  expect(() => addCustomExercise(db, { ...dips, nameEn: '   ' })).toThrow();
+  const id = addCustomExercise(db, { ...dips, namePl: '  ' });
+  expect(getExercise(db, id)!.namePl).toBeNull();
 });

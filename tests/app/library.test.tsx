@@ -102,3 +102,9 @@ test('a pattern with no exercises says so', async () => {
   await fireEvent.press(screen.getByRole('radio', { name: 'Carries' }));
   expect(screen.getByText('No exercises for this pattern yet.')).toBeTruthy();
 });
+
+test('"+ Add exercise" opens the Add exercise page', async () => {
+  await renderWithDb(<Library />, seededDb());
+  await fireEvent.press(screen.getByRole('button', { name: '+ Add exercise' }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/library/add');
+});
