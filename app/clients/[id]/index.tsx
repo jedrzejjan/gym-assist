@@ -21,6 +21,7 @@ import { Dialog } from '../../../ui/Dialog';
 import { Screen } from '../../../ui/Screen';
 import { Text } from '../../../ui/Text';
 import { colors, fonts, sizes } from '../../../ui/theme';
+import { useTapGuard } from '../../../ui/useTapGuard';
 
 /**
  * Boards `client/profile` and `client/profile - me`, with "Start session" from
@@ -40,6 +41,7 @@ export default function ClientScreen() {
     return info ? { ...info, date: getSession(d, info.sessionId)!.date } : null;
   }, []);
   const [draftPrompt, setDraftPrompt] = useState<'choose' | 'discard' | null>(null);
+  const guard = useTapGuard(); // a double tap must not finish, discard or navigate twice
 
   if (!client) return null;
   const name = fullName(client.firstName, client.lastName);
@@ -139,10 +141,10 @@ export default function ClientScreen() {
         message={draftSummary}
         onCancel={() => setDraftPrompt(null)}
         actions={[
-          { label: 'Resume', onPress: resume, strong: true },
+          { label: 'Resume', onPress: () => guard(resume), strong: true },
           // An empty draft can't be finished (spec section 4, "Finishing needs an exercise").
           ...(draft && draft.exerciseCount > 0
-            ? [{ label: 'Finish it', onPress: finishDraft }]
+            ? [{ label: 'Finish it', onPress: () => guard(finishDraft) }]
             : []),
           { label: 'Discard it', onPress: () => setDraftPrompt('discard') },
         ]}
@@ -152,7 +154,7 @@ export default function ClientScreen() {
         title="Discard this session?"
         message="All exercises and sets in this session will be deleted."
         confirmLabel="Discard"
-        onConfirm={discardDraft}
+        onConfirm={() => guard(discardDraft)}
         onCancel={() => setDraftPrompt(null)}
       />
       <Dialog

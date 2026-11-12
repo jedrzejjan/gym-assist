@@ -84,6 +84,7 @@ export default function SessionPage() {
             key={e.id}
             title={`${i + 1}  ${e.nameEn}${e.finishedAt ? '  ✓' : ''}`}
             subtitle={subtitle(e)}
+            accessibilityLabel={`${i + 1}, ${e.nameEn}, ${subtitle(e)}`}
             onPress={() => router.push(`/session/${id}/exercise/${e.id}`)}
           />
         ))}

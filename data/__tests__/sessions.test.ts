@@ -289,6 +289,7 @@ describe('finish, discard, reorder, remove, resume', () => {
     finishSession(db, sid);
     expect(getSession(db, sid)!.status).toBe('finished');
     expect(getDraft(db)).toBeNull();
+    expect(() => finishSession(db, sid)).toThrow(); // only a draft can be finished
   });
 
   test('a finished session counts for "Last time"', () => {

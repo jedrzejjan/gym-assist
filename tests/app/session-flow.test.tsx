@@ -96,6 +96,18 @@ describe('Home "Session in progress" bar', () => {
     expect(screen).toHavePathname(`/session/${sid}`);
   });
 
+  test('"Finish session" after resuming from the bar returns to Home, with no bar', async () => {
+    const s = setup();
+    const { sid } = annasDraft(s);
+    await renderApp(s.db, '/');
+    await press('Session in progress: Anna Kowalska, resume');
+    await act(() => router.back()); // from the open exercise to the session page
+    await press('Finish session');
+    expect(getSession(s.db, sid)!.status).toBe('finished');
+    expect(screen).toHavePathname('/');
+    expect(screen.queryByText(/Session in progress/)).toBeNull();
+  });
+
   test('opens the session page when every exercise is finished', async () => {
     const s = setup();
     const { sid, bench, dead } = annasDraft(s);
@@ -160,6 +172,40 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
     await press('Discard');
     expect(getSession(s.db, sid)).toBeNull();
     expect(screen).toHavePathname('/session/start');
+  });
+
+  test('a draft for the same client asks too', async () => {
+    const s = setup();
+    annasDraft(s);
+    await renderApp(s.db, `/clients/${s.anna}`);
+    await press('Start session');
+    expect(screen.getByText('A session is already in progress')).toBeTruthy();
+  });
+
+  test('after Resume from the dialog, back from the exercise lands on the session page', async () => {
+    const s = setup();
+    const { sid } = annasDraft(s);
+    await renderApp(s.db, `/clients/${s.jan}`);
+    await press('Start session');
+    await press('Resume');
+    await act(() => router.back());
+    expect(screen).toHavePathname(`/session/${sid}`);
+  });
+
+  test('a double tap on "Finish it" finishes once and opens the date step once', async () => {
+    const s = setup();
+    const { sid } = annasDraft(s);
+    await renderApp(s.db, `/clients/${s.jan}`);
+    await press('Start session');
+    const finishIt = screen.getByRole('button', { name: 'Finish it' });
+    await act(() => {
+      fireEvent.press(finishIt);
+      fireEvent.press(finishIt);
+    });
+    expect(getSession(s.db, sid)!.status).toBe('finished');
+    expect(screen).toHavePathname('/session/start');
+    await act(() => router.back());
+    expect(screen).toHavePathname(`/clients/${s.jan}`);
   });
 
   test('without a draft, "Start session" goes straight to the date step', async () => {

@@ -339,6 +339,9 @@ export function exerciseScreenData(
 
 /** Saves the draft as finished. From now on it counts for "Last time" and history. */
 export function finishSession(db: DbOrTx, sessionId: string): void {
+  const session = getSession(db, sessionId);
+  // Finishing again would move finished_at and change the "Last time" order.
+  if (!session || session.status !== 'draft') throw new Error('Only a draft can be finished');
   if (listSessionExercises(db, sessionId).length === 0) throw new NoExercisesError();
   const now = nowIso();
   db.update(sessions)

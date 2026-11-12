@@ -10,6 +10,7 @@ import { AppBar } from '../ui/AppBar';
 import { Screen } from '../ui/Screen';
 import { Text } from '../ui/Text';
 import { Tile } from '../ui/Tile';
+import { useTapGuard } from '../ui/useTapGuard';
 import { colors, fonts, sizes } from '../ui/theme';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -21,6 +22,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  */
 export default function Home() {
   const db = useDb();
+  const guard = useTapGuard();
   const home = useLive(
     (db) => ({
       welcomeDone: getSetting(db, WELCOME_DONE) === '1',
@@ -47,7 +49,10 @@ export default function Home() {
       header={<AppBar title="Gym Assist" />}
       footer={
         draft ? (
-          <DraftBar clientName={draft.clientName} onPress={() => resume(draft.sessionId)} />
+          <DraftBar
+            clientName={draft.clientName}
+            onPress={() => guard(() => resume(draft.sessionId))}
+          />
         ) : undefined
       }
     >
