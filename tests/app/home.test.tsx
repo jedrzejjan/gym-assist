@@ -1,11 +1,14 @@
-import { act, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 
 import Home from '../../app/index';
 import { createClient } from '../../data/clients';
+import { seedExercises } from '../../data/exercises';
 import { mutate } from '../../data/live';
 import { setSetting, WELCOME_DONE } from '../../data/settings';
 import { createTestDb } from '../../data/testing/testDb';
+import { SEED_EXERCISES } from '../../data/seed/exercises';
 import { renderWithDb } from '../renderWithDb';
+import { mockRouter } from '../routerMock';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
@@ -44,4 +47,13 @@ test('the Clients tile counts clients and refreshes after a new one is saved', a
 test('Settings is dimmed and disabled until Sprint 2', async () => {
   await renderWithDb(<Home />, answeredDb());
   expect(screen.getByRole('button', { name: /Settings/ })).toBeDisabled();
+});
+
+test('the Exercise library tile counts exercises and opens the library', async () => {
+  const db = answeredDb();
+  seedExercises(db, SEED_EXERCISES);
+  await renderWithDb(<Home />, db);
+  expect(screen.getByText('23 exercises')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: /Exercise library/ }));
+  expect(mockRouter.push).toHaveBeenCalledWith('/library');
 });
