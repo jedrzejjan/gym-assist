@@ -15,7 +15,7 @@ This is spec section 3, Sprint 2, plus the owner's phone-test findings from 2026
 - **Pure logic:** recovery, e1RM and best set, CSV parsing and validation, and the backup format go in `domain/`.
 - **Database reads and writes:** go in `data/`, as functions that take `DbOrTx`. Screens call them inside `mutate`.
 - **File access:** goes through one small adapter, `data/files.ts`, built on `expo-file-system`'s `Directory`/`File` API. Tests replace it with an in-memory fake.
-- **Automatic export:** a listener on `mutate`. Every write triggers it unless the caller passes `{ export: false }`: draft-only writes, the backup status save itself, and a restore. That makes the default fail safe: a forgotten flag gives one export too many, never one too few.
+- **Automatic export:** a listener on `mutate`. Every write triggers it unless the caller passes `{ export: false }`: draft-only writes, choosing the backup folder, the backup status save itself, and a restore. It also never exports a database with no clients, so a fresh install can't overwrite a real backup with an empty one. That makes the default fail safe: a forgotten flag gives one export too many, never one too few.
 
 **Tech Stack:** unchanged from Sprint 1: Expo SDK 58, Expo Router, TypeScript, Drizzle ORM with expo-sqlite (better-sqlite3 in Jest), Jest with React Native Testing Library 14, expo-file-system ~58.0.13.
 
@@ -26,7 +26,7 @@ This is spec section 3, Sprint 2, plus the owner's phone-test findings from 2026
 
 Sprint 1's Global Constraints still apply (`docs/superpowers/plans/2026-11-11-stage-2-sprint-1.md`): layers, UUIDs and `updated_at`, kg and cm only, a blank value shown as `-`, number input, style tokens, no network code, and the per-ticket workflow. In addition:
 
-- **Every screen action writes through one `mutate` call.** Repositories never call `mutate`, and never open a transaction.
+- **Every screen action writes through one `mutate` call.** Repositories never call `mutate`, and never open a transaction. The one exception is the backup runner (`writeBackup`, `startAutoExport`), which is not a repository: it runs outside any screen action and saves its status with its own `mutate(…, { export: false })`.
 - **Only finished sessions count** for history, recovery, progress, the 1RM estimate and "Last time". A draft never counts.
 - **Calendar days:** `days = date difference in whole local days` between the session date and `todayLocal(new Date())`. These are not 24-hour periods.
 - **Recovery statuses (exact):**
@@ -95,7 +95,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 8. **Restore** (Task 9):
    - It replaces every table, except this phone's `backup.*` settings. A folder chosen on another phone can't be used on this one.
    - It accepts only a backup whose `schemaVersion` equals the app's. Restoring a backup from an older schema becomes a backlog ticket, needed before the next schema change after Task 1.
-   - Before replacing anything, it writes the current data to `gym-assist-before-restore.json` in the backup folder. There is one such file, overwritten each time and not counted in the 10. Picking the wrong file by mistake can then be undone.
+   - Before replacing anything, it writes the current data to `gym-assist-before-restore.json` in the backup folder. There is one such file, overwritten each time and not counted in the 10. Picking the wrong file by mistake can then be undone. It skips the safety file when no folder is chosen or the database has no clients (a fresh install has nothing to save). If the safety write fails, the restore stops and changes nothing. The restore never asks for a folder.
    - The restore itself doesn't trigger an automatic export, so it never overwrites today's backup.
 9. **CSV import** (Task 8):
    - **Without a "Me":** it opens `create-profile` first, then continues the import (the open question on GYM-25). This changes spec section 5, which says "Me" is created "only there, not in Settings".
@@ -234,7 +234,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 
 **Files:**
 - Create: `domain/recovery.ts`, `data/recovery.ts`, `app/clients/[id]/recovery.tsx`
-- Create: `tests/fixtures/sessions-sample.csv` (anonymised and made up; Task 8 reuses it), `tests/fixtures/exercises-sample.csv` (the seed's 23 exercises in the legacy format, generated from `data/seed/exercises.ts`, because `legacy/data/` is gitignored), `tests/golden/make_recovery_golden.py`, `domain/__tests__/fixtures/recovery-golden.json`
+- Create: `tests/fixtures/sessions-sample.csv` (anonymised and made up; Task 8 reuses it), `tests/fixtures/exercises-sample.csv` (the seed's 23 exercises in the legacy column format, written once by hand from `data/seed/exercises.ts`, because `legacy/data/` is gitignored), `tests/fixtures/exercises-sample.test.ts` (checks that every CSV row matches the seed's name, pattern and muscles, so the two can't drift), `tests/golden/make_recovery_golden.py`, `domain/__tests__/fixtures/recovery-golden.json`
 - Test: `domain/__tests__/recovery.test.ts`, `data/__tests__/recovery.test.ts`, `tests/app/recovery.test.tsx`
 
 **Interfaces:**
@@ -328,7 +328,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `interface BackupFolder { name: string; list(): Promise<string[]>; write(name: string, text: string): Promise<void>; read(name: string): Promise<string>; remove(name: string): Promise<void> }`. `write` replaces an existing file by deleting it and creating it again;
   - `pickFolder(): Promise<{ uri: string; name: string } | null>` and `openFolder(uri: string): BackupFolder` in `data/files.ts`;
   - `writeBackup(db, folder, today): Promise<void>`: it writes the file, prunes old ones, and stores `backup.lastAt` or `backup.lastError` in `app_settings` through `mutate(…, { export: false })`, so saving the status never starts another export;
-  - `startAutoExport(db, getFolder: () => BackupFolder | null): () => void`: it listens with `onWrite`, skips `export: false`, runs once more if writes arrive while it's running, and never throws. With no folder chosen it does nothing and leaves `backup.lastError` unset (the "Backups are off" warning covers that case);
+  - `startAutoExport(db, getFolder: () => BackupFolder | null): () => void`: it listens with `onWrite`, skips `export: false`, skips a database with no clients, runs once more if writes arrive while it's running, and never throws. With no folder chosen it does nothing and leaves `backup.lastError` unset (the "Backups are off" warning covers that case);
   - `backupStatus(db): { folderName: string | null; lastAt: string | null; lastError: string | null }`.
 
 - [ ] **Step 1: Write failing tests**
@@ -338,6 +338,8 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `'two exports on one day leave one file'`;
   - `'auto-export runs after finishSession and a weight change, not after an export: false write'`;
   - `'one write gives exactly one export'`: the status save doesn't loop;
+  - `'choosing a folder writes no file'` (the folder is saved with `export: false`);
+  - `'an empty database (no clients) is never exported automatically; Export now still writes it'`;
   - `'with no folder, auto-export writes nothing and sets no lastError'`;
   - `'writing over today's file with shorter text leaves exactly the new text'` (fake folder);
   - `'a folder write that fails stores lastError and does not throw'`;
@@ -441,10 +443,10 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
     - a table missing from `tableNames`.
 
     It also checks that dates are `YYYY-MM-DD` (the deferred note from GYM-25).
-  - `restoreAll(db, file: BackupFile): { clients: number; sessions: number; date: string }`. `clients` counts every client, archived ones included. `sessions` counts finished sessions. `date` is the local date of `exportedAt`:
+  - `restoreAll(db: DbOrTx, file: BackupFile): { clients: number; sessions: number; date: string }`. `clients` counts every client, archived ones included. `sessions` counts finished sessions. `date` is the local date of `exportedAt`:
     - it deletes the children first, inserts the parents first, and keeps this phone's `backup.*` settings;
-    - it runs inside one `mutate(…, { export: false })`, so a failure rolls back and nothing changes, and today's backup isn't overwritten;
-    - the screen first writes `gym-assist-before-restore.json` to the folder (decision 8).
+    - it is a repository function: the restore screen wraps it in one `mutate(db, tx => restoreAll(tx, file), { export: false })`, so a failure rolls back and nothing changes, and today's backup isn't overwritten;
+    - before that, the screen writes `gym-assist-before-restore.json` to the folder, following decision 8's rules (skipped with no folder or no clients; a failed write stops the restore).
 
 - [ ] **Step 1: Write failing tests**
   - `'export then restore into an empty database gives identical tables'`: a round trip over every table;
@@ -452,6 +454,9 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `'a row that breaks a constraint rolls the whole restore back'`;
   - `'restore keeps this phone's backup folder'`;
   - `'restore writes gym-assist-before-restore.json first and does not overwrite today's backup'`;
+  - `'with no folder, or no clients, restore skips the safety file and still restores'`;
+  - `'a failed safety write stops the restore and changes nothing'`;
+  - `'an older schemaVersion is refused and nothing changes'`;
   - screen:
     - `'the dialog says "This replaces all data in the app with gym-assist-backup-2026-11-09.json."'`;
     - `'done says "All data now comes from the backup of 9 Nov 2026: 4 clients, 61 sessions." and "Go to clients" opens Clients'`;
@@ -473,6 +478,6 @@ The owner runs **build-android → preview** and installs the APK over the Sprin
   - Compare the Recovery tab with `python legacy/gym_tracker.py status` on the same day: the days and the status for each row. The wording differs ("48-72 h" with a hyphen).
   - Set a 1RM with Estimate, then log a set in %.
   - Edit and delete a finished session.
-- [ ] **Step 2: Restore test.** Uninstall, reinstall, Restore from the newest file, and check the clients and session counts.
+- [ ] **Step 2: Restore test.** Before uninstalling, note the newest backup file's name and its clients and sessions. Uninstall, reinstall, choose the same folder (no file must appear), restore from the noted file, and check the counts.
 - [ ] **Step 3: Real use.** Three real sessions logged with the app (the spec's "done when").
 - [ ] **Step 4: Record the outcome.** Write the findings as Jira tickets, the sprint summary on GYM-3, and close GYM-3 when every "done when" item holds.
