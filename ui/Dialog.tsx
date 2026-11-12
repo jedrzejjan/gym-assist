@@ -3,18 +3,28 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
 import { colors, fonts, sizes } from './theme';
 
+type Action = { label: string; onPress: () => void; strong?: boolean };
+
 type Props = {
   visible: boolean;
   title: string;
   message: string;
-  confirmLabel: string;
-  onConfirm: () => void;
+  /** Closing the dialog (Cancel, or the Android back button). */
   onCancel: () => void;
-};
+} & (
+  | { confirmLabel: string; onConfirm: () => void; actions?: never }
+  /** A dialog with its own buttons instead of Cancel + confirm (`log/dialog - draft exists`). */
+  | { actions: Action[]; confirmLabel?: never; onConfirm?: never }
+);
 
 /** Confirmation dialog (boards `client/dialog - archive`, `weight/dialog - replace`, `- delete`). */
-export function Dialog({ visible, title, message, confirmLabel, onConfirm, onCancel }: Props) {
+export function Dialog(props: Props) {
+  const { visible, title, message, onCancel } = props;
   if (!visible) return null;
+  const buttons: Action[] = props.actions ?? [
+    { label: 'Cancel', onPress: onCancel },
+    { label: props.confirmLabel, onPress: props.onConfirm, strong: true },
+  ];
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onCancel}>
       <View style={styles.scrim}>
@@ -22,8 +32,9 @@ export function Dialog({ visible, title, message, confirmLabel, onConfirm, onCan
           <Text variant="title">{title}</Text>
           <Text variant="small">{message}</Text>
           <View style={styles.actions}>
-            <DialogButton label="Cancel" onPress={onCancel} />
-            <DialogButton label={confirmLabel} onPress={onConfirm} strong />
+            {buttons.map((b) => (
+              <DialogButton key={b.label} label={b.label} onPress={b.onPress} strong={b.strong} />
+            ))}
           </View>
         </View>
       </View>
@@ -61,7 +72,13 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   card: { backgroundColor: colors.white, borderRadius: sizes.tileRadius, padding: 24, gap: 12 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 8 },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 16,
+    marginTop: 8,
+  },
   button: { minHeight: sizes.minTap, minWidth: sizes.minTap, justifyContent: 'center' },
   buttonText: { color: colors.accent, fontSize: sizes.body },
   strong: { fontFamily: fonts.semibold },

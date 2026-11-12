@@ -5,8 +5,15 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { archiveClient, getClient } from '../../../data/clients';
 import { mutate, useDb, useLive } from '../../../data/live';
 import { latestWeight } from '../../../data/measurements';
+import {
+  discardSession,
+  finishSession,
+  getDraft,
+  getSession,
+  resumePoint,
+} from '../../../data/sessions';
 import { ageOn, fullName } from '../../../domain/clients';
-import { formatDayMonthYear, todayLocal } from '../../../domain/dates';
+import { formatDayMonth, formatDayMonthYear, todayLocal } from '../../../domain/dates';
 import { AppBar } from '../../../ui/AppBar';
 import { Button } from '../../../ui/Button';
 import { genderLabel } from '../../../ui/ClientForm';
@@ -27,6 +34,12 @@ export default function ClientScreen() {
   const weight = useLive((d) => latestWeight(d, id), [id]);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const archiving = useRef(false); // a double tap must not go back twice
+  // Spec section 4, "One draft at a time": starting while a draft exists asks first.
+  const draft = useLive((d) => {
+    const info = getDraft(d);
+    return info ? { ...info, date: getSession(d, info.sessionId)!.date } : null;
+  }, []);
+  const [draftPrompt, setDraftPrompt] = useState<'choose' | 'discard' | null>(null);
 
   if (!client) return null;
   const name = fullName(client.firstName, client.lastName);
@@ -42,15 +55,42 @@ export default function ClientScreen() {
     router.back();
   };
 
+  const toDateStep = () => router.push(`/session/start?clientId=${client.id}`);
+  const startSession = () => (draft ? setDraftPrompt('choose') : toDateStep());
+
+  const resume = () => {
+    if (!draft) return;
+    setDraftPrompt(null);
+    const point = resumePoint(db, draft.sessionId);
+    router.push(`/session/${draft.sessionId}`);
+    if (point.screen === 'exercise') {
+      router.push(`/session/${draft.sessionId}/exercise/${point.seId}`);
+    }
+  };
+  const finishDraft = () => {
+    if (!draft) return;
+    setDraftPrompt(null);
+    mutate(db, (tx) => finishSession(tx, draft.sessionId));
+    toDateStep();
+  };
+  const discardDraft = () => {
+    if (!draft) return;
+    setDraftPrompt(null);
+    mutate(db, (tx) => discardSession(tx, draft.sessionId));
+    toDateStep();
+  };
+  const exercisesText = (n: number) =>
+    n === 0 ? 'empty' : n === 1 ? '1 exercise' : `${n} exercises`;
+  const draftSummary = draft
+    ? `${draft.clientName} · ${formatDayMonth(draft.date)} · ${exercisesText(draft.exerciseCount)}`
+    : '';
+
   return (
     <Screen
       header={<AppBar title={name} back={{ label: '‹ Clients', onPress: () => router.back() }} />}
       footer={
         <>
-          <Button
-            label="Start session"
-            onPress={() => router.push(`/session/start?clientId=${client.id}`)}
-          />
+          <Button label="Start session" onPress={startSession} />
           <Button
             label="Edit profile"
             variant="secondary"
@@ -93,6 +133,28 @@ export default function ClientScreen() {
           &quot;Me&quot; can be renamed but not archived.
         </Text>
       ) : null}
+      <Dialog
+        visible={draftPrompt === 'choose'}
+        title="A session is already in progress"
+        message={draftSummary}
+        onCancel={() => setDraftPrompt(null)}
+        actions={[
+          { label: 'Resume', onPress: resume, strong: true },
+          // An empty draft can't be finished (spec section 4, "Finishing needs an exercise").
+          ...(draft && draft.exerciseCount > 0
+            ? [{ label: 'Finish it', onPress: finishDraft }]
+            : []),
+          { label: 'Discard it', onPress: () => setDraftPrompt('discard') },
+        ]}
+      />
+      <Dialog
+        visible={draftPrompt === 'discard'}
+        title="Discard this session?"
+        message="All exercises and sets in this session will be deleted."
+        confirmLabel="Discard"
+        onConfirm={discardDraft}
+        onCancel={() => setDraftPrompt(null)}
+      />
       <Dialog
         visible={confirmArchive}
         title={`Archive ${name}?`}

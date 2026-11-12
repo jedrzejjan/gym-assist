@@ -1,6 +1,6 @@
 // Logging sessions (spec section 4). A session starts as a draft; only one draft exists in the
 // whole app. "Last time" reads finished sessions only (PR #21, decision 5).
-import { and, asc, count, desc, eq, inArray, isNull, max } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, max, sql } from 'drizzle-orm';
 
 import { fullName } from '../domain/clients';
 import { bodyWeightOn } from '../domain/bodyweight';
@@ -49,6 +49,7 @@ export type SessionExerciseItem = {
   namePl: string | null;
   usesBodyweight: boolean;
   finishedAt: string | null;
+  setCount: number;
 };
 
 export function getSession(db: DbOrTx, id: string): SessionInfo | null {
@@ -122,6 +123,8 @@ const itemColumns = {
   namePl: exercises.namePl,
   usesBodyweight: exercises.usesBodyweight,
   finishedAt: sessionExercises.finishedAt,
+  // Explicit table names: Drizzle renders a column inside sql`` without its table.
+  setCount: sql<number>`(select count(*) from "sets" where "sets"."session_exercise_id" = "session_exercises"."id")`,
 };
 
 export function listSessionExercises(db: DbOrTx, sessionId: string): SessionExerciseItem[] {

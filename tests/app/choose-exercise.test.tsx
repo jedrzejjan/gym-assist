@@ -108,7 +108,7 @@ test('choose by pattern: Knee Dominant → Back squat opens the exercise, "First
   // Back from the exercise goes to the session page, which now lists it.
   await act(() => router.back());
   expect(screen).toHavePathname(`/session/${sid}`);
-  expect(screen.getByText('Back squat')).toBeTruthy();
+  expect(screen.getByText('1  Back squat')).toBeTruthy();
 });
 
 test('a pattern name with a space opens its exercises; an empty pattern is disabled', async () => {
