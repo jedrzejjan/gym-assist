@@ -111,6 +111,23 @@ test('choose by pattern: Knee Dominant → Back squat opens the exercise, "First
   expect(screen.getByText('Back squat')).toBeTruthy();
 });
 
+test('a pattern name with a space opens its exercises; an empty pattern is disabled', async () => {
+  const { db, anna } = setup();
+  const sid = startSession(db, anna, '2026-11-12');
+  await renderApp(db, `/session/${sid}/patterns`);
+  expect(screen.getByRole('button', { name: /Carries/ })).toBeDisabled();
+  await fireEvent.press(screen.getByText('Pull vertical'));
+  expect(screen.getByText('Pull vertical')).toBeTruthy(); // the page title
+  await fireEvent.press(screen.getByText('Overhand pull-up'));
+  expect(listSessionExercises(db, sid).map((e) => e.nameEn)).toEqual(['Overhand pull-up']);
+});
+
+test('Start is disabled when the client is unknown', async () => {
+  const { db } = setup();
+  await renderApp(db, '/session/start?clientId=nobody');
+  expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
+});
+
 test('the exercise shows last time from the client’s latest finished session', async () => {
   const { db, anna, exerciseId } = setup();
   logSession(db, {

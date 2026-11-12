@@ -24,7 +24,13 @@ export default function SearchExercises() {
   const choose = (exerciseId: string) => {
     if (choosing.current) return;
     choosing.current = true;
-    const seId = mutate(db, (tx) => addExerciseToSession(tx, id, exerciseId));
+    let seId: string;
+    try {
+      seId = mutate(db, (tx) => addExerciseToSession(tx, id, exerciseId));
+    } catch (e) {
+      choosing.current = false; // let the trainer try again
+      throw e;
+    }
     // Leave the choose pages behind: back from the exercise returns to the session page.
     router.dismissTo(`/session/${id}`);
     router.push(`/session/${id}/exercise/${seId}`);

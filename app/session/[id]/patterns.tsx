@@ -29,11 +29,8 @@ export default function Patterns() {
           key={p}
           title={displayName(p)}
           subtitle={countText(counts[p])}
-          onPress={
-            counts[p] > 0
-              ? () => router.push(`/session/${id}/pattern/${encodeURIComponent(p)}`)
-              : undefined
-          }
+          disabled={counts[p] === 0}
+          onPress={() => router.push(`/session/${id}/pattern/${encodeURIComponent(p)}`)}
         />
       ))}
     </Screen>

@@ -24,7 +24,7 @@ export default function StartSession() {
   const starting = useRef(false); // a double tap must not start two sessions
 
   const start = () => {
-    if (starting.current) return;
+    if (!client || starting.current) return;
     starting.current = true;
     let sessionId: string;
     try {
@@ -48,7 +48,7 @@ export default function StartSession() {
       header={
         <AppBar title="Start session" back={{ label: backLabel, onPress: () => router.back() }} />
       }
-      footer={<Button label="Start" onPress={start} />}
+      footer={<Button label="Start" onPress={start} disabled={!client} />}
     >
       <View style={styles.form}>
         <DateField
