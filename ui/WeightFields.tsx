@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { formatDayMonthYear, todayLocal } from '../domain/dates';
+import { formatDateOrToday, todayLocal } from '../domain/dates';
 import { DateField } from './DateField';
 import { NumberField } from './TextField';
 import { sizes } from './theme';
@@ -14,14 +14,12 @@ type Props = {
 
 /** Date and weight fields of boards `weight/add` and `weight/edit`. */
 export function WeightFields({ date, onDate, kg, onKg }: Props) {
-  const today = todayLocal(new Date());
-  const display = date === today ? `Today, ${formatDayMonthYear(date)}` : formatDayMonthYear(date);
   return (
     <View style={styles.form}>
       <DateField
         label="Date"
         value={date}
-        display={display}
+        display={formatDateOrToday(date, todayLocal(new Date()))}
         onChange={onDate}
         toIsoDate={todayLocal}
       />

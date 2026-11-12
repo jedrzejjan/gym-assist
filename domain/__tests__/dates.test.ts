@@ -1,4 +1,10 @@
-import { formatDayMonth, formatDayMonthYear, isValidDate, todayLocal } from '../dates';
+import {
+  formatDateOrToday,
+  formatDayMonth,
+  formatDayMonthYear,
+  isValidDate,
+  todayLocal,
+} from '../dates';
 
 test('todayLocal uses the phone’s local date, not UTC', () => {
   // Guard: jest.global-setup.js sets Europe/Warsaw (UTC+1 in November); CI runs in UTC.
@@ -23,4 +29,9 @@ test('isValidDate accepts real dates only', () => {
   expect(isValidDate('2026-13-01')).toBe(false);
   expect(isValidDate('11/11/2026')).toBe(false);
   expect(isValidDate('')).toBe(false);
+});
+
+test('formatDateOrToday marks today', () => {
+  expect(formatDateOrToday('2026-11-12', '2026-11-12')).toBe('Today, 12 Nov 2026');
+  expect(formatDateOrToday('2026-11-10', '2026-11-12')).toBe('10 Nov 2026');
 });

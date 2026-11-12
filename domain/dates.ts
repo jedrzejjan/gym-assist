@@ -32,3 +32,8 @@ export function formatDayMonthYear(s: string): string {
   const [y] = parts(s);
   return `${formatDayMonth(s)} ${y}`;
 }
+
+/** 'Today, 12 Nov 2026' when `s` is today, else '12 Nov 2026'. */
+export function formatDateOrToday(s: string, today: string): string {
+  return s === today ? `Today, ${formatDayMonthYear(s)}` : formatDayMonthYear(s);
+}
