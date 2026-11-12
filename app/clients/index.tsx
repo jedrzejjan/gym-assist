@@ -40,7 +40,7 @@ export default function Clients() {
               ? `Last session: ${formatDayMonthYear(c.lastSessionDate)}`
               : 'No sessions yet'
           }
-          // Opening a client arrives with the client screen (GYM-76).
+          onPress={() => router.push(`/clients/${c.id}`)}
         />
       ))}
       {others === 0 ? (

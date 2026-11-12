@@ -79,14 +79,14 @@ Penpot shows a "/" in a name as "a / b". This index writes names the way the pla
 | `clients/list - only me` | GYM-18 |
 | `clients/list - empty` | GYM-18 |
 | `clients/add` | GYM-18 |
-| `client/profile` | GYM-18 |
-| `client/profile - me` | GYM-18 |
-| `client/dialog - archive` | GYM-18 |
-| `weight/history` | GYM-18 |
-| `weight/add` | GYM-18 |
-| `weight/edit` | GYM-18 |
-| `weight/dialog - replace` | GYM-18 |
-| `weight/dialog - delete` | GYM-18 |
+| `client/profile` | GYM-76 |
+| `client/profile - me` | GYM-76 |
+| `client/dialog - archive` | GYM-76 |
+| `weight/history` | GYM-76 |
+| `weight/add` | GYM-76 |
+| `weight/edit` | GYM-76 |
+| `weight/dialog - replace` | GYM-76 |
+| `weight/dialog - delete` | GYM-76 |
 | `history/list` | GYM-22 |
 | `history/list - empty` | GYM-22 |
 | `history/session` | GYM-22 |
