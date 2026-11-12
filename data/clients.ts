@@ -101,3 +101,53 @@ export function getSelf(db: DbOrTx): ClientRow | null {
 export function countClients(db: DbOrTx): number {
   return db.select({ n: count() }).from(clients).where(isNull(clients.archivedAt)).get()!.n;
 }
+
+/** The editable profile fields. `null` clears an optional field; a missing key leaves it as is. */
+export type ClientPatch = {
+  firstName?: string;
+  lastName?: string | null;
+  gender?: Gender | null;
+  dateOfBirth?: string | null;
+  heightCm?: number | null;
+};
+
+/** "Me" can be renamed but not archived (spec section 5, Clients). */
+export class CannotArchiveSelfError extends Error {
+  constructor() {
+    super('"Me" can be renamed but not archived');
+    this.name = 'CannotArchiveSelfError';
+  }
+}
+
+export function getClient(db: DbOrTx, id: string): ClientRow | null {
+  return db.select().from(clients).where(eq(clients.id, id)).get() ?? null;
+}
+
+export function updateClient(db: DbOrTx, id: string, patch: ClientPatch): void {
+  const set: Partial<typeof clients.$inferInsert> = { updatedAt: nowIso() };
+  if (patch.firstName !== undefined) {
+    const firstName = clean(patch.firstName);
+    if (!firstName) throw new Error('A client needs a first name');
+    set.firstName = firstName;
+  }
+  if (patch.lastName !== undefined) set.lastName = clean(patch.lastName);
+  if (patch.gender !== undefined) set.gender = patch.gender;
+  if (patch.dateOfBirth !== undefined) set.dateOfBirth = patch.dateOfBirth;
+  if (patch.heightCm !== undefined) {
+    if (patch.heightCm !== null && !(patch.heightCm > 0))
+      throw new Error('Height must be positive');
+    set.heightCm = patch.heightCm;
+  }
+  db.update(clients).set(set).where(eq(clients.id, id)).run();
+}
+
+/** Hides the client from the list and keeps all their history (spec section 6, Archiving). */
+export function archiveClient(db: DbOrTx, id: string): void {
+  const client = getClient(db, id);
+  if (!client) return;
+  if (client.isSelf) throw new CannotArchiveSelfError();
+  db.update(clients)
+    .set({ archivedAt: nowIso(), updatedAt: nowIso() })
+    .where(eq(clients.id, id))
+    .run();
+}
