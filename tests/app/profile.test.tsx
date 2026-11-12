@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 
 import EditProfile from '../../app/clients/[id]/edit';
 import ClientScreen from '../../app/clients/[id]/index';
@@ -65,7 +65,19 @@ test('Archive asks first, then hides the client and goes back', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Archive' }));
   expect(getClient(db, id)!.archivedAt).not.toBeNull();
   expect(listClients(db)).toHaveLength(0);
-  expect(mockRouter.back).toHaveBeenCalled();
+  expect(mockRouter.back).toHaveBeenCalledTimes(1);
+});
+
+test('a double tap on Archive goes back only once', async () => {
+  const { db } = annaDb();
+  await renderWithDb(<ClientScreen />, db);
+  await fireEvent.press(screen.getByText('Archive client'));
+  const confirm = screen.getByRole('button', { name: 'Archive' });
+  await act(() => {
+    fireEvent.press(confirm);
+    fireEvent.press(confirm);
+  });
+  expect(mockRouter.back).toHaveBeenCalledTimes(1);
 });
 
 test('Cancel in the archive dialog keeps the client', async () => {

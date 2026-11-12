@@ -34,7 +34,7 @@ function EditWeight({ entry }: { entry: WeightRow }) {
   const count = useLive((d) => weightCount(d, entry.clientId), [entry.clientId]);
   const [date, setDate] = useState(entry.date);
   const [kgText, setKgText] = useState(String(entry.valueKg));
-  const [conflictKg, setConflictKg] = useState<number | null>(null);
+  const [conflictKg, setConflictKg] = useState<number | null | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const busy = useRef(false);
 
@@ -60,7 +60,7 @@ function EditWeight({ entry }: { entry: WeightRow }) {
       setConflictKg(other?.valueKg ?? null);
       return;
     }
-    setConflictKg(null);
+    setConflictKg(undefined);
     busy.current = true;
     router.back();
   };
@@ -106,12 +106,12 @@ function EditWeight({ entry }: { entry: WeightRow }) {
         </Text>
       )}
       <Dialog
-        visible={conflictKg !== null}
+        visible={conflictKg !== undefined}
         title="Replace the weight for this date?"
-        message={`${formatDayMonthYear(date)} already has ${conflictKg} kg.`}
+        message={`${formatDayMonthYear(date)} already has ${conflictKg != null ? `${conflictKg} kg` : 'a weight'}.`}
         confirmLabel="Replace"
         onConfirm={() => save(true)}
-        onCancel={() => setConflictKg(null)}
+        onCancel={() => setConflictKg(undefined)}
       />
       <Dialog
         visible={confirmDelete}

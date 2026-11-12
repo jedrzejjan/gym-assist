@@ -11,6 +11,20 @@ import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
+// The native date picker, replaced by a button that picks 10 Nov 2026.
+jest.mock('@react-native-community/datetimepicker', () => {
+  const { createElement } = require('react');
+  const { Pressable } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ onChange }: { onChange: (e: { type: string }, d: Date) => void }) =>
+      createElement(Pressable, {
+        accessibilityRole: 'button',
+        accessibilityLabel: 'Pick 10 Nov 2026',
+        onPress: () => onChange({ type: 'set' }, new Date(2026, 10, 10, 12)),
+      }),
+  };
+});
 
 function annaDb() {
   const db = createTestDb();
@@ -91,4 +105,22 @@ test('the last remaining entry can be edited but has no Delete', async () => {
   await renderWithDb(<EditWeightScreen />, db);
   expect(screen.queryByRole('button', { name: 'Delete entry' })).toBeNull();
   expect(screen.getByText('The last remaining entry can be edited but not deleted.')).toBeTruthy();
+});
+
+test('moving an entry onto a date that has a weight asks to replace that one', async () => {
+  const { db, id } = annaDb();
+  const oct = listWeights(db, id).find((w) => w.date === '2026-10-27')!;
+  mockParams.current = { id, mid: oct.id };
+  await renderWithDb(<EditWeightScreen />, db);
+  await fireEvent.press(screen.getByRole('button', { name: 'Date, 27 Oct 2026' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Pick 10 Nov 2026' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+  expect(screen.getByText('Replace the weight for this date?')).toBeTruthy();
+  expect(screen.getByText('10 Nov 2026 already has 63.5 kg.')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Replace' }));
+  expect(listWeights(db, id).map((w) => [w.date, w.valueKg])).toEqual([
+    ['2026-11-10', 64.2],
+    ['2026-09-15', 65.8],
+  ]);
+  expect(mockRouter.back).toHaveBeenCalled();
 });

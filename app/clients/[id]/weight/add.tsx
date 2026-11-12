@@ -17,7 +17,7 @@ export default function AddWeightScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [date, setDate] = useState(() => todayLocal(new Date()));
   const [kgText, setKgText] = useState('');
-  const [conflictKg, setConflictKg] = useState<number | null>(null);
+  const [conflictKg, setConflictKg] = useState<number | null | undefined>(undefined);
   const saving = useRef(false);
 
   const kg = parseWeight(kgText);
@@ -36,7 +36,7 @@ export default function AddWeightScreen() {
       setConflictKg(listWeights(db, id).find((w) => w.date === date)?.valueKg ?? null);
       return;
     }
-    setConflictKg(null);
+    setConflictKg(undefined);
     saving.current = true; // leaving the screen; ignore further taps
     router.back();
   };
@@ -53,12 +53,12 @@ export default function AddWeightScreen() {
     >
       <WeightFields date={date} onDate={setDate} kg={kgText} onKg={setKgText} />
       <Dialog
-        visible={conflictKg !== null}
+        visible={conflictKg !== undefined}
         title="Replace the weight for this date?"
-        message={`${formatDayMonthYear(date)} already has ${conflictKg} kg.`}
+        message={`${formatDayMonthYear(date)} already has ${conflictKg != null ? `${conflictKg} kg` : 'a weight'}.`}
         confirmLabel="Replace"
         onConfirm={() => save(true)}
-        onCancel={() => setConflictKg(null)}
+        onCancel={() => setConflictKg(undefined)}
       />
     </Screen>
   );

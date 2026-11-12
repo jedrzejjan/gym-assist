@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { archiveClient, getClient } from '../../../data/clients';
@@ -25,6 +25,7 @@ export default function ClientScreen() {
   const client = useLive((d) => getClient(d, id), [id]);
   const weight = useLive((d) => latestWeight(d, id), [id]);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const archiving = useRef(false); // a double tap must not go back twice
 
   if (!client) return null;
   const name = fullName(client.firstName, client.lastName);
@@ -33,6 +34,8 @@ export default function ClientScreen() {
     : null;
 
   const archive = () => {
+    if (archiving.current) return;
+    archiving.current = true;
     setConfirmArchive(false);
     mutate(db, (tx) => archiveClient(tx, client.id));
     router.back();
@@ -70,6 +73,7 @@ export default function ClientScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Body-weight history"
               onPress={() => router.push(`/clients/${client.id}/weight`)}
               hitSlop={8}
               style={styles.link}
