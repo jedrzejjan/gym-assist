@@ -59,6 +59,11 @@ export default function Library() {
           <Text variant="small">Check the spelling, or search in English or Polish.</Text>
         </View>
       ) : null}
+      {exercises.length === 0 && search.trim() === '' && filter !== 'all' ? (
+        <View style={styles.empty}>
+          <Text variant="small">No exercises for this pattern yet.</Text>
+        </View>
+      ) : null}
     </Screen>
   );
 }

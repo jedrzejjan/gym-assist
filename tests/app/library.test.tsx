@@ -87,3 +87,18 @@ test('a non-bodyweight exercise says No, and KD shows as Knee Dominant', async (
   expect(screen.getByText('No')).toBeTruthy();
   expect(screen.getAllByText('Knee Dominant').length).toBeGreaterThan(0);
 });
+
+test('the pattern chips are radios: one is checked, and tapping it again keeps it checked', async () => {
+  await renderWithDb(<Library />, seededDb());
+  expect(screen.getByRole('radio', { name: 'All' })).toBeChecked();
+  await fireEvent.press(screen.getByRole('radio', { name: 'Hip Dominant' }));
+  await fireEvent.press(screen.getByRole('radio', { name: 'Hip Dominant' }));
+  expect(screen.getByRole('radio', { name: 'Hip Dominant' })).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'All' })).not.toBeChecked();
+});
+
+test('a pattern with no exercises says so', async () => {
+  await renderWithDb(<Library />, seededDb());
+  await fireEvent.press(screen.getByRole('radio', { name: 'Carries' }));
+  expect(screen.getByText('No exercises for this pattern yet.')).toBeTruthy();
+});

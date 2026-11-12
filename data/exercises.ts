@@ -102,7 +102,8 @@ export function getExercise(db: DbOrTx, id: string): ExerciseDetail | null {
     .where(eq(exercises.id, id))
     .get();
   if (!row) return null;
-  // Muscles in the order they were saved (the seed's order).
+  // Muscles in the order they were saved (the seed's order). Best effort: rowid order survives
+  // normal use, but VACUUM may renumber rows. If the order ever matters, add a position column.
   const muscles = db
     .select({ muscle: exerciseMuscles.muscle })
     .from(exerciseMuscles)
