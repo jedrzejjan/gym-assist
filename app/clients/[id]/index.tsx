@@ -16,8 +16,9 @@ import { Text } from '../../../ui/Text';
 import { colors, fonts, sizes } from '../../../ui/theme';
 
 /**
- * Boards `client/profile` and `client/profile - me`. In Sprint 1 the client screen shows the
- * profile only; "Start session" arrives with GYM-19 (PR #21, decision 7).
+ * Boards `client/profile` and `client/profile - me`, with "Start session" from
+ * `client/overview`. In Sprint 1 the client screen shows the profile and "Start session"; the
+ * History, Recovery and Progress tabs arrive in Sprint 2 (PR #21, decision 7).
  */
 export default function ClientScreen() {
   const db = useDb();
@@ -46,6 +47,10 @@ export default function ClientScreen() {
       header={<AppBar title={name} back={{ label: '‹ Clients', onPress: () => router.back() }} />}
       footer={
         <>
+          <Button
+            label="Start session"
+            onPress={() => router.push(`/session/start?clientId=${client.id}`)}
+          />
           <Button
             label="Edit profile"
             variant="secondary"
