@@ -9,8 +9,14 @@ import {
   addSet,
   currentOneRepMax,
   deleteSet,
+  discardSession,
   exerciseScreenData,
   finishExercise,
+  finishSession,
+  moveExercise,
+  NoExercisesError,
+  removeExercise,
+  resumePoint,
   getSessionExercise,
   listSets,
   reopenExercise,
@@ -252,5 +258,107 @@ describe('sets', () => {
     expect(d.lastTime).toBeNull();
     expect(d.clientId).toBe(anna);
     expect(d.finished).toBe(false);
+  });
+});
+
+describe('finish, discard, reorder, remove, resume', () => {
+  function threeExercises() {
+    const s = setup();
+    const id = (name: string) =>
+      listExercises(s.db, { search: name }).find((e) => e.nameEn === name)!.id;
+    const sid = startSession(s.db, s.anna, '2026-11-10');
+    const a = addExerciseToSession(s.db, sid, s.squat);
+    const b = addExerciseToSession(s.db, sid, s.bench);
+    const c = addExerciseToSession(s.db, sid, id('Deadlift'));
+    return { ...s, sid, a, b, c };
+  }
+  const order = (db: Parameters<typeof listSessionExercises>[0], sid: string) =>
+    listSessionExercises(db, sid).map((e) => e.id);
+
+  test('finishSession needs an exercise; then the draft is finished', () => {
+    const { db, anna } = setup();
+    const empty = startSession(db, anna, '2026-11-10');
+    expect(() => finishSession(db, empty)).toThrow(NoExercisesError);
+    expect(getSession(db, empty)!.status).toBe('draft');
+    discardSession(db, empty);
+    const { sid } = (() => {
+      const s2 = startSession(db, anna, '2026-11-11');
+      addExerciseToSession(db, s2, listExercises(db, { search: 'Bench press' })[0].id);
+      return { sid: s2 };
+    })();
+    finishSession(db, sid);
+    expect(getSession(db, sid)!.status).toBe('finished');
+    expect(getDraft(db)).toBeNull();
+  });
+
+  test('a finished session counts for "Last time"', () => {
+    const { db, anna, bench } = setup();
+    const sid = startSession(db, anna, '2026-11-10');
+    const se = addExerciseToSession(db, sid, bench);
+    addSet(db, se, { weightKg: 60, reps: 8 });
+    expect(lastTimeSets(db, anna, bench)).toBeNull();
+    finishSession(db, sid);
+    expect(lastTimeSets(db, anna, bench)).toEqual([{ weightKg: 60, reps: 8 }]);
+  });
+
+  test('moveExercise swaps with the neighbour; the ends do nothing', () => {
+    const { db, sid, a, b, c } = threeExercises();
+    moveExercise(db, a, 'up');
+    moveExercise(db, c, 'down');
+    expect(order(db, sid)).toEqual([a, b, c]);
+    moveExercise(db, c, 'up');
+    expect(order(db, sid)).toEqual([a, c, b]);
+    moveExercise(db, a, 'down');
+    expect(order(db, sid)).toEqual([c, a, b]);
+  });
+
+  test('moveExercise works across a gap left by a removed exercise', () => {
+    const { db, sid, a, b, c } = threeExercises();
+    removeExercise(db, b); // positions are now 1 and 3
+    moveExercise(db, c, 'up');
+    expect(order(db, sid)).toEqual([c, a]);
+  });
+
+  test('removeExercise deletes its sets', () => {
+    const { db, sid, a, b } = threeExercises();
+    addSet(db, b, { weightKg: 60, reps: 8 });
+    removeExercise(db, b);
+    expect(listSets(db, b)).toEqual([]);
+    expect(order(db, sid)).not.toContain(b);
+    expect(order(db, sid)[0]).toBe(a);
+  });
+
+  test('discardSession deletes the session, its exercises and sets', () => {
+    const { db, sid, a } = threeExercises();
+    addSet(db, a, { weightKg: 100, reps: 5 });
+    discardSession(db, sid);
+    expect(getSession(db, sid)).toBeNull();
+    expect(listSessionExercises(db, sid)).toEqual([]);
+    expect(listSets(db, a)).toEqual([]);
+    expect(getDraft(db)).toBeNull();
+  });
+
+  test('discardSession refuses a finished session', () => {
+    const { db, sid } = threeExercises();
+    finishSession(db, sid);
+    expect(() => discardSession(db, sid)).toThrow();
+    expect(getSession(db, sid)).not.toBeNull();
+  });
+
+  test('resumePoint: the first open exercise, else the session page', () => {
+    const { db, sid, a, b, c } = threeExercises();
+    finishExercise(db, a);
+    expect(resumePoint(db, sid)).toEqual({ screen: 'exercise', seId: b });
+    finishExercise(db, b);
+    finishExercise(db, c);
+    expect(resumePoint(db, sid)).toEqual({ screen: 'session' });
+    addSet(db, a, { weightKg: 60, reps: 8 }); // a set change reopens it
+    expect(resumePoint(db, sid)).toEqual({ screen: 'exercise', seId: a });
+  });
+
+  test('resumePoint of an empty session is the session page', () => {
+    const { db, anna } = setup();
+    const sid = startSession(db, anna, '2026-11-10');
+    expect(resumePoint(db, sid)).toEqual({ screen: 'session' });
   });
 });

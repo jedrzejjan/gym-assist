@@ -1,6 +1,6 @@
 // Logging sessions (spec section 4). A session starts as a draft; only one draft exists in the
 // whole app. "Last time" reads finished sessions only (PR #21, decision 5).
-import { and, asc, count, desc, eq, max } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, max } from 'drizzle-orm';
 
 import { fullName } from '../domain/clients';
 import { bodyWeightOn } from '../domain/bodyweight';
@@ -14,6 +14,14 @@ export class DraftExistsError extends Error {
   constructor() {
     super('Another session is in progress');
     this.name = 'DraftExistsError';
+  }
+}
+
+/** "Finish session" needs at least one exercise (spec section 4). */
+export class NoExercisesError extends Error {
+  constructor() {
+    super('A session needs at least one exercise to be finished');
+    this.name = 'NoExercisesError';
   }
 }
 
@@ -324,4 +332,73 @@ export function exerciseScreenData(
     bodyWeight: bodyWeightOn(listWeights(db, session.clientId), session.date),
     lastTime: lastTimeSets(db, session.clientId, item.exerciseId),
   };
+}
+
+/** Saves the draft as finished. From now on it counts for "Last time" and history. */
+export function finishSession(db: DbOrTx, sessionId: string): void {
+  if (listSessionExercises(db, sessionId).length === 0) throw new NoExercisesError();
+  const now = nowIso();
+  db.update(sessions)
+    .set({ status: 'finished', finishedAt: now, updatedAt: now })
+    .where(eq(sessions.id, sessionId))
+    .run();
+}
+
+/** "Discard this session?": deletes a draft with its exercises and sets. */
+export function discardSession(db: DbOrTx, sessionId: string): void {
+  const session = getSession(db, sessionId);
+  if (!session) return;
+  if (session.status !== 'draft') throw new Error('Only a draft can be discarded');
+  const ids = listSessionExercises(db, sessionId).map((e) => e.id);
+  if (ids.length > 0) {
+    db.delete(sets).where(inArray(sets.sessionExerciseId, ids)).run();
+    db.delete(sessionExercises).where(inArray(sessionExercises.id, ids)).run();
+  }
+  db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+}
+
+/** Swaps the exercise with its neighbour in the list (not position ± 1: removals leave gaps). */
+export function moveExercise(db: DbOrTx, sessionExerciseId: string, dir: 'up' | 'down'): void {
+  const item = getSessionExercise(db, sessionExerciseId);
+  if (!item) return;
+  const list = listSessionExercises(db, item.sessionId);
+  const i = list.findIndex((e) => e.id === sessionExerciseId);
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if (j < 0 || j >= list.length) return; // the ends do nothing
+  const now = nowIso();
+  const swap = (id: string, position: number) =>
+    db
+      .update(sessionExercises)
+      .set({ position, updatedAt: now })
+      .where(eq(sessionExercises.id, id))
+      .run();
+  swap(list[i].id, list[j].position);
+  swap(list[j].id, list[i].position);
+  db.update(sessions).set({ updatedAt: now }).where(eq(sessions.id, item.sessionId)).run();
+}
+
+/** "Remove this exercise and its sets?" */
+export function removeExercise(db: DbOrTx, sessionExerciseId: string): void {
+  const item = getSessionExercise(db, sessionExerciseId);
+  if (!item) return;
+  db.delete(sets).where(eq(sets.sessionExerciseId, sessionExerciseId)).run();
+  db.delete(sessionExercises).where(eq(sessionExercises.id, sessionExerciseId)).run();
+  db.update(sessions).set({ updatedAt: nowIso() }).where(eq(sessions.id, item.sessionId)).run();
+}
+
+export type ResumePoint = { screen: 'exercise'; seId: string } | { screen: 'session' };
+
+/**
+ * Where the "Session in progress" bar opens the draft: the first exercise that is still open
+ * (no finished_at; a set change reopens a finished one), otherwise the session page.
+ */
+export function resumePoint(db: DbOrTx, sessionId: string): ResumePoint {
+  const open = db
+    .select({ id: sessionExercises.id })
+    .from(sessionExercises)
+    .where(and(eq(sessionExercises.sessionId, sessionId), isNull(sessionExercises.finishedAt)))
+    .orderBy(asc(sessionExercises.position))
+    .limit(1)
+    .get();
+  return open ? { screen: 'exercise', seId: open.id } : { screen: 'session' };
 }
