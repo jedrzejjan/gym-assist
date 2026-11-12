@@ -6,7 +6,8 @@ import { colors, sizes } from './theme';
 type Props<T extends string> = {
   /** Shown above the chips (form fields); omit for a filter row. */
   label?: string;
-  options: { value: T; label: string }[];
+  /** `disabled` greys out one option (e.g. % without a stored 1RM). */
+  options: { value: T; label: string; disabled?: boolean }[];
   value: T | null;
   onChange: (value: T | null) => void;
   /** Optional fields: tapping the selected chip again clears it. Filters keep one chip selected. */
@@ -29,9 +30,10 @@ export function Chips<T extends string>({
       <Pressable
         key={o.value}
         accessibilityRole="radio"
-        accessibilityState={{ checked: selected }}
+        accessibilityState={{ checked: selected, disabled: !!o.disabled }}
+        disabled={o.disabled}
         onPress={() => onChange(selected && clearable ? null : o.value)}
-        style={[styles.chip, selected && styles.selected]}
+        style={[styles.chip, selected && styles.selected, o.disabled && styles.disabled]}
       >
         <Text style={{ color: selected ? colors.white : colors.accent }}>{o.label}</Text>
       </Pressable>
@@ -74,4 +76,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selected: { backgroundColor: colors.accent },
+  disabled: { opacity: 0.4 },
 });

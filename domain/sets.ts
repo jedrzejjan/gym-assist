@@ -11,6 +11,20 @@ export function parseWeight(text: string): number | null | 'invalid' {
   return Number(t.replace(',', '.'));
 }
 
+/** '8' → 8; '' → null; '0', '8.5', '-1', 'abc' → 'invalid' (a set has at least 1 rep). */
+export function parseReps(text: string): number | null | 'invalid' {
+  const t = text.trim();
+  if (t === '') return null;
+  if (!/^\d+$/.test(t)) return 'invalid';
+  const n = Number(t);
+  return n >= 1 ? n : 'invalid';
+}
+
+/** The next set's number: one more than the highest, so numbers never repeat after a delete. */
+export function nextSetNo(existing: number[]): number {
+  return existing.length === 0 ? 1 : Math.max(...existing) + 1;
+}
+
 /** One set's values as stored: kg (the added load for bodyweight exercises) and reps. */
 export type SetValue = { weightKg: number | null; reps: number | null };
 
