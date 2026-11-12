@@ -11,12 +11,22 @@ type Props = {
   onPress?: () => void;
   /** Shown as a button that can't be used now (e.g. a pattern with no exercises). */
   disabled?: boolean;
+  /** What a screen reader says instead of the title and subtitle. */
+  accessibilityLabel?: string;
 };
 
-export function ListRow({ title, subtitle, tag, onPress, disabled = false }: Props) {
+export function ListRow({
+  title,
+  subtitle,
+  tag,
+  onPress,
+  disabled = false,
+  accessibilityLabel,
+}: Props) {
   return (
     <Pressable
       accessibilityRole={onPress || disabled ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={disabled ? { disabled: true } : undefined}
       onPress={disabled ? undefined : onPress}
       disabled={disabled || !onPress}

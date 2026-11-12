@@ -31,7 +31,7 @@ export default function StartSession() {
       sessionId = mutate(db, (tx) => startSession(tx, clientId, date));
     } catch (e) {
       starting.current = false;
-      // The draft dialogs arrive with GYM-21; until then, say why nothing happened.
+      // The client screen asks first (GYM-21). This guards a draft started elsewhere meanwhile.
       if (e instanceof DraftExistsError) {
         setBlockedBy(getDraft(db)?.clientName ?? '');
         return;

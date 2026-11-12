@@ -209,5 +209,7 @@ test('"Finish exercise" marks it finished and goes back to the session page', as
   await press('Finish exercise');
   expect(getSessionExercise(db, seId)!.finishedAt).not.toBeNull();
   expect(screen).toHavePathname(`/session/${sid}`);
-  expect(within(screen.getByTestId('session-exercises')).getByText('Bench press')).toBeTruthy();
+  expect(
+    within(screen.getByTestId('session-exercises')).getByText('1  Bench press  ✓'),
+  ).toBeTruthy();
 });
