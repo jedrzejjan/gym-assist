@@ -15,7 +15,7 @@ This is spec section 3, Sprint 2, plus the owner's phone-test findings from 2026
 - **Pure logic:** recovery, e1RM and best set, CSV parsing and validation, and the backup format go in `domain/`.
 - **Database reads and writes:** go in `data/`, as functions that take `DbOrTx`. Screens call them inside `mutate`.
 - **File access:** goes through one small adapter, `data/files.ts`, built on `expo-file-system`'s `Directory`/`File` API. Tests replace it with an in-memory fake.
-- **Automatic export:** a listener on `mutate`. Every write triggers it unless the screen marks the write as draft-only. That makes the default fail safe: a forgotten flag gives one export too many, never one too few.
+- **Automatic export:** a listener on `mutate`. Every write triggers it unless the caller passes `{ export: false }`: draft-only writes, the backup status save itself, and a restore. That makes the default fail safe: a forgotten flag gives one export too many, never one too few.
 
 **Tech Stack:** unchanged from Sprint 1: Expo SDK 58, Expo Router, TypeScript, Drizzle ORM with expo-sqlite (better-sqlite3 in Jest), Jest with React Native Testing Library 14, expo-file-system ~58.0.13.
 
@@ -37,7 +37,9 @@ Sprint 1's Global Constraints still apply (`docs/superpowers/plans/2026-11-11-st
 - **Epley:** `e1rm = weight` when reps = 1, otherwise `weight × (1 + reps / 30)`.
 - **Backups:**
   - **File name:** `gym-assist-backup-YYYY-MM-DD.json`. It keeps the last 10 files, and several exports on one day overwrite that day's file.
-  - **Format:** `{ "app": "gym-assist", "formatVersion": 1, "schemaVersion": <n>, "exportedAt": <ISO>, "tables": { <table>: [rows] } }`. `n` is the number of entries in `data/migrations/meta/_journal.json`.
+  - **Format:** `{ "app": "gym-assist", "formatVersion": 1, "schemaVersion": <n>, "exportedAt": <ISO>, "tables": { <SQL table name>: [rows] } }`. `n` is the number of entries in `data/migrations/meta/_journal.json`. Rows are Drizzle's select objects (camelCase keys, e.g. `firstName`), so a restore inserts them back through Drizzle unchanged, in chunks of 100 rows to stay under SQLite's bound-variable limit.
+  - **Settings keys** in `app_settings`: `backup.folderUri`, `backup.folderName`, `backup.lastAt`, `backup.lastError`.
+  - **Dates shown from timestamps** (`exportedAt`, `created_at`) use the phone's local date: `todayLocal(new Date(iso))`, never the UTC date part of the string.
 - **Exact strings.** Spec and boards; the boards win on wording the spec doesn't fix.
   - **Session:**
     - "Delete this session?";
@@ -87,10 +89,16 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
    - **Dates:** always shown as `D Mon YYYY`.
 7. **Backup folder and Export** (Task 6):
    - "Export data (JSON)" writes today's file to the backup folder, and asks for a folder first if none is chosen. There is no share sheet, because that would mean a new library.
-   - If the folder chosen with `Directory.pickDirectoryAsync()` doesn't survive an app restart on the phone, the adapter switches to `StorageAccessFramework` from `expo-file-system/legacy`. That's the same package, so still no new library.
-8. **Restore** (Task 9) replaces every table, except the backup settings stored on this phone: the folder and the last export status. A folder chosen on another phone can't be used on this one.
+   - The folder comes from `Directory.pickDirectoryAsync()`, which already takes a persistable permission, so it survives a restart. Task 10 still checks this on the phone.
+   - Overwriting today's file deletes it and creates it again. Android's document providers don't always truncate a file opened for writing, so writing over it could leave old bytes at the end.
+   - **Google Drive:** the spec promises the folder "can be a Google Drive folder", but Android's folder picker may not offer Drive. Task 10 checks this. If Drive isn't offered, the owner chooses between a phone folder (Android Auto Backup still covers a lost phone) and a backlog ticket for Drive.
+8. **Restore** (Task 9):
+   - It replaces every table, except this phone's `backup.*` settings. A folder chosen on another phone can't be used on this one.
+   - It accepts only a backup whose `schemaVersion` equals the app's. Restoring a backup from an older schema becomes a backlog ticket, needed before the next schema change after Task 1.
+   - Before replacing anything, it writes the current data to `gym-assist-before-restore.json` in the backup folder. There is one such file, overwritten each time and not counted in the 10. Picking the wrong file by mistake can then be undone.
+   - The restore itself doesn't trigger an automatic export, so it never overwrites today's backup.
 9. **CSV import** (Task 8):
-   - **Without a "Me":** it opens `create-profile` first, then continues the import (the open question on GYM-25).
+   - **Without a "Me":** it opens `create-profile` first, then continues the import (the open question on GYM-25). This changes spec section 5, which says "Me" is created "only there, not in Settings".
    - **Dates already in "Me":** it refuses a CSV that has a date on which "Me" already has a session, and lists those dates, so a second import can't duplicate history.
    - **`visits.csv`:** not imported. A visit with no sets has nothing to show.
 10. **The backup warning** sits on Home, as the spec says (GYM-27's description says Clients; the spec wins).
@@ -99,7 +107,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
     - "Edit a finished session", split from GYM-22;
     - "Restore from backup", split from GYM-26.
 
-    Both are created under GYM-3 when this plan is approved.
+    Both are created under GYM-3 when this plan is approved. GYM-26 is renamed "JSON export and automatic export".
 
 ## Review Focus
 
@@ -136,11 +144,11 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 - Produces: `NewExercise` without `category`. Required: `nameEn`, `trainingType`, `pattern`.
 
 - [ ] **Step 1: Write failing tests**
-  - `migrations.test.ts`: `'0001 drops category and keeps every exercise row'`. It migrates a database to 0000, inserts two exercises (one custom) and a session that uses one of them, applies 0001, and expects the same ids and names, `pragma table_info(exercises)` without `category`, and the session row untouched.
+  - `migrations.test.ts`: `'0001 drops category and keeps every exercise row'`. It opens a better-sqlite3 database and runs only `data/migrations/0000_init.sql` (split on `--> statement-breakpoint`), inserts two exercises (one custom) and a session that uses one of them, applies 0001, and expects the same ids and names, `pragma table_info(exercises)` without `category`, and the session row untouched.
   - `library.test.tsx`: the detail page has no "Category".
   - `add-exercise.test.tsx`: Save is enabled with the name, training type and pattern alone.
 - [ ] **Step 2: Run them, expect FAIL.** Run: `npx jest data/__tests__/migrations.test.ts tests/app/library.test.tsx tests/app/add-exercise.test.tsx`
-- [ ] **Step 3: Implement.** Remove the field, then run `npx drizzle-kit generate`. Check the generated SQL: a `DROP COLUMN` or a table rebuild are both fine, because migrations already run with foreign keys off. Update the seed and the screens.
+- [ ] **Step 3: Implement.** Remove the field, then run `npx drizzle-kit generate`. Check the generated SQL: a `DROP COLUMN` or a table rebuild are both fine, because migrations already run with foreign keys off. Check that `data/migrations/migrations.js` now imports `0001`. Update the seed and the screens.
 - [ ] **Step 4: Run the full suite.** Run: `npx jest` and `npx tsc --noEmit`. Expected: all pass.
 - [ ] **Step 5: Edit the spec, CLAUDE.md and the boards.** Remove the Category row and chips from both boards, through the Penpot MCP.
 - [ ] **Step 6: Commit.** Open the PR `feat(exercises): GYM-99 Remove Category from exercises` with the `needs-owner` label (schema and spec).
@@ -180,7 +188,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `'"Delete session" asks "Delete this session? This cannot be undone." with "5 Nov 2026 · 3 exercises · 8 sets" and returns to History'`;
   - `'tabs replace each other: back from History returns to Clients'`;
   - `'the profile shows "Weight history ›"'`.
-- [ ] **Step 3: Run them, expect FAIL.** Run: `npx jest data/__tests__/history.test.ts tests/app/history.test.tsx`
+- [ ] **Step 3: Run them, expect FAIL.** Run: `npx jest data/__tests__/history.test.ts tests/app/history.test.tsx tests/app/profile.test.tsx tests/app/session-flow.test.tsx`
 - [ ] **Step 4: Implement.** Use a `FlatList` for the history rows.
 - [ ] **Step 5: Run the full suite, expect PASS.** Run: `npx jest`
 - [ ] **Step 6: Commit.** First rename GYM-22 to "History: list, summary and delete a finished session" and move editing to the new story. Then open the PR `feat(clients): GYM-22 History: list, summary and delete a finished session`, with the `needs-owner` label for decisions 2 and 3.
@@ -190,7 +198,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 **Boards:** `history/session - editing`, `history/dialog - delete last exercise`.
 
 **Files:**
-- Modify: `data/sessions.ts`, `app/session/[id]/index.tsx`, `app/session/[id]/reorder.tsx`, `app/session/[id]/exercise/[seId].tsx`, `app/session/[id]/summary.tsx` (the Edit button)
+- Modify: `data/sessions.ts` (including `exerciseScreenData`, which passes `before` to `lastTimeSets` when the session is finished), `app/session/[id]/index.tsx`, `app/session/[id]/reorder.tsx`, `app/session/[id]/exercise/[seId].tsx`, `app/session/[id]/summary.tsx` (the Edit button)
 - Test: `data/__tests__/sessions.test.ts`, `tests/app/edit-session.test.tsx` (new)
 
 **Interfaces:**
@@ -215,9 +223,10 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `'the exercise page of a finished session shows "Done" instead of "Finish exercise"'`;
   - `'editing a finished session while a draft exists works and leaves the draft bar alone'`.
 - [ ] **Step 3: Run them, expect FAIL.** Run: `npx jest data/__tests__/sessions.test.ts tests/app/edit-session.test.tsx`
-- [ ] **Step 4: Implement.** The session page branches on `session.status`. Draft writes pass `{ draftOnly: true }` once Task 6 adds the option; until then there is nothing to pass.
+- [ ] **Step 4: Implement.** The session page branches on `session.status`. Task 6 later adds `{ export: false }` to the draft writes; finished-session writes keep the default.
 - [ ] **Step 5: Run the full suite, expect PASS.** Run: `npx jest`
-- [ ] **Step 6: Commit.** Open the PR `feat(log): GYM-<new> Edit a finished session`, with the `needs-owner` label (decision 4: "+ New exercise" isn't on the board).
+- [ ] **Step 6: Update spec section 4** ("Editing a finished session") with decision 4.
+- [ ] **Step 7: Commit.** Open the PR `feat(log): GYM-<new> Edit a finished session`, with the `needs-owner` label (decision 4: "+ New exercise" isn't on the board).
 
 ### Task 4: Recovery tab (GYM-23)
 
@@ -225,7 +234,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 
 **Files:**
 - Create: `domain/recovery.ts`, `data/recovery.ts`, `app/clients/[id]/recovery.tsx`
-- Create: `tests/golden/sessions-sample.csv` (anonymised, made up), `tests/golden/make_recovery_golden.py`, `domain/__tests__/fixtures/recovery-golden.json`
+- Create: `tests/fixtures/sessions-sample.csv` (anonymised and made up; Task 8 reuses it), `tests/fixtures/exercises-sample.csv` (the seed's 23 exercises in the legacy format, generated from `data/seed/exercises.ts`, because `legacy/data/` is gitignored), `tests/golden/make_recovery_golden.py`, `domain/__tests__/fixtures/recovery-golden.json`
 - Test: `domain/__tests__/recovery.test.ts`, `data/__tests__/recovery.test.ts`, `tests/app/recovery.test.tsx`
 
 **Interfaces:**
@@ -235,9 +244,9 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `recoveryLabel(days: number): RecoveryStatus`;
   - `recoveryTable(trained: { date: string; pattern: Pattern; muscles: Muscle[] }[], today: string): { patterns: RecoveryRow<Pattern>[]; muscles: RecoveryRow<Muscle>[] }`, where `RecoveryRow<K> = { key: K; lastDate: string | null; days: number | null; status: RecoveryStatus }`. Patterns leave out `'none'`;
   - `daysAgo(days: number): string` → "today" | "1 day ago" | "N days ago";
-  - `trainedFor(db, clientId)`: one row per session exercise with at least one set in a finished session.
+  - `trainedFor(db, clientId): { date: string; pattern: Pattern; muscles: Muscle[] }[]`: one row per session exercise with at least one set in a finished session. Its rows are the input of `recoveryTable`.
 
-- [ ] **Step 1: Make the golden file.** `make_recovery_golden.py` imports `build_recovery` from `legacy/gym_tracker.py`. It runs on `sessions-sample.csv` with `today = 2026-11-12`, and writes `{pattern|muscle: days|null}` to the JSON fixture. Run it locally: `python tests/golden/make_recovery_golden.py`. Commit the CSV, the script and the JSON. The sample must include:
+- [ ] **Step 1: Make the golden file.** `make_recovery_golden.py` imports `legacy/gym_tracker.py` and sets `read_priorities = lambda: []`. It calls `build_recovery(sessions, exercises, date(2026, 11, 12))` on the two sample CSVs, parses the two Markdown tables it returns (`| name | last | days | status |`), and writes `{patterns: {name: days|null}, muscles: {name: days|null}}` to the JSON fixture. The test compares days and the status category, not the label text: Python writes "48-72 h" with a hyphen. Run it locally: `python tests/golden/make_recovery_golden.py`. Commit the CSV, the script and the JSON. The sample must include:
   - a pattern trained exactly 3 days before;
   - one trained 0 days before;
   - one never trained;
@@ -263,7 +272,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 **Files:**
 - Modify: `domain/progress.ts` (add e1RM and best set)
 - Create: `data/progress.ts`, `app/clients/[id]/progress.tsx`
-- Modify: `data/sessions.ts` (move `currentOneRepMax` and `OneRepMax` to `data/progress.ts`, and re-export them)
+- Modify: `data/sessions.ts` (move `currentOneRepMax` and `OneRepMax` to `data/progress.ts`; `sessions.ts` imports them from there, `progress.ts` never imports `sessions.ts`, and there is no re-export)
 - Test: `domain/__tests__/progress.test.ts`, `data/__tests__/progress.test.ts`, `tests/app/progress.test.tsx`
 
 **Interfaces:**
@@ -274,12 +283,12 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `bestSet(sets: ComparableSet[]): ComparableSet | null`: highest e1RM, then more reps, then the earliest date;
   - `strengthList(db, clientId): { exerciseId: string; nameEn: string; namePl: string | null; usesBodyweight: boolean; oneRepMax: OneRepMax | null; best: (ComparableSet & { e1rmKg: number }) | null }[]`;
   - `setOneRepMax(db, clientId, exerciseId, valueKg: number, source: 'estimated' | 'manual'): void`: it inserts a row, and history is kept;
-  - `bodyProgress(db, clientId): { latest: WeightRow; changeKg: number | null; since: string | null; entries: WeightRow[] }`.
+  - `bodyProgress(db, clientId): { latest: WeightRow; changeKg: number | null; since: string | null; entries: WeightRow[] }`. `changeKg` is the latest weight minus the earliest one, and `since` is the earliest entry's date. Both are null with a single entry.
 
-  For a bodyweight exercise, `loadKg = bodyWeightOn(weights, date) + (weightKg ?? 0)`, and `shown` keeps the added load.
+  For a bodyweight exercise, `loadKg = bodyWeightOn(weights, date)!.valueKg + (weightKg ?? 0)`, and `shown` keeps the added load. An exercise with no comparable set (cardio, for example) shows "Best set: -" and a disabled Estimate.
 
 - [ ] **Step 1: Write failing domain tests (golden values from `gym_tracker.est_1rm`)**
-  - `e1rm(92.5, 3) === 101.75`;
+  - `expect(e1rm(92.5, 3)).toBeCloseTo(101.75, 10)` (floating point gives 101.75000000000001, in Python too);
   - `e1rm(100, 1) === 100`;
   - `'bestSet ranks by e1RM, then reps, then earliest date'`;
   - `'bestSet skips sets with null weight or reps'`.
@@ -296,7 +305,8 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 - [ ] **Step 3: Run them, expect FAIL.** Run: `npx jest domain/__tests__/progress.test.ts data/__tests__/progress.test.ts tests/app/progress.test.tsx`
 - [ ] **Step 4: Implement.**
 - [ ] **Step 5: Run the full suite, expect PASS.** Run: `npx jest`
-- [ ] **Step 6: Commit.** Open the PR `feat(progress): GYM-24 Progress: Strength (stored 1RM, estimate and set) and Body`.
+- [ ] **Step 6: Update spec section 5** (`progress.ts`) with decision 6.
+- [ ] **Step 7: Commit.** Open the PR `feat(progress): GYM-24 Progress: Strength (stored 1RM, estimate and set) and Body`.
 
 ### Task 6: Settings, backup folder, JSON export and automatic export (GYM-26) — needs-owner
 
@@ -305,20 +315,20 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 **Files:**
 - Create: `domain/backup.ts`, `data/backup.ts`, `data/files.ts`, `data/autoExport.ts`, `app/settings/index.tsx`
 - Create: `data/testing/fakeFolder.ts` (an in-memory `BackupFolder`)
-- Modify: `data/live.ts` (`mutate` options and a write listener), `app/index.tsx` (enable the Settings tile), `app/_layout.tsx` (start the auto-export), and every draft-only write in `app/session/**` (pass `{ draftOnly: true }` when the session is a draft)
+- Modify: `data/live.ts` (`mutate` options and a write listener), `app/index.tsx` (enable the Settings tile), `app/_layout.tsx` (start the auto-export), and every draft-only write in `app/session/**` and `app/clients/[id]/history.tsx` (Start session, Discard it): pass `{ export: false }` when the session is a draft
 - Test: `domain/__tests__/backup.test.ts`, `data/__tests__/backup.test.ts`, `data/__tests__/autoExport.test.ts`, `tests/app/settings.test.tsx`
 
 **Interfaces:**
 - Produces:
-  - `mutate(db, write, opts?: { draftOnly?: boolean })` and `onWrite(listener: (e: { draftOnly: boolean }) => void): () => void` in `data/live.ts`;
+  - `mutate(db, write, opts?: { export?: boolean })`, where `export` defaults to `true`, and `onWrite(listener: (e: { export: boolean }) => void): () => void` in `data/live.ts`;
   - `backupFileName(date: string): string` and `filesToDelete(names: string[], keep = 10): string[]`. The second keeps only names that match the pattern, and returns the oldest ones beyond `keep`;
   - `type BackupFile = { app: 'gym-assist'; formatVersion: 1; schemaVersion: number; exportedAt: string; tables: Record<string, unknown[]> }` in `domain/backup.ts`;
   - `BACKUP_TABLES` in `data/backup.ts`: every table in `data/schema.ts`, parents first (`clients`, `exercises`, `exercise_muscles`, `measurements`, `one_rep_maxes`, `sessions`, `session_exercises`, `sets`, `app_settings`);
   - `exportAll(db): BackupFile`: one entry per `BACKUP_TABLES` name;
-  - `interface BackupFolder { name: string; list(): Promise<string[]>; write(name: string, text: string): Promise<void>; read(name: string): Promise<string>; remove(name: string): Promise<void> }`;
+  - `interface BackupFolder { name: string; list(): Promise<string[]>; write(name: string, text: string): Promise<void>; read(name: string): Promise<string>; remove(name: string): Promise<void> }`. `write` replaces an existing file by deleting it and creating it again;
   - `pickFolder(): Promise<{ uri: string; name: string } | null>` and `openFolder(uri: string): BackupFolder` in `data/files.ts`;
-  - `writeBackup(db, folder, today): Promise<void>`: it writes the file, prunes old ones, and stores `backup.lastAt` or `backup.lastError` in `app_settings`;
-  - `startAutoExport(db, getFolder: () => BackupFolder | null): () => void`: it listens with `onWrite`, skips `draftOnly`, runs once more if writes arrive while it's running, and never throws;
+  - `writeBackup(db, folder, today): Promise<void>`: it writes the file, prunes old ones, and stores `backup.lastAt` or `backup.lastError` in `app_settings` through `mutate(…, { export: false })`, so saving the status never starts another export;
+  - `startAutoExport(db, getFolder: () => BackupFolder | null): () => void`: it listens with `onWrite`, skips `export: false`, runs once more if writes arrive while it's running, and never throws. With no folder chosen it does nothing and leaves `backup.lastError` unset (the "Backups are off" warning covers that case);
   - `backupStatus(db): { folderName: string | null; lastAt: string | null; lastError: string | null }`.
 
 - [ ] **Step 1: Write failing tests**
@@ -326,14 +336,17 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
   - `'filesToDelete keeps the newest 10 and ignores other files'`;
   - `'exportAll has every schema table and the schemaVersion from the journal'`;
   - `'two exports on one day leave one file'`;
-  - `'auto-export runs after finishSession and a weight change, not after a draftOnly write'`;
+  - `'auto-export runs after finishSession and a weight change, not after an export: false write'`;
+  - `'one write gives exactly one export'`: the status save doesn't loop;
+  - `'with no folder, auto-export writes nothing and sets no lastError'`;
+  - `'writing over today's file with shorter text leaves exactly the new text'` (fake folder);
   - `'a folder write that fails stores lastError and does not throw'`;
   - screen: `'Settings shows the folder name and "today 18:42", Export writes a file, and with no folder Export asks for one first'`.
 - [ ] **Step 2: Run them, expect FAIL.** Run: `npx jest domain/__tests__/backup.test.ts data/__tests__/backup.test.ts data/__tests__/autoExport.test.ts tests/app/settings.test.tsx`
 - [ ] **Step 3: Implement.** `data/files.ts` is the only file that imports `expo-file-system`. Jest mocks it in `tests/` setup, the same way the datetime picker is mocked.
 - [ ] **Step 4: Run the full suite, expect PASS.** Run: `npx jest` and `npx tsc --noEmit`
-- [ ] **Step 5: Phone check.** The owner checks this on a preview build. A PR can't prove it, so it goes into Task 10: the chosen folder still works after the app is closed and reopened. If it doesn't, switch to `StorageAccessFramework` (decision 7) in a follow-up fix ticket.
-- [ ] **Step 6: Commit.** Open the PR `feat(db): GYM-26 JSON export, automatic export and restore` with the `needs-owner` label (it changes `mutate`, which every screen uses). The PR title keeps the ticket name, and restore is left to Task 9.
+- [ ] **Step 5: Phone check.** A PR can't prove these, so they go into Task 10: the chosen folder still works after the app is closed and reopened, overwriting today's file leaves valid JSON, and whether Google Drive appears in the folder picker (decision 7).
+- [ ] **Step 6: Commit.** First rename GYM-26 to "JSON export and automatic export". Then open the PR `feat(db): GYM-26 JSON export and automatic export` with the `needs-owner` label (it changes `mutate`, which every screen uses).
 
 ### Task 7: Backup warning on Home and Android Auto Backup (GYM-27) — needs-owner
 
@@ -364,7 +377,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 
 **Files:**
 - Create: `domain/csv.ts`, `domain/importRows.ts`, `data/import.ts`, `app/settings/import.tsx`
-- Create: `tests/fixtures/sessions-sample.csv` (anonymised: BOM, `\r\n`, quoted note with a comma, L/P sides, a cardio row, blank weight, blank reps)
+- Modify: `tests/fixtures/sessions-sample.csv` (from Task 4): make sure it has a BOM, `\r\n`, a quoted note with a comma, L/P sides, a cardio row, a blank weight and blank reps. Regenerate the recovery golden file if its rows change.
 - Modify: `app/settings/index.tsx`, `app/create-profile.tsx` (a `?then=import` return)
 - Test: `domain/__tests__/csv.test.ts`, `domain/__tests__/importRows.test.ts`, `data/__tests__/import.test.ts`, `tests/app/import.test.tsx`
 
@@ -381,7 +394,7 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
     - **height, speed and minutes:** numbers of at least 0, or blank;
     - **line:** the file line number, with the header as line 1;
     - **unknown names:** matched ignoring case and surrounding spaces. Every unknown name is listed, and `line` is the first row that has one;
-  - `importHistory(db, rows: ImportRow[]): { sessions: number }`:
+  - `importHistory(db, rows: ImportRow[]): { sessions: number }`. The screen says "1 session" or "N sessions":
     - into "Me" only; it throws `NoSelfError` when there is no "Me", and `DatesTakenError(dates: string[])`;
     - one finished session per date;
     - exercises are ordered by their first appearance, and sets keep `set_no`, `side` and every column.
@@ -399,12 +412,14 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
     - `'no Me throws NoSelfError'`;
   - screen:
     - `'success shows "6 sessions imported into Me." and "You can see them in Me › History."'`;
+    - `'one session reads "1 session imported into Me."'`;
     - `'error shows "Nothing was imported", the row and the bullet list of names, and "Choose another file"'`;
     - `'without Me the import opens Create my profile, then continues'`.
 - [ ] **Step 2: Run them, expect FAIL.** Run: `npx jest domain/__tests__/csv.test.ts domain/__tests__/importRows.test.ts data/__tests__/import.test.ts tests/app/import.test.tsx`
 - [ ] **Step 3: Implement.** Pick the file with `File.pickFileAsync` (through `data/files.ts`: add `pickTextFile(): Promise<{ name: string; text: string } | null>`). The import is one `mutate`, which also triggers the auto-export.
 - [ ] **Step 4: Run the full suite, expect PASS.** Run: `npx jest`
-- [ ] **Step 5: Commit.** Open the PR `feat(import): GYM-25 CSV import of existing history`, with the `needs-owner` label for decision 9 (the refuse-duplicates rule and the create-profile step).
+- [ ] **Step 5: Update spec sections 5 and 6** with decision 9 (the create-profile step and the refused dates).
+- [ ] **Step 6: Commit.** Open the PR `feat(import): GYM-25 CSV import of existing history`, with the `needs-owner` label for decision 9 (the refuse-duplicates rule and the create-profile step).
 
 ### Task 9: Restore from backup (new story, split from GYM-26)
 
@@ -418,23 +433,25 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 **Interfaces:**
 - Consumes: `exportAll`, `BackupFile`, `BackupFolder`, `pickTextFile` (Tasks 6 and 8).
 - Produces:
-  - `readBackup(text: string, currentSchema: number): { ok: true; file: BackupFile } | { ok: false; message: string }`. It refuses:
+  - `readBackup(text: string, currentSchema: number, tableNames: readonly string[]): { ok: true; file: BackupFile } | { ok: false; message: string }` in `domain/backup.ts`. The screen passes `BACKUP_TABLES`, so domain never imports data. It refuses:
     - text that isn't JSON;
     - a file whose `app` isn't `'gym-assist'`;
     - a `formatVersion` other than 1;
-    - a `schemaVersion` higher than the app's;
-    - a table missing from `BACKUP_TABLES`.
+    - a `schemaVersion` other than the app's (decision 8);
+    - a table missing from `tableNames`.
 
     It also checks that dates are `YYYY-MM-DD` (the deferred note from GYM-25).
-  - `restoreAll(db, file: BackupFile): { clients: number; sessions: number; date: string }`:
+  - `restoreAll(db, file: BackupFile): { clients: number; sessions: number; date: string }`. `clients` counts every client, archived ones included. `sessions` counts finished sessions. `date` is the local date of `exportedAt`:
     - it deletes the children first, inserts the parents first, and keeps this phone's `backup.*` settings;
-    - it runs inside one `mutate`, so a failure rolls back and nothing changes.
+    - it runs inside one `mutate(…, { export: false })`, so a failure rolls back and nothing changes, and today's backup isn't overwritten;
+    - the screen first writes `gym-assist-before-restore.json` to the folder (decision 8).
 
 - [ ] **Step 1: Write failing tests**
   - `'export then restore into an empty database gives identical tables'`: a round trip over every table;
   - `'a newer schemaVersion is refused and nothing changes'`;
   - `'a row that breaks a constraint rolls the whole restore back'`;
   - `'restore keeps this phone's backup folder'`;
+  - `'restore writes gym-assist-before-restore.json first and does not overwrite today's backup'`;
   - screen:
     - `'the dialog says "This replaces all data in the app with gym-assist-backup-2026-11-09.json."'`;
     - `'done says "All data now comes from the backup of 9 Nov 2026: 4 clients, 61 sessions." and "Go to clients" opens Clients'`;
@@ -442,7 +459,8 @@ These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affec
 - [ ] **Step 2: Run them, expect FAIL.** Run: `npx jest data/__tests__/restore.test.ts tests/app/restore.test.tsx domain/__tests__/backup.test.ts`
 - [ ] **Step 3: Implement.** After a restore, any open screen re-reads through `useLive`. The draft bar shows if the backup holds a draft.
 - [ ] **Step 4: Run the full suite, expect PASS.** Run: `npx jest`
-- [ ] **Step 5: Commit.** Open the PR `feat(db): GYM-<new> Restore from backup`.
+- [ ] **Step 5: Update spec section 5** (Restore) with decision 8, and create the backlog ticket "Restore backups from an older schema version" under GYM-4.
+- [ ] **Step 6: Commit.** Open the PR `feat(db): GYM-<new> Restore from backup` with the `needs-owner` label (it changes the spec).
 
 ### Task 10: Sprint 2 review on the phone (the Stage 2 "done when")
 
@@ -450,9 +468,9 @@ The owner runs **build-android → preview** and installs the APK over the Sprin
 
 - [ ] **Step 1: Checks on the phone.**
   - The Sprint 1 data is still there, so the migration from Task 1 ran.
-  - Choose a backup folder, close the app, reopen it, and Export (decision 7).
+  - Choose a backup folder (try Google Drive first), close the app, reopen it, Export twice, and open the file to check it's valid JSON (decision 7).
   - Import the real `legacy/data/sessions.csv` into "Me".
-  - Compare the Recovery tab with `python legacy/gym_tracker.py status` on the same day.
+  - Compare the Recovery tab with `python legacy/gym_tracker.py status` on the same day: the days and the status for each row. The wording differs ("48-72 h" with a hyphen).
   - Set a 1RM with Estimate, then log a set in %.
   - Edit and delete a finished session.
 - [ ] **Step 2: Restore test.** Uninstall, reinstall, Restore from the newest file, and check the clients and session counts.
