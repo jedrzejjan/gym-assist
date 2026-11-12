@@ -26,7 +26,7 @@ import { Button } from '../../../../ui/Button';
 import { Chips } from '../../../../ui/Chips';
 import { Screen } from '../../../../ui/Screen';
 import { Text } from '../../../../ui/Text';
-import { NumberField } from '../../../../ui/TextField';
+import { NumberField, TextField } from '../../../../ui/TextField';
 import { colors, fonts, sizes } from '../../../../ui/theme';
 
 type Mode = 'kg' | '%';
@@ -65,7 +65,9 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
   const [editing, setEditing] = useState<SetRow | null>(null);
   const leaving = useRef(false);
 
-  const percentMode = mode === '%' && oneRepMax !== null && editing === null;
+  // % needs a stored 1RM, and for a bodyweight exercise also a body weight to subtract.
+  const percentAvailable = oneRepMax !== null && (!bw || bodyWeight !== null);
+  const percentMode = mode === '%' && percentAvailable && oneRepMax !== null && editing === null;
   const typed = parseWeight(weightText);
   const reps = parseReps(repsText);
 
@@ -73,7 +75,7 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
   let kg: number | null = null;
   if (typeof typed === 'number') {
     if (!percentMode) kg = typed;
-    else if (bw) kg = addedLoadFromPercent(oneRepMax.valueKg, typed, bodyWeight?.valueKg ?? 0);
+    else if (bw) kg = addedLoadFromPercent(oneRepMax.valueKg, typed, bodyWeight!.valueKg);
     else kg = percentToKg(oneRepMax.valueKg, typed);
   }
   const valid = typed !== 'invalid' && reps !== 'invalid';
@@ -206,7 +208,7 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
           <Chips
             options={[
               { value: 'kg' as Mode, label: 'kg' },
-              { value: '%' as Mode, label: '%', disabled: oneRepMax === null },
+              { value: '%' as Mode, label: '%', disabled: !percentAvailable },
             ]}
             value={mode}
             onChange={(v) => setMode(v ?? 'kg')}
@@ -218,7 +220,12 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
             <NumberField label={weightLabel} value={weightText} onChangeText={setWeightText} />
           </View>
           <View style={styles.field}>
-            <NumberField label="Reps" value={repsText} onChangeText={setRepsText} />
+            <TextField
+              label="Reps"
+              value={repsText}
+              onChangeText={setRepsText}
+              keyboardType="number-pad"
+            />
           </View>
         </View>
         {weightHint ? (

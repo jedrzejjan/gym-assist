@@ -118,6 +118,46 @@ test('with a 1RM of 60, 85 in % mode saves 51 kg, and % stays on for the next se
   expect(chip('%')).toBeChecked();
 });
 
+function addOneRepMax(db: Db, clientId: string, exerciseId: string, valueKg: number) {
+  db.insert(oneRepMaxes)
+    .values({
+      id: `orm-${valueKg}`,
+      clientId,
+      exerciseId,
+      valueKg,
+      source: 'manual',
+      createdAt: '2026-10-20T10:00:00.000Z',
+      updatedAt: '2026-10-20T10:00:00.000Z',
+    })
+    .run();
+}
+
+test('bodyweight in %: 85% of a 120 kg 1RM minus 82 kg body weight saves 20 kg added', async () => {
+  const { db, anna, exerciseId, sid, seId } = setup('Overhand pull-up');
+  addOneRepMax(db, anna, exerciseId, 120);
+  await renderExercise(db, sid, seId);
+  await fireEvent.press(chip('%'));
+  await fireEvent.changeText(screen.getByLabelText('% of 1RM'), '85');
+  expect(screen.getByText('1RM 120 kg (manual, 20 Oct) · 85% = BW + 20 kg')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Reps'), '5');
+  await press('Add set');
+  expect(rows(db, seId)).toEqual([[1, 20, 5]]);
+  expect(screen.getByText('BW + 20 kg × 5')).toBeTruthy();
+});
+
+test('editing a set while % is chosen shows and saves kg', async () => {
+  const { db, anna, exerciseId, sid, seId } = setup();
+  addOneRepMax(db, anna, exerciseId, 60);
+  addSet(db, seId, { weightKg: 51, reps: 6 });
+  await renderExercise(db, sid, seId);
+  await fireEvent.press(chip('%'));
+  await press('Set 1, 51 kg × 6');
+  expect(screen.getByLabelText('Weight (kg)').props.value).toBe('51');
+  await fireEvent.changeText(screen.getByLabelText('Weight (kg)'), '52,5');
+  await press('Save set 1');
+  expect(rows(db, seId)).toEqual([[1, 52.5, 6]]);
+});
+
 test('bodyweight: the line about body weight shows and a set reads "BW + 10 kg × 6"', async () => {
   const { db, sid, seId } = setup('Overhand pull-up', '2026-11-10');
   await renderExercise(db, sid, seId);

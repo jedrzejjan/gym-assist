@@ -249,6 +249,7 @@ export function deleteSet(db: DbOrTx, setId: string): void {
 
 export function finishExercise(db: DbOrTx, sessionExerciseId: string): void {
   const now = nowIso();
+  touch(db, sessionExerciseId, now);
   db.update(sessionExercises)
     .set({ finishedAt: now, updatedAt: now })
     .where(eq(sessionExercises.id, sessionExerciseId))
