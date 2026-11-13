@@ -1,6 +1,5 @@
 // Fixed lists (spec section 5, catalogue.ts). Pure data; no UI, no database.
 
-export const CATEGORIES = ['KD', 'HD', 'Push', 'Pull', 'Core'] as const;
 export const TRAINING_TYPES = ['Strength', 'Plyometric', 'Power', 'Cardio'] as const;
 export const PATTERNS = [
   'KD',
@@ -31,7 +30,6 @@ const MUSCLE_NAMES = {
   'upper back': { en: 'Upper back', pl: 'mięśnie górnej części pleców' },
 } as const;
 
-export type Category = (typeof CATEGORIES)[number];
 export type TrainingType = (typeof TRAINING_TYPES)[number];
 export type Pattern = (typeof PATTERNS)[number];
 export type Muscle = keyof typeof MUSCLE_NAMES;
@@ -42,7 +40,7 @@ export function muscleName(m: Muscle): { en: string; pl: string } {
   return MUSCLE_NAMES[m];
 }
 
-/** Screens show KD and HD as "Knee Dominant" and "Hip Dominant" (patterns and categories). */
+/** Screens show the patterns KD and HD as "Knee Dominant" and "Hip Dominant". */
 export function displayName(code: string): string {
   if (code === 'KD') return 'Knee Dominant';
   if (code === 'HD') return 'Hip Dominant';

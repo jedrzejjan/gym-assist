@@ -8,6 +8,13 @@
       "when": 1794407503390,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794562868714,
+      "tag": "0001_drop_exercise_category",
+      "breakpoints": true
     }
   ]
 }

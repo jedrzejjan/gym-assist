@@ -1,12 +1,11 @@
 // The exercise library installed with the app (spec section 5, Seed). Converted once from the
-// legacy exercises.csv; this file is the source of truth now. Categories "Knee dominant" and
-// "Hip dominant" became the codes KD and HD (domain/catalogue.ts).
-import type { Category, Muscle, Pattern, TrainingType } from '../../domain/catalogue';
+// legacy exercises.csv; this file is the source of truth now. The legacy category column is not
+// kept (GYM-99): it repeated the pattern.
+import type { Muscle, Pattern, TrainingType } from '../../domain/catalogue';
 
 export type SeedExercise = {
   nameEn: string;
   namePl: string;
-  category: Category;
   trainingType: TrainingType;
   pattern: Pattern;
   usesBodyweight: boolean;
@@ -17,7 +16,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Bench press',
     namePl: 'Wyciskanie sztangi na ławce płaskiej',
-    category: 'Push',
     trainingType: 'Strength',
     pattern: 'Push horizontal',
     usesBodyweight: false,
@@ -26,7 +24,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Underhand pull-up',
     namePl: 'Podciąganie podchwytem',
-    category: 'Pull',
     trainingType: 'Strength',
     pattern: 'Pull vertical',
     usesBodyweight: true,
@@ -35,7 +32,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Overhead press',
     namePl: 'Wyciskanie sztangi nad głowę',
-    category: 'Push',
     trainingType: 'Strength',
     pattern: 'Push vertical',
     usesBodyweight: false,
@@ -44,7 +40,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Single-arm dumbbell overhead press',
     namePl: 'Wyciskanie hantli nad głowę jednorącz',
-    category: 'Push',
     trainingType: 'Strength',
     pattern: 'Push vertical',
     usesBodyweight: false,
@@ -53,7 +48,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Back squat',
     namePl: 'Przysiad ze sztangą',
-    category: 'KD',
     trainingType: 'Strength',
     pattern: 'KD',
     usesBodyweight: false,
@@ -62,7 +56,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Leg curl',
     namePl: 'Uginanie nóg na maszynie',
-    category: 'KD',
     trainingType: 'Strength',
     pattern: 'KD',
     usesBodyweight: false,
@@ -71,7 +64,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Single-leg leg curl',
     namePl: 'Uginanie nóg na maszynie jednonóż',
-    category: 'KD',
     trainingType: 'Strength',
     pattern: 'KD',
     usesBodyweight: false,
@@ -80,7 +72,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Dumbbell bench row',
     namePl: 'Wiosłowanie hantlą w podporze',
-    category: 'Pull',
     trainingType: 'Strength',
     pattern: 'Pull horizontal',
     usesBodyweight: false,
@@ -89,7 +80,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Overhand pull-up',
     namePl: 'Podciąganie nachwytem',
-    category: 'Pull',
     trainingType: 'Strength',
     pattern: 'Pull vertical',
     usesBodyweight: true,
@@ -98,7 +88,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Treadmill run',
     namePl: 'Bieg na bieżni',
-    category: 'KD',
     trainingType: 'Cardio',
     pattern: 'none',
     usesBodyweight: false,
@@ -107,7 +96,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Bulgarian split squat',
     namePl: 'Bułgarski przysiad',
-    category: 'KD',
     trainingType: 'Strength',
     pattern: 'KD',
     usesBodyweight: false,
@@ -116,7 +104,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Single-leg lateral step-up jump',
     namePl: 'Skok jednonóż bokiem na stepa i zeskok',
-    category: 'KD',
     trainingType: 'Plyometric',
     pattern: 'KD',
     usesBodyweight: false,
@@ -125,7 +112,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Band hop forward and backward',
     namePl: 'Przeskoki nad gumą w przód i w tył',
-    category: 'KD',
     trainingType: 'Plyometric',
     pattern: 'KD',
     usesBodyweight: false,
@@ -134,7 +120,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Triple jump',
     namePl: 'Trójskok',
-    category: 'KD',
     trainingType: 'Plyometric',
     pattern: 'KD',
     usesBodyweight: false,
@@ -143,7 +128,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Deadlift',
     namePl: 'Martwy ciąg',
-    category: 'HD',
     trainingType: 'Strength',
     pattern: 'HD',
     usesBodyweight: false,
@@ -152,7 +136,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Hip flexor variation with locked leg',
     namePl: 'Ćwiczenie na zginacze bioder z zablokowaną nogą (wariant autorski)',
-    category: 'Core',
     trainingType: 'Strength',
     pattern: 'Anti extension',
     usesBodyweight: false,
@@ -161,7 +144,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Single-leg leg extension',
     namePl: 'Wyprosty kolan na maszynie jednonóż',
-    category: 'KD',
     trainingType: 'Strength',
     pattern: 'KD',
     usesBodyweight: false,
@@ -170,7 +152,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Med ball slam',
     namePl: 'Rzut piłką lekarską (med ball slam)',
-    category: 'Core',
     trainingType: 'Power',
     pattern: 'none',
     usesBodyweight: false,
@@ -179,7 +160,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Kettlebell swing',
     namePl: 'Wymach kettlebell (swing)',
-    category: 'HD',
     trainingType: 'Strength',
     pattern: 'HD',
     usesBodyweight: false,
@@ -188,7 +168,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Single-arm dumbbell bench press',
     namePl: 'Wyciskanie hantli na ławce płaskiej jednorącz',
-    category: 'Push',
     trainingType: 'Strength',
     pattern: 'Push horizontal',
     usesBodyweight: false,
@@ -197,7 +176,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Copenhagen plank dips',
     namePl: 'Deska kopenhaska z opadaniem bioder',
-    category: 'Core',
     trainingType: 'Strength',
     pattern: 'none',
     usesBodyweight: false,
@@ -206,7 +184,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Dumbbell overhead press',
     namePl: 'Wyciskanie hantli nad głowę',
-    category: 'Push',
     trainingType: 'Strength',
     pattern: 'Push vertical',
     usesBodyweight: false,
@@ -215,7 +192,6 @@ export const SEED_EXERCISES: SeedExercise[] = [
   {
     nameEn: 'Hip thrust',
     namePl: 'Wypychanie bioder',
-    category: 'HD',
     trainingType: 'Strength',
     pattern: 'HD',
     usesBodyweight: false,

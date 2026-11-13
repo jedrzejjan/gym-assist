@@ -17,16 +17,14 @@ const pick = async (group: string, option: string) =>
 
 async function fillRequired(name = 'Dips') {
   await fireEvent.changeText(screen.getByLabelText('English name *'), name);
-  await pick('Category *', 'Push');
   await pick('Training type *', 'Strength');
   await pick('Pattern *', 'Push vertical');
 }
 
-test('Save exercise stays disabled until name, category, training type and pattern are set', async () => {
+test('Save exercise stays disabled until name, training type and pattern are set', async () => {
   await renderWithDb(<AddExercise />);
   expect(save()).toBeDisabled();
   await fireEvent.changeText(screen.getByLabelText('English name *'), 'Dips');
-  await pick('Category *', 'Push');
   await pick('Training type *', 'Strength');
   expect(save()).toBeDisabled();
   await pick('Pattern *', 'Push vertical');
@@ -52,7 +50,6 @@ test('saving stores the exercise with muscles and body weight, then goes back', 
   expect(getExercise(db, id)).toMatchObject({
     nameEn: 'Dips',
     namePl: 'Pompki na poręczach',
-    category: 'Push',
     trainingType: 'Strength',
     pattern: 'Push vertical',
     usesBodyweight: true,
@@ -71,6 +68,11 @@ test('a name that already exists shows the message and saves nothing', async () 
   expect(screen.getByText('An exercise with this name already exists')).toBeTruthy();
   expect(countExercises(db)).toBe(23); // nothing was added
   expect(mockRouter.back).not.toHaveBeenCalled();
+});
+
+test('the form does not ask for a category', async () => {
+  await renderWithDb(<AddExercise />);
+  expect(screen.queryByText(/Category/)).toBeNull();
 });
 
 test('the required note from the design is shown', async () => {

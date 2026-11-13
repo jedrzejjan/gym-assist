@@ -1,5 +1,4 @@
 import {
-  CATEGORIES,
   displayName,
   exerciseSubtitle,
   MUSCLES,
@@ -10,7 +9,6 @@ import {
 } from '../catalogue';
 
 test('the fixed lists are exactly those in spec section 5', () => {
-  expect(CATEGORIES).toEqual(['KD', 'HD', 'Push', 'Pull', 'Core']);
   expect(TRAINING_TYPES).toEqual(['Strength', 'Plyometric', 'Power', 'Cardio']);
   expect(PATTERNS).toEqual([
     'KD',

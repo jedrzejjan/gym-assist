@@ -171,7 +171,6 @@ test('"New exercise" opens Add exercise; saving adds it to the session and opens
     fireEvent.press(
       within(screen.getByTestId(`chips:${group}`)).getByRole('radio', { name: option }),
     );
-  await pick('Category *', 'Push');
   await pick('Training type *', 'Strength');
   await pick('Pattern *', 'Push vertical');
   await press('Save exercise');
