@@ -9,6 +9,7 @@ import {
   listSessionExercises,
   moveExercise,
   removeExercise,
+  sessionWriteOptions,
   type SessionExerciseItem,
 } from '../../../data/sessions';
 import { AppBar } from '../../../ui/AppBar';
@@ -36,13 +37,13 @@ export default function Reorder() {
   const lastOfFinished = session.status === 'finished' && items.length === 1;
 
   const move = (seId: string, dir: 'up' | 'down') =>
-    mutate(db, (tx) => moveExercise(tx, seId, dir));
+    mutate(db, (tx) => moveExercise(tx, seId, dir), sessionWriteOptions(db, id));
 
   const remove = () => {
     if (!toRemove) return;
     const seId = toRemove.id;
     setToRemove(null);
-    mutate(db, (tx) => removeExercise(tx, seId));
+    mutate(db, (tx) => removeExercise(tx, seId), sessionWriteOptions(db, id));
   };
 
   const deleteWholeSession = () => {

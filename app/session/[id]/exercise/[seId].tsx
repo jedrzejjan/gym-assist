@@ -64,6 +64,8 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
   const [repsText, setRepsText] = useState('');
   const [editing, setEditing] = useState<SetRow | null>(null);
   const leaving = useRef(false);
+  // Sets in a draft don't trigger the automatic export; edits to a finished session do (GYM-26).
+  const writeOpts = { export: data.sessionFinished };
 
   // % needs a stored 1RM, and for a bodyweight exercise also a body weight to subtract.
   const percentAvailable = oneRepMax !== null && (!bw || bodyWeight !== null);
@@ -85,7 +87,7 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
 
   const add = () => {
     if (!valid) return;
-    mutate(db, (tx) => addSet(tx, seId, values()));
+    mutate(db, (tx) => addSet(tx, seId, values()), writeOpts);
     // The fields keep their values: the next set is usually the same or close.
   };
 
@@ -107,20 +109,20 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
 
   const save = () => {
     if (!editing || !valid) return;
-    mutate(db, (tx) => updateSet(tx, editing.id, values()));
+    mutate(db, (tx) => updateSet(tx, editing.id, values()), writeOpts);
     stopEdit();
   };
 
   const remove = () => {
     if (!editing) return;
-    mutate(db, (tx) => deleteSet(tx, editing.id));
+    mutate(db, (tx) => deleteSet(tx, editing.id), writeOpts);
     stopEdit();
   };
 
   const finish = () => {
     if (leaving.current) return;
     leaving.current = true;
-    mutate(db, (tx) => finishExercise(tx, seId));
+    mutate(db, (tx) => finishExercise(tx, seId), writeOpts);
     router.dismissTo(`/session/${data.sessionId}`);
   };
 

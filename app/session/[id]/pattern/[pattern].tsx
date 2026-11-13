@@ -3,7 +3,7 @@ import { useRef } from 'react';
 
 import { listExercises } from '../../../../data/exercises';
 import { mutate, useDb, useLive } from '../../../../data/live';
-import { addExerciseToSession } from '../../../../data/sessions';
+import { addExerciseToSession, sessionWriteOptions } from '../../../../data/sessions';
 import { displayName, type Pattern } from '../../../../domain/catalogue';
 import { AppBar } from '../../../../ui/AppBar';
 import { ListRow } from '../../../../ui/ListRow';
@@ -21,7 +21,11 @@ export default function PatternExercises() {
     choosing.current = true;
     let seId: string;
     try {
-      seId = mutate(db, (tx) => addExerciseToSession(tx, id, exerciseId));
+      seId = mutate(
+        db,
+        (tx) => addExerciseToSession(tx, id, exerciseId),
+        sessionWriteOptions(db, id),
+      );
     } catch (e) {
       choosing.current = false; // let the trainer try again
       throw e;

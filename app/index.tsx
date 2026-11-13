@@ -64,8 +64,11 @@ export default function Home() {
           onPress={() => router.push('/clients')}
         />
         <View style={styles.row}>
-          {/* Settings arrives in Sprint 2 (GYM-25, GYM-26): dimmed until then (PR #21, decision 6). */}
-          <Tile title="Settings" subtitle="Backup, import" disabled />
+          <Tile
+            title="Settings"
+            subtitle="Backup, import"
+            onPress={() => router.push('/settings')}
+          />
           <Tile
             title="Exercise library"
             subtitle={plural(home.exercises, 'exercise', 'exercises')}

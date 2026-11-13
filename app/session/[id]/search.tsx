@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { listExercises } from '../../../data/exercises';
 import { mutate, useDb, useLive } from '../../../data/live';
-import { addExerciseToSession } from '../../../data/sessions';
+import { addExerciseToSession, sessionWriteOptions } from '../../../data/sessions';
 import { AppBar } from '../../../ui/AppBar';
 import { ListRow } from '../../../ui/ListRow';
 import { Screen } from '../../../ui/Screen';
@@ -26,7 +26,11 @@ export default function SearchExercises() {
     choosing.current = true;
     let seId: string;
     try {
-      seId = mutate(db, (tx) => addExerciseToSession(tx, id, exerciseId));
+      seId = mutate(
+        db,
+        (tx) => addExerciseToSession(tx, id, exerciseId),
+        sessionWriteOptions(db, id),
+      );
     } catch (e) {
       choosing.current = false; // let the trainer try again
       throw e;

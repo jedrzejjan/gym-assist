@@ -29,11 +29,27 @@ export function notifyDataChanged(): void {
   for (const listener of listeners) listener();
 }
 
+export type WriteEvent = { export: boolean };
+const writeListeners = new Set<(e: WriteEvent) => void>();
+
 /**
- * Run one user action's writes in a single transaction, then refresh the screens.
- * Call it once per action; repository functions take the `tx` and never call mutate themselves.
+ * Listen to every committed write (the automatic export, GYM-26). `export` is false for writes
+ * that change no finished data: draft-only writes, the backup folder and status, a restore.
  */
-export function mutate<T>(db: Db, write: (tx: Tx) => T): T {
+export function onWrite(listener: (e: WriteEvent) => void): () => void {
+  writeListeners.add(listener);
+  return () => {
+    writeListeners.delete(listener);
+  };
+}
+
+/**
+ * Run one user action's writes in a single transaction, then refresh the screens and tell the
+ * write listeners. Call it once per action; repository functions take the `tx` and never call
+ * mutate themselves. Pass `{ export: false }` for a write that changes no finished data; the
+ * default is true, so a forgotten flag gives one export too many, never one too few.
+ */
+export function mutate<T>(db: Db, write: (tx: Tx) => T, opts: { export?: boolean } = {}): T {
   const result = db.transaction((tx) => {
     const value = write(tx);
     if (value instanceof Promise) {
@@ -44,6 +60,8 @@ export function mutate<T>(db: Db, write: (tx: Tx) => T): T {
     return value;
   });
   notifyDataChanged();
+  const event = { export: opts.export ?? true };
+  for (const listener of writeListeners) listener(event);
   return result;
 }
 

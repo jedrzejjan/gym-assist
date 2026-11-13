@@ -12,6 +12,17 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-13: The automatic export fails safe (GYM-26, PR #40)
+- **Decision:** `mutate` takes `{ export?: boolean }`, true unless the caller says otherwise. Only writes that change no finished data pass `false`: a draft, choosing the folder, saving the backup status.
+- **Why:** a forgotten flag then costs one extra export, never a missing backup.
+- **Guards:**
+  - it never exports a database with no clients, so a fresh install can't overwrite a real backup with an empty one;
+  - writes that arrive during an export give one more export, not one each;
+  - saving the export's own status can't start another export.
+- **Also:**
+  - today's file is deleted and created again, rather than overwritten, because Android document providers don't always truncate a file;
+  - rows are exported in `rowid` order for GYM-103.
+
 ### 2026-11-13: Ties on the stored 1RM go to the row saved last (GYM-24, PR #38)
 - **Decision:** the current 1RM is the newest `one_rep_maxes` row by `created_at`. When two rows have the same timestamp, the one inserted last wins, using SQLite's `rowid` as the second sort key.
 - **Why:** timestamps aren't unique, so sorting on them alone gives a random winner on a tie (see the incident below).
