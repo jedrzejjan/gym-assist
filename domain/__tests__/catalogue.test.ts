@@ -1,4 +1,6 @@
 import {
+  CATEGORIES,
+  categoryForPattern,
   displayName,
   exerciseSubtitle,
   MUSCLES,
@@ -8,7 +10,21 @@ import {
   TRAINING_TYPES,
 } from '../catalogue';
 
+test('categoryForPattern derives the hidden category from the pattern (GYM-99)', () => {
+  expect(categoryForPattern('KD')).toBe('KD');
+  expect(categoryForPattern('HD')).toBe('HD');
+  expect(categoryForPattern('Push vertical')).toBe('Push');
+  expect(categoryForPattern('Push horizontal')).toBe('Push');
+  expect(categoryForPattern('Pull vertical')).toBe('Pull');
+  expect(categoryForPattern('Pull horizontal')).toBe('Pull');
+  expect(categoryForPattern('Anti flexion')).toBe('Core');
+  expect(categoryForPattern('Anti extension')).toBe('Core');
+  expect(categoryForPattern('Carries')).toBe('Core');
+  expect(categoryForPattern('none')).toBe('Core');
+});
+
 test('the fixed lists are exactly those in spec section 5', () => {
+  expect(CATEGORIES).toEqual(['KD', 'HD', 'Push', 'Pull', 'Core']);
   expect(TRAINING_TYPES).toEqual(['Strength', 'Plyometric', 'Power', 'Cardio']);
   expect(PATTERNS).toEqual([
     'KD',

@@ -23,8 +23,8 @@ function addClient(db: Db, id: string, isSelf = false) {
 
 function addExercise(db: Db, id: string, nameEn: string) {
   db.run(
-    sql`INSERT INTO exercises (id, name_en, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
-        VALUES (${id}, ${nameEn}, 'Strength', 'none', 0, 0, ${NOW}, ${NOW})`,
+    sql`INSERT INTO exercises (id, name_en, category, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
+        VALUES (${id}, ${nameEn}, 'Push', 'Strength', 'none', 0, 0, ${NOW}, ${NOW})`,
   );
 }
 

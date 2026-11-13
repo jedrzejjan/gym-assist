@@ -26,8 +26,8 @@ test('the list shows each exercise with its Polish name and pattern', async () =
 test('a bodyweight exercise shows BW, and a custom one is marked custom', async () => {
   const db = seededDb();
   db.run(
-    sql`INSERT INTO exercises (id, name_en, name_pl, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
-        VALUES ('dips', 'Dips', 'Pompki na poręczach', 'Strength', 'Push vertical', 1, 1, 'x', 'x')`,
+    sql`INSERT INTO exercises (id, name_en, name_pl, category, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
+        VALUES ('dips', 'Dips', 'Pompki na poręczach', 'Push', 'Strength', 'Push vertical', 1, 1, 'x', 'x')`,
   );
   await renderWithDb(<Library />, db);
   expect(screen.getByText('Podciąganie nachwytem · BW')).toBeTruthy();
@@ -77,7 +77,7 @@ test('the detail shows every field, and says seed exercises are read-only', asyn
   ]) {
     expect(screen.getByText(text)).toBeTruthy();
   }
-  expect(screen.queryByText('Category')).toBeNull();
+  expect(screen.queryByText('Category')).toBeNull(); // stored, not shown (GYM-99)
 });
 
 test('a non-bodyweight exercise says No, and KD shows as Knee Dominant', async () => {

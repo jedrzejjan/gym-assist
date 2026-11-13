@@ -50,6 +50,7 @@ test('saving stores the exercise with muscles and body weight, then goes back', 
   expect(getExercise(db, id)).toMatchObject({
     nameEn: 'Dips',
     namePl: 'Pompki na poręczach',
+    category: 'Push', // hidden, derived from the pattern (GYM-99)
     trainingType: 'Strength',
     pattern: 'Push vertical',
     usesBodyweight: true,
@@ -70,7 +71,7 @@ test('a name that already exists shows the message and saves nothing', async () 
   expect(mockRouter.back).not.toHaveBeenCalled();
 });
 
-test('the form does not ask for a category', async () => {
+test('the form does not show a category', async () => {
   await renderWithDb(<AddExercise />);
   expect(screen.queryByText(/Category/)).toBeNull();
 });

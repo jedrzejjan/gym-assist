@@ -6,6 +6,7 @@ import { addCustomExercise, DuplicateNameError } from '../../data/exercises';
 import { mutate, useDb } from '../../data/live';
 import { addExerciseToSession } from '../../data/sessions';
 import {
+  categoryForPattern,
   displayName,
   type Muscle,
   muscleName,
@@ -34,7 +35,7 @@ const YES_NO = [
 
 /**
  * Board `library/add exercise` (spec section 5, Add exercise). Required: English name, training
- * type, pattern. Opened from a session as "New exercise"
+ * type, pattern. The category is hidden and derived from the pattern (GYM-99). Opened from a session as "New exercise"
  * (`?returnTo=session&sessionId=…`), saving also adds the exercise to that session and opens it.
  */
 export default function AddExercise() {
@@ -64,6 +65,7 @@ export default function AddExercise() {
         const exerciseId = addCustomExercise(tx, {
           nameEn,
           namePl,
+          category: categoryForPattern(pattern),
           trainingType,
           pattern,
           usesBodyweight: bodyweight === 'yes',

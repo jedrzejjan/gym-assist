@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`; GYM-99 exercise category removed, 2026-11-13)
+Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`; GYM-99 exercise category hidden, 2026-11-13)
 
 ## 1. Purpose
 
@@ -190,6 +190,7 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
   - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 1 kg (fine enough for small muscle groups such as biceps). For an exercise that uses body weight, the added load is that total minus the body weight on the session date, rounded to the nearest 1 kg and never below 0.
 - `sets.ts` gives the next set number in a session exercise and the display format, where a blank value shows as "-".
 - `catalogue.ts` holds the fixed lists:
+  - categories: KD, HD, Push, Pull, Core. Stored but not shown (GYM-99); a custom exercise gets its category from its pattern (KD and HD stay, Push… gives Push, Pull… gives Pull, the rest give Core);
   - training types: Strength, Plyometric, Power, Cardio;
   - movement patterns: KD, HD, Push vertical, Push horizontal, Pull vertical, Pull horizontal, Anti flexion, Anti extension, Carries, none. The screens show KD as "Knee Dominant" and HD as "Hip Dominant";
   - the 12 muscles with English and Polish names.
@@ -268,7 +269,7 @@ exercises ─────────────────────┘
 |---|---|
 | `clients` | `id`, `first_name`, `last_name`, `gender`, `date_of_birth`, `height_cm`, `is_self`, `notes`, `created_at`, `updated_at`, `archived_at` |
 | `measurements` | `id`, `client_id`, `date`, `type`, `value`, `created_at`, `updated_at` |
-| `exercises` | `id`, `name_en`, `name_pl`, `training_type`, `pattern`, `uses_bodyweight`, `is_custom`, `created_at`, `updated_at` |
+| `exercises` | `id`, `name_en`, `name_pl`, `category`, `training_type`, `pattern`, `uses_bodyweight`, `is_custom`, `created_at`, `updated_at` |
 | `one_rep_maxes` | `id`, `client_id`, `exercise_id`, `value_kg`, `source` (`estimated` or `manual`), `created_at`, `updated_at` |
 | `exercise_muscles` | `exercise_id`, `muscle`, `updated_at` (key: `exercise_id` + `muscle`) |
 | `sessions` | `id`, `client_id`, `date`, `status` (`draft` or `finished`), `started_at`, `finished_at`, `updated_at` |
@@ -282,7 +283,7 @@ exercises ─────────────────────┘
 - **Archiving:** archiving a client hides the client and keeps their history.
 - **Profile fields:** `first_name` is required, and every client has at least one `measurements` row of type `weight` (added together with the client). The other profile columns are optional. `clients.height_cm` is the client's height; `sets.height_cm` is a box height and is unrelated. `gender` is one of `female`, `male`, `other`, `prefer_not_to_say`, or NULL. `date_of_birth` is stored instead of an age, so the age stays correct.
 - **"Me":** at most one client has `is_self = 1`.
-- **No exercise category** (GYM-99, owner decision 2026-11-12): the legacy category (KD, HD, Push, Pull, Core) mostly repeated the pattern, so the app doesn't store or show it. Migration `0001` drops the column; the CSV import ignores a category column.
+- **Exercise category is hidden** (GYM-99, owner decision 2026-11-13): it mostly repeated the pattern, so no screen shows or asks for it. The `category` column stays, for later use (backlog: equipment categories such as Machine and Free weights).
 - **Exercise names:** `exercises.name_en` is unique, ignoring upper and lower case ("Dips" and "dips" are the same), because the CSV import matches exercises by it. If a later seed update brings a name that already exists as a custom exercise, the seed entry is skipped and the custom one stays.
 - **Measurements:** unique on (`client_id`, `type`, `date`). In the MVP `type` is always `weight` and `value` is in kg. Backlog item 14 adds new types (in cm) without a new table.
 - **Units:** weights in kg, heights and lengths in cm. There is no unit setting.

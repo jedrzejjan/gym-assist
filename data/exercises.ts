@@ -1,6 +1,12 @@
 import { asc, count, eq, sql } from 'drizzle-orm';
 
-import { type Muscle, type Pattern, PATTERNS, type TrainingType } from '../domain/catalogue';
+import {
+  type Category,
+  type Muscle,
+  type Pattern,
+  PATTERNS,
+  type TrainingType,
+} from '../domain/catalogue';
 import { exerciseMuscles, exercises } from './schema';
 import type { SeedExercise } from './seed/exercises';
 import { type DbOrTx, newId, nowIso } from './types';
@@ -15,6 +21,7 @@ export type ExerciseListItem = {
 };
 
 export type ExerciseDetail = ExerciseListItem & {
+  category: string;
   trainingType: string;
   muscles: Muscle[];
 };
@@ -58,6 +65,7 @@ export function seedExercises(db: DbOrTx, seed: SeedExercise[]): number {
         id,
         nameEn: s.nameEn,
         namePl: s.namePl,
+        category: s.category,
         trainingType: s.trainingType,
         pattern: s.pattern,
         usesBodyweight: s.usesBodyweight,
@@ -95,7 +103,7 @@ export function listExercises(
 
 export function getExercise(db: DbOrTx, id: string): ExerciseDetail | null {
   const row = db
-    .select({ ...listColumns, trainingType: exercises.trainingType })
+    .select({ ...listColumns, category: exercises.category, trainingType: exercises.trainingType })
     .from(exercises)
     .where(eq(exercises.id, id))
     .get();
@@ -133,6 +141,7 @@ export function countByPattern(db: DbOrTx): Record<Pattern, number> {
 export type NewExercise = {
   nameEn: string;
   namePl?: string;
+  category: Category;
   trainingType: TrainingType;
   pattern: Pattern;
   usesBodyweight: boolean;
@@ -183,6 +192,7 @@ function insertCustom(db: DbOrTx, id: string, nameEn: string, e: NewExercise, no
       id,
       nameEn,
       namePl: e.namePl?.trim() || null,
+      category: e.category,
       trainingType: e.trainingType,
       pattern: e.pattern,
       usesBodyweight: e.usesBodyweight,

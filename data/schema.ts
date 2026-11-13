@@ -55,6 +55,7 @@ export const exercises = sqliteTable(
     id: text('id').primaryKey(),
     nameEn: text('name_en').notNull(),
     namePl: text('name_pl'),
+    category: text('category').notNull(),
     trainingType: text('training_type').notNull(),
     pattern: text('pattern').notNull(),
     usesBodyweight: integer('uses_bodyweight', { mode: 'boolean' }).notNull().default(false),

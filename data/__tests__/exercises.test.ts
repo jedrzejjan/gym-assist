@@ -28,8 +28,8 @@ test('seeding inserts the 23 exercises once', () => {
 test('a custom exercise with a seed name (any case) is kept, and the seed entry skipped', () => {
   const db = createTestDb();
   db.run(
-    sql`INSERT INTO exercises (id, name_en, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
-        VALUES ('mine', 'back squat', 'Strength', 'KD', 0, 1, 'x', 'x')`,
+    sql`INSERT INTO exercises (id, name_en, category, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
+        VALUES ('mine', 'back squat', 'KD', 'Strength', 'KD', 0, 1, 'x', 'x')`,
   );
   expect(seedExercises(db, SEED_EXERCISES)).toBe(22);
   const squat = listExercises(db, { search: 'back squat' });
@@ -42,6 +42,13 @@ test('only the two pull-ups use body weight', () => {
   seedExercises(db, SEED_EXERCISES);
   const bw = listExercises(db, {}).filter((e) => e.usesBodyweight);
   expect(names(bw).sort()).toEqual(['Overhand pull-up', 'Underhand pull-up']);
+});
+
+test('seed categories use the codes: "Knee dominant" became KD and "Hip dominant" HD', () => {
+  const squat = SEED_EXERCISES.find((e) => e.nameEn === 'Back squat')!;
+  const deadlift = SEED_EXERCISES.find((e) => e.nameEn === 'Deadlift')!;
+  expect(squat.category).toBe('KD');
+  expect(deadlift.category).toBe('HD');
 });
 
 test('search matches English or Polish names, ignoring case and spaces', () => {
@@ -78,6 +85,7 @@ test('getExercise returns the detail with muscles in the seed order', () => {
   expect(getExercise(db, id)).toMatchObject({
     nameEn: 'Overhand pull-up',
     namePl: 'Podciąganie nachwytem',
+    category: 'Pull',
     trainingType: 'Strength',
     pattern: 'Pull vertical',
     usesBodyweight: true,
@@ -99,6 +107,7 @@ test('countByPattern counts every pattern, with 0 for empty ones', () => {
 const dips = {
   nameEn: '  dips ',
   namePl: 'Pompki na poręczach',
+  category: 'Push' as const,
   trainingType: 'Strength' as const,
   pattern: 'Push vertical' as const,
   usesBodyweight: true,
