@@ -37,7 +37,7 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ### 2026-11-13: History in one aggregate query (GYM-22, PR #35)
 - **Decision:** `listHistory` gets each session with its exercise and set counts in one `LEFT JOIN … GROUP BY` query.
-- **Why:** it avoids the N+1 query problem, which would cost one extra query per session. The owner asked whether loading the whole history would be slow.
+- **Why:** it avoids the N+1 query problem, which would cost one extra query per session. The owner asked whether loading the whole history would be slow (owner, in chat).
 
 ### 2026-11-13: Client tabs switch with `router.replace` (GYM-22, PR #35, plan decision 2)
 - **Decision:** Profile | History | Recovery | Progress replace each other in the navigation stack, so "‹ Clients" always goes back in one tap. "Start session" moved to the History tab.
@@ -63,7 +63,7 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ### 2026-11-13: Spec-changing PRs opened without `needs-owner` (PR #37, PR #38)
 - **What:** CLAUDE.md requires owner approval for PRs that change the spec. PRs #37 and #38 edited the spec but were opened without the label. The #38 reviewer caught it.
-- **Impact:** none in the end. The owner approved both merges in chat.
+- **Impact:** none in the end. The owner approved both merges (owner, in chat).
 - **Lesson:** before opening a PR, check its diff against the owner-approval list, not only the plan's labels.
 
 ### 2026-11-13: Two 1RMs with the same timestamp, so the "current" one was random (GYM-24, PR #38)
@@ -72,7 +72,7 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 - **Lesson:** never sort on a non-unique timestamp alone. Timing-dependent tests are flaky tests in disguise.
 
 ### 2026-11-13: Merge blocked by the permission check (PR #37)
-- **What:** Claude Code's auto-mode permission check refused a merge that had no explicit owner approval in chat.
+- **What:** Claude Code's auto-mode permission check refused a merge that had no explicit owner approval in chat (recorded in chat only).
 - **Fix:** the owner approved in chat.
 - **Note:** the owner asked for approvals to come as clickable buttons.
 
@@ -86,13 +86,13 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ### 2026-11-13: The owner reversed "drop the Category column" after it was built (GYM-99, PR #34)
 - **What:** migration `0001` dropping the column was written, tested and reviewed. Then the owner decided to keep the column and only hide it.
-- **Fix:** the branch was reset to `main` and redone as a UI-only change, so the squash commit has no migration and sub-task GYM-104 was closed as not needed.
+- **Fix:** the branch was reset to `main` and redone as a UI-only change, so the squash commit has no migration. Sub-task GYM-104 was moved to Done with a comment saying it wasn't needed.
 - **Lesson:** for removing data, offer the reversible option (hide) first.
 
 ### 2026-11-13: CI red on every branch after Expo patch releases (GYM-101, PR #33)
 - **What:** `expo-doctor` failed because Expo released `expo` 58.0.25 and `expo-sqlite` 58.0.17 upstream. Nothing in our code changed. This is dependency drift.
 - **Fix:** `npx expo install --fix` in its own small PR before the Sprint 2 plan could merge.
-- **Lesson:** pinned versions and a doctor check in CI catch drift early. An "Expo SDK upgrade routine" is on the backlog.
+- **Lesson:** pinned versions and a doctor check in CI catch drift early. An "Expo SDK upgrade routine" is on the backlog (GYM-43).
 
 ### 2026-11-12: Two wrong claims in planning, corrected on Jira (GYM-22, GYM-99)
 - **GYM-22:** Claude said the profile needed a new "Workout history" entry, but the board already had a History tab.
@@ -104,4 +104,4 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 - **GYM-25 (CSV import):** imported sessions must get a non-null `finished_at`. Otherwise "Last time" while editing (`lastTimeSets` with `before`) skips them on the same date.
 - **GYM-103 (Restore):** re-insert `one_rep_maxes` in `(created_at, rowid)` order, so the last 1RM saved stays current after a round trip.
-- **GYM-119 (backlog):** a session dated after today would show "-1 days ago" on Recovery. Clamp the value, or have `startSession` refuse a future date.
+- **GYM-119 (backlog):** a session dated after today would show "-1 days ago" on Recovery. Clamp the value, or have `startSession` refuse a future date. The same ticket makes the golden script write LF line endings.
