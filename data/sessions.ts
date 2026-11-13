@@ -7,7 +7,8 @@ import { isValidDate } from '../domain/dates';
 import { bodyWeightOn } from '../domain/bodyweight';
 import { nextSetNo, type SetValue } from '../domain/sets';
 import { listWeights } from './measurements';
-import { clients, exercises, oneRepMaxes, sessionExercises, sessions, sets } from './schema';
+import { currentOneRepMax, type OneRepMax } from './progress';
+import { clients, exercises, sessionExercises, sessions, sets } from './schema';
 import { type DbOrTx, newId, nowIso } from './types';
 
 /** Spec section 4, "One draft at a time". GYM-21 shows the dialogs; this is the rule itself. */
@@ -300,29 +301,6 @@ export function reopenExercise(db: DbOrTx, sessionExerciseId: string): void {
     .set({ finishedAt: null, updatedAt: nowIso() })
     .where(eq(sessionExercises.id, sessionExerciseId))
     .run();
-}
-
-export type OneRepMax = { valueKg: number; source: 'estimated' | 'manual'; createdAt: string };
-
-/** The current 1RM: the newest one_rep_maxes row by created_at (spec section 6). */
-export function currentOneRepMax(
-  db: DbOrTx,
-  clientId: string,
-  exerciseId: string,
-): OneRepMax | null {
-  return (
-    db
-      .select({
-        valueKg: oneRepMaxes.valueKg,
-        source: oneRepMaxes.source,
-        createdAt: oneRepMaxes.createdAt,
-      })
-      .from(oneRepMaxes)
-      .where(and(eq(oneRepMaxes.clientId, clientId), eq(oneRepMaxes.exerciseId, exerciseId)))
-      .orderBy(desc(oneRepMaxes.createdAt))
-      .limit(1)
-      .get() ?? null
-  );
 }
 
 export type ExerciseScreenData = {

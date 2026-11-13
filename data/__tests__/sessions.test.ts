@@ -3,11 +3,11 @@
  */
 import { createClient } from '../clients';
 import { listExercises, seedExercises } from '../exercises';
+import { currentOneRepMax } from '../progress';
 import { oneRepMaxes } from '../schema';
 import {
   addExerciseToSession,
   addSet,
-  currentOneRepMax,
   deleteSet,
   discardSession,
   exerciseScreenData,
