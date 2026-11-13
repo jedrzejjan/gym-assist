@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { deleteSession } from '../../../data/history';
 import { mutate, useDb, useLive } from '../../../data/live';
 import {
+  getSession,
   listSessionExercises,
   moveExercise,
   removeExercise,
@@ -18,12 +20,20 @@ import { colors, fonts, sizes } from '../../../ui/theme';
 
 const setsText = (n: number) => (n === 1 ? '1 set' : `${n} sets`);
 
-/** Board `log/session - reorder`: ▲ ▼ move an exercise, ✕ removes it after a confirmation. */
+/**
+ * Board `log/session - reorder`: ▲ ▼ move an exercise, ✕ removes it after a confirmation. In a
+ * finished session, ✕ on the only exercise asks to delete the session instead (board
+ * `history/dialog - delete last exercise`): a finished session needs at least one exercise.
+ */
 export default function Reorder() {
   const db = useDb();
   const { id } = useLocalSearchParams<{ id: string }>();
   const items = useLive((d) => listSessionExercises(d, id), [id]);
+  const session = useLive((d) => getSession(d, id), [id]);
   const [toRemove, setToRemove] = useState<SessionExerciseItem | null>(null);
+  const deleting = useRef(false); // a double tap must not delete or navigate twice
+  if (!session) return null; // e.g. just deleted, while leaving
+  const lastOfFinished = session.status === 'finished' && items.length === 1;
 
   const move = (seId: string, dir: 'up' | 'down') =>
     mutate(db, (tx) => moveExercise(tx, seId, dir));
@@ -33,6 +43,14 @@ export default function Reorder() {
     const seId = toRemove.id;
     setToRemove(null);
     mutate(db, (tx) => removeExercise(tx, seId));
+  };
+
+  const deleteWholeSession = () => {
+    if (deleting.current) return;
+    deleting.current = true;
+    setToRemove(null);
+    mutate(db, (tx) => deleteSession(tx, id));
+    router.dismissTo(`/clients/${session.clientId}/history`);
   };
 
   return (
@@ -70,7 +88,19 @@ export default function Reorder() {
         ▲ ▼ move · ✕ remove
       </Text>
       <Dialog
-        visible={toRemove !== null}
+        visible={toRemove !== null && lastOfFinished}
+        title="Delete this session?"
+        message={
+          toRemove
+            ? `${toRemove.nameEn} is its only exercise. A finished session needs at least one.`
+            : ''
+        }
+        confirmLabel="Delete"
+        onConfirm={deleteWholeSession}
+        onCancel={() => setToRemove(null)}
+      />
+      <Dialog
+        visible={toRemove !== null && !lastOfFinished}
         title="Remove this exercise and its sets?"
         message={toRemove ? `${toRemove.nameEn} · ${setsText(toRemove.setCount)}` : ''}
         confirmLabel="Remove"

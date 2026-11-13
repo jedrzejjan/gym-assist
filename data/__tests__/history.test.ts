@@ -105,6 +105,7 @@ test('sessionSummary orders exercises by position and sets by set_no', () => {
     status: 'finished',
     exercises: [
       {
+        id: expect.any(String),
         nameEn: 'Overhand pull-up',
         namePl: 'Podciąganie nachwytem',
         usesBodyweight: true,
@@ -114,6 +115,7 @@ test('sessionSummary orders exercises by position and sets by set_no', () => {
         ],
       },
       {
+        id: expect.any(String),
         nameEn: 'Back squat',
         namePl: 'Przysiad ze sztangą',
         usesBodyweight: false,

@@ -22,6 +22,8 @@ import {
   reopenExercise,
   updateSet,
   DraftExistsError,
+  LastExerciseError,
+  updateSessionDate,
   getDraft,
   getSession,
   lastTimeSets,
@@ -361,5 +363,113 @@ describe('finish, discard, reorder, remove, resume', () => {
     const { db, anna } = setup();
     const sid = startSession(db, anna, '2026-11-10');
     expect(resumePoint(db, sid)).toEqual({ screen: 'session' });
+  });
+});
+
+describe('editing a finished session (GYM-102)', () => {
+  test('removeExercise on the only exercise of a finished session throws LastExerciseError', () => {
+    const { db, anna, squat, bench } = setup();
+    const sid = logSession(db, {
+      clientId: anna,
+      date: '2026-11-05',
+      exerciseId: squat,
+      sets: [[80, 5]],
+    });
+    const [only] = listSessionExercises(db, sid);
+    expect(() => removeExercise(db, only.id)).toThrow(LastExerciseError);
+    expect(listSessionExercises(db, sid)).toHaveLength(1);
+    expect(listSets(db, only.id)).toHaveLength(1);
+    // with two exercises, one can go
+    const second = addExerciseToSession(db, sid, bench);
+    removeExercise(db, second);
+    expect(listSessionExercises(db, sid)).toHaveLength(1);
+    // a draft can still be emptied
+    const draft = startSession(db, anna, '2026-11-10');
+    const se = addExerciseToSession(db, draft, squat);
+    removeExercise(db, se);
+    expect(listSessionExercises(db, draft)).toHaveLength(0);
+  });
+
+  test('updateSessionDate moves the session and refuses a future or invalid date', () => {
+    const { db, anna, squat } = setup();
+    const sid = logSession(db, {
+      clientId: anna,
+      date: '2026-11-05',
+      exerciseId: squat,
+      sets: [[80, 5]],
+    });
+    updateSessionDate(db, sid, '2026-11-03', '2026-11-12');
+    expect(getSession(db, sid)!.date).toBe('2026-11-03');
+    updateSessionDate(db, sid, '2026-11-12', '2026-11-12'); // today is allowed
+    expect(getSession(db, sid)!.date).toBe('2026-11-12');
+    expect(() => updateSessionDate(db, sid, '2026-11-13', '2026-11-12')).toThrow();
+    expect(() => updateSessionDate(db, sid, '2026-02-30', '2026-11-12')).toThrow();
+    expect(() => updateSessionDate(db, sid, 'soon', '2026-11-12')).toThrow();
+    expect(getSession(db, sid)!.date).toBe('2026-11-12');
+    expect(getSession(db, sid)!.status).toBe('finished');
+  });
+
+  test('lastTimeSets with before ignores the edited session and later ones', () => {
+    const { db, anna, squat } = setup();
+    logSession(db, { clientId: anna, date: '2026-11-01', exerciseId: squat, sets: [[70, 5]] });
+    const nov5 = logSession(db, {
+      clientId: anna,
+      date: '2026-11-05',
+      exerciseId: squat,
+      sets: [[80, 5]],
+    });
+    logSession(db, { clientId: anna, date: '2026-11-09', exerciseId: squat, sets: [[90, 5]] });
+    expect(lastTimeSets(db, anna, squat)).toEqual([{ weightKg: 90, reps: 5 }]);
+    const before = { sessionId: nov5, date: '2026-11-05', finishedAt: '2026-11-05T12:00:00.000Z' };
+    expect(lastTimeSets(db, anna, squat, { before })).toEqual([{ weightKg: 70, reps: 5 }]);
+    // and the exercise page of the 5 Nov session shows 1 Nov
+    const [se] = listSessionExercises(db, nov5);
+    expect(exerciseScreenData(db, se.id)!.lastTime).toEqual([{ weightKg: 70, reps: 5 }]);
+  });
+
+  test('lastTimeSets with before: on the same date, only a session finished earlier counts', () => {
+    const { db, anna, squat } = setup();
+    logSession(db, {
+      clientId: anna,
+      date: '2026-11-05',
+      exerciseId: squat,
+      sets: [[60, 5]],
+      finishedAt: '2026-11-05T09:00:00.000Z',
+    });
+    const edited = logSession(db, {
+      clientId: anna,
+      date: '2026-11-05',
+      exerciseId: squat,
+      sets: [[80, 5]],
+      finishedAt: '2026-11-05T12:00:00.000Z',
+    });
+    logSession(db, {
+      clientId: anna,
+      date: '2026-11-05',
+      exerciseId: squat,
+      sets: [[99, 5]],
+      finishedAt: '2026-11-05T18:00:00.000Z',
+    });
+    const before = {
+      sessionId: edited,
+      date: '2026-11-05',
+      finishedAt: '2026-11-05T12:00:00.000Z',
+    };
+    expect(lastTimeSets(db, anna, squat, { before })).toEqual([{ weightKg: 60, reps: 5 }]);
+  });
+
+  test('a set change in a finished session keeps the session finished and the exercise finished', () => {
+    const { db, anna, squat } = setup();
+    const sid = startSession(db, anna, '2026-11-05');
+    const se = addExerciseToSession(db, sid, squat);
+    const setId = addSet(db, se, { weightKg: 80, reps: 5 });
+    finishExercise(db, se);
+    finishSession(db, sid);
+    addSet(db, se, { weightKg: 85, reps: 3 });
+    updateSet(db, setId, { weightKg: 82.5, reps: 5 });
+    deleteSet(db, setId);
+    expect(getSession(db, sid)!.status).toBe('finished');
+    expect(getSessionExercise(db, se)!.finishedAt).not.toBeNull();
+    expect(getDraft(db)).toBeNull();
   });
 });

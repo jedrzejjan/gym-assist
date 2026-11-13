@@ -155,7 +155,16 @@ function ExerciseForm({ seId, data }: { seId: string; data: ExerciseScreenData }
         ) : (
           <>
             <Button label="Add set" onPress={add} disabled={!valid} />
-            <Button label="Finish exercise" variant="secondary" onPress={finish} />
+            {data.sessionFinished ? (
+              // Editing a finished session: sets save at once, so "Done" only goes back (decision 4).
+              <Button
+                label="Done"
+                variant="secondary"
+                onPress={() => router.dismissTo(`/session/${data.sessionId}`)}
+              />
+            ) : (
+              <Button label="Finish exercise" variant="secondary" onPress={finish} />
+            )}
           </>
         )
       }
