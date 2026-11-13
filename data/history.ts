@@ -39,7 +39,13 @@ export type SessionSummary = {
   date: string;
   clientId: string;
   status: 'draft' | 'finished';
-  exercises: { nameEn: string; namePl: string | null; usesBodyweight: boolean; sets: SetValue[] }[];
+  exercises: {
+    id: string;
+    nameEn: string;
+    namePl: string | null;
+    usesBodyweight: boolean;
+    sets: SetValue[];
+  }[];
 };
 
 /** One session for the read-only summary: exercises by position, sets by set number. */
@@ -51,6 +57,7 @@ export function sessionSummary(db: DbOrTx, sessionId: string): SessionSummary | 
     clientId: session.clientId,
     status: session.status,
     exercises: listSessionExercises(db, sessionId).map((e) => ({
+      id: e.id,
       nameEn: e.nameEn,
       namePl: e.namePl,
       usesBodyweight: e.usesBodyweight,

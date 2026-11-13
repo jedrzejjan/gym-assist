@@ -1,8 +1,9 @@
 // Logging sessions (spec section 4). A session starts as a draft; only one draft exists in the
 // whole app. "Last time" reads finished sessions only (PR #21, decision 5).
-import { and, asc, count, desc, eq, inArray, isNull, max, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, lt, max, ne, or, sql } from 'drizzle-orm';
 
 import { fullName } from '../domain/clients';
+import { isValidDate } from '../domain/dates';
 import { bodyWeightOn } from '../domain/bodyweight';
 import { nextSetNo, type SetValue } from '../domain/sets';
 import { listWeights } from './measurements';
@@ -22,6 +23,14 @@ export class NoExercisesError extends Error {
   constructor() {
     super('A session needs at least one exercise to be finished');
     this.name = 'NoExercisesError';
+  }
+}
+
+/** A finished session needs at least one exercise (spec section 4, "Editing a finished session"). */
+export class LastExerciseError extends Error {
+  constructor() {
+    super('A finished session needs at least one exercise');
+    this.name = 'LastExerciseError';
   }
 }
 
@@ -148,12 +157,22 @@ export function getSessionExercise(db: DbOrTx, id: string): SessionExerciseItem 
   );
 }
 
+/** The session being edited: "Last time" then looks only at sessions before it. */
+export type Before = { sessionId: string; date: string; finishedAt: string | null };
+
 /**
  * The client's sets for this exercise from their latest finished session that had it (by date,
  * then finish time), in set order. null when there is no such session; [] when it had no sets.
- * Drafts (including the session being logged) and other clients never count.
+ * Drafts (including the session being logged) and other clients never count. With `before`
+ * (editing a finished session), that session and any later one are ignored.
  */
-export function lastTimeSets(db: DbOrTx, clientId: string, exerciseId: string): SetValue[] | null {
+export function lastTimeSets(
+  db: DbOrTx,
+  clientId: string,
+  exerciseId: string,
+  opts: { before?: Before } = {},
+): SetValue[] | null {
+  const { before } = opts;
   const latest = db
     .select({ id: sessionExercises.id })
     .from(sessionExercises)
@@ -163,6 +182,13 @@ export function lastTimeSets(db: DbOrTx, clientId: string, exerciseId: string): 
         eq(sessions.clientId, clientId),
         eq(sessions.status, 'finished'),
         eq(sessionExercises.exerciseId, exerciseId),
+        before ? ne(sessions.id, before.sessionId) : undefined,
+        before
+          ? or(
+              lt(sessions.date, before.date),
+              and(eq(sessions.date, before.date), lt(sessions.finishedAt, before.finishedAt ?? '')),
+            )
+          : undefined,
       ),
     )
     .orderBy(desc(sessions.date), desc(sessions.finishedAt), asc(sessionExercises.position))
@@ -195,17 +221,19 @@ function checkSet(v: SetValue) {
     throw new Error('Reps must be a whole number, 1 or more');
 }
 
-/** The draft is saved after every set: each change also touches the session and the exercise. */
+/** Every set is saved at once: each change also touches the session and the exercise. */
 function touch(db: DbOrTx, sessionExerciseId: string, now: string) {
   const se = db
-    .select({ sessionId: sessionExercises.sessionId })
+    .select({ sessionId: sessionExercises.sessionId, status: sessions.status })
     .from(sessionExercises)
+    .innerJoin(sessions, eq(sessions.id, sessionExercises.sessionId))
     .where(eq(sessionExercises.id, sessionExerciseId))
     .get();
   if (!se) throw new Error('Session exercise not found');
-  // A change to a finished exercise reopens it (spec section 4, step 5).
+  // In a draft, a change to a finished exercise reopens it (spec section 4, step 5). A finished
+  // session has no open exercises to resume, so its exercises stay as they are (decision 4).
   db.update(sessionExercises)
-    .set({ finishedAt: null, updatedAt: now })
+    .set(se.status === 'draft' ? { finishedAt: null, updatedAt: now } : { updatedAt: now })
     .where(eq(sessionExercises.id, sessionExerciseId))
     .run();
   db.update(sessions).set({ updatedAt: now }).where(eq(sessions.id, se.sessionId)).run();
@@ -301,6 +329,8 @@ export type ExerciseScreenData = {
   sessionId: string;
   clientId: string;
   date: string;
+  /** The session is finished: the page edits it ("Done" instead of "Finish exercise"). */
+  sessionFinished: boolean;
   finished: boolean;
   exercise: { id: string; nameEn: string; namePl: string | null; usesBodyweight: boolean };
   sets: SetRow[];
@@ -319,10 +349,15 @@ export function exerciseScreenData(
   if (!item) return null;
   const session = getSession(db, item.sessionId);
   if (!session) return null;
+  const before: Before | undefined =
+    session.status === 'finished'
+      ? { sessionId: session.id, date: session.date, finishedAt: finishedAtOf(db, session.id) }
+      : undefined;
   return {
     sessionId: session.id,
     clientId: session.clientId,
     date: session.date,
+    sessionFinished: session.status === 'finished',
     finished: item.finishedAt !== null,
     exercise: {
       id: item.exerciseId,
@@ -333,8 +368,27 @@ export function exerciseScreenData(
     sets: listSets(db, sessionExerciseId),
     oneRepMax: currentOneRepMax(db, session.clientId, item.exerciseId),
     bodyWeight: bodyWeightOn(listWeights(db, session.clientId), session.date),
-    lastTime: lastTimeSets(db, session.clientId, item.exerciseId),
+    lastTime: lastTimeSets(db, session.clientId, item.exerciseId, { before }),
   };
+}
+
+function finishedAtOf(db: DbOrTx, sessionId: string): string | null {
+  return (
+    db.select({ f: sessions.finishedAt }).from(sessions).where(eq(sessions.id, sessionId)).get()
+      ?.f ?? null
+  );
+}
+
+/** The date of a session being edited. Refuses an invalid date or one after today. */
+export function updateSessionDate(
+  db: DbOrTx,
+  sessionId: string,
+  date: string,
+  today: string,
+): void {
+  if (!isValidDate(date)) throw new Error(`Not a valid date: ${date}`);
+  if (date > today) throw new Error('A session date cannot be in the future');
+  db.update(sessions).set({ date, updatedAt: nowIso() }).where(eq(sessions.id, sessionId)).run();
 }
 
 /** Saves the draft as finished. From now on it counts for "Last time" and history. */
@@ -383,10 +437,17 @@ export function moveExercise(db: DbOrTx, sessionExerciseId: string, dir: 'up' | 
   db.update(sessions).set({ updatedAt: now }).where(eq(sessions.id, item.sessionId)).run();
 }
 
-/** "Remove this exercise and its sets?" */
+/**
+ * "Remove this exercise and its sets?" A finished session keeps at least one exercise: removing
+ * the last one throws LastExerciseError, and the screen offers to delete the session instead.
+ */
 export function removeExercise(db: DbOrTx, sessionExerciseId: string): void {
   const item = getSessionExercise(db, sessionExerciseId);
   if (!item) return;
+  const session = getSession(db, item.sessionId);
+  if (session?.status === 'finished' && listSessionExercises(db, item.sessionId).length <= 1) {
+    throw new LastExerciseError();
+  }
   db.delete(sets).where(eq(sets.sessionExerciseId, sessionExerciseId)).run();
   db.delete(sessionExercises).where(eq(sessionExercises.id, sessionExerciseId)).run();
   db.update(sessions).set({ updatedAt: nowIso() }).where(eq(sessions.id, item.sessionId)).run();

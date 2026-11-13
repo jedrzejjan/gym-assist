@@ -158,8 +158,10 @@ The session is saved as a draft after every set. If the app closes or the phone 
 
 **Editing a finished session.** From a client's history, a finished session opens as a read-only summary with two buttons: "Edit" and "Delete session". After "Edit", the trainer changes it with the same screens: its date, its exercises and their order, and its sets.
 - Every change is saved at once, as in a draft. There is no separate Save step.
+- The same screens in edit mode (GYM-102, owner decision 2026-11-12): the session page reads "Edit session", with a Date field (today or earlier), numbered rows without the ✓ mark, "+ By pattern", "+ Full list", "+ New exercise", Reorder and the note "Changes are saved at once. The session stays finished."; its button is "Done", with no "Finish session" or "Cancel session". On the exercise page, "Done" replaces "Finish exercise", and a set change doesn't reopen the exercise.
+- "Last time" on a session being edited shows the client's latest finished session before it (by date, then finish time), never the session itself or a later one.
 - The session stays finished and does not count as a draft, so it can be edited while a draft is open elsewhere.
-- Removing the last exercise asks "Delete this session?" instead, because a finished session must have at least one exercise.
+- Removing the last exercise asks "Delete this session?" instead ("<exercise> is its only exercise. A finished session needs at least one."), because a finished session must have at least one exercise. Delete removes the session and returns to History.
 - "Delete session" asks "Delete this session? This cannot be undone."
 - Recovery and progress update by themselves, because they are computed from sets. The stored 1RM does not change (section 5).
 

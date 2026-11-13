@@ -7,6 +7,7 @@ export const mockRouter = {
   replace: jest.fn(),
   back: jest.fn(),
   dismissAll: jest.fn(),
+  dismissTo: jest.fn(),
   canDismiss: jest.fn(() => false),
 };
 export const mockParams: { current: Record<string, string> } = { current: {} };
@@ -23,5 +24,6 @@ beforeEach(() => {
   mockRouter.replace.mockClear();
   mockRouter.back.mockClear();
   mockRouter.dismissAll.mockClear();
+  mockRouter.dismissTo.mockClear();
   mockParams.current = {};
 });
