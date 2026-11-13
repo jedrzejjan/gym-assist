@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 
 import { backupStatus, writeBackup } from '../../data/autoExport';
 import { BACKUP_TABLES, exportAll, SCHEMA_VERSION } from '../../data/backup';
-import { countClients, getSelf } from '../../data/clients';
+import { getSelf, hasAnyClient } from '../../data/clients';
 import { openFolder, pickFolder, pickTextFile } from '../../data/files';
 import { mutate, useDb, useLive } from '../../data/live';
 import { restoreAll } from '../../data/restore';
@@ -138,7 +138,7 @@ export default function Settings() {
       // The safety copy, so restoring the wrong file can be undone. Skipped with no folder, or
       // with no clients (a fresh install has nothing to save); a failure stops the restore.
       const uri = getSetting(db, BACKUP_FOLDER_URI);
-      if (uri && countClients(db) > 0) {
+      if (uri && hasAnyClient(db)) {
         try {
           await openFolder(uri).write(
             'gym-assist-before-restore.json',
@@ -152,8 +152,16 @@ export default function Settings() {
           return;
         }
       }
-      // export: false: restoring must not overwrite today's backup with the restored data.
-      const result = mutate(db, (tx) => restoreAll(tx, file), { export: false });
+      // export: false: restoring must not overwrite today's backup with the restored data. A
+      // file that passed the checks can still break a database rule: then everything rolls back.
+      let result: ReturnType<typeof restoreAll>;
+      try {
+        result = mutate(db, (tx) => restoreAll(tx, file), { export: false });
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        setMessage(`Nothing was restored: the backup could not be loaded (${why}).`);
+        return;
+      }
       router.push(
         `/settings/restore-done?date=${result.date}&clients=${result.clients}&sessions=${result.sessions}`,
       );

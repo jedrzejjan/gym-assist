@@ -25,7 +25,7 @@ import type { Db } from '../types';
 const ex = (db: Db, name: string) =>
   listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
 
-/** A full database: Me, Anna (archived), Jan, weights, 3 finished sessions with 250 sets, a draft, two tied 1RMs. */
+/** A full database: Me, Anna (archived), Jan, weights, 3 finished sessions with 243 sets, a draft, two tied 1RMs. */
 function fullDb() {
   const db = createTestDb();
   seedExercises(db, SEED_EXERCISES);

@@ -11,6 +11,9 @@ export const BACKUP_FOLDER_NAME = 'backup.folderName';
 export const BACKUP_LAST_AT = 'backup.lastAt';
 export const BACKUP_LAST_ERROR = 'backup.lastError';
 
+/** Settings that belong to this phone, not to the data (the backup folder and status). */
+export const isPhoneSetting = (key: string) => key.startsWith('backup.');
+
 export function getSetting(db: DbOrTx, key: string): string | null {
   const row = db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   return row?.value ?? null;

@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import RestoreDone from '../../app/settings/restore-done';
 import Settings from '../../app/settings/index';
 import { exportAll } from '../../data/backup';
-import { countClients, createClient, listClients } from '../../data/clients';
+import { archiveClient, countClients, createClient, listClients } from '../../data/clients';
 import { pickTextFile } from '../../data/files';
 import { onWrite } from '../../data/live';
 import {
@@ -122,6 +122,29 @@ test('a failed safety write stops the restore and changes nothing', async () => 
     await screen.findByText(
       'Nothing was restored: the safety copy could not be written (Permission denied). Check the backup folder.',
     ),
+  ).toBeTruthy();
+  expect(listClients(db).map((c) => c.firstName)).toEqual(['Ewa']);
+  expect(mockRouter.push).not.toHaveBeenCalled();
+});
+
+test('with only archived clients, the safety copy is still written', async () => {
+  const db = thisPhone({ client: false });
+  archiveClient(db, createClient(db, { firstName: 'Old', weightKg: 70, weightDate: '2026-01-01' }));
+  expect(countClients(db)).toBe(0); // the list shows none, but the data is still there
+  await chooseBackup(db);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Restore' }));
+  await waitFor(() => expect(mockRouter.push).toHaveBeenCalled());
+  expect([...mockFolder.files.keys()]).toEqual(['gym-assist-before-restore.json']);
+});
+
+test('a backup that breaks a database rule is rolled back and says so', async () => {
+  const db = thisPhone();
+  const file = JSON.parse(backupText());
+  file.tables.measurements[0].clientId = 'no-such-client'; // passes the checks, fails the foreign key
+  await chooseBackup(db, JSON.stringify(file));
+  await fireEvent.press(await screen.findByRole('button', { name: 'Restore' }));
+  expect(
+    await screen.findByText(/^Nothing was restored: the backup could not be loaded/),
   ).toBeTruthy();
   expect(listClients(db).map((c) => c.firstName)).toEqual(['Ewa']);
   expect(mockRouter.push).not.toHaveBeenCalled();

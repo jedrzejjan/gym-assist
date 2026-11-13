@@ -72,6 +72,11 @@ describe('readBackup', () => {
       good({ exportedAt: 'yesterday' }),
       'This file is not a Gym Assist backup.',
     ],
+    [
+      'a row that is not an object',
+      good({ tables: { clients: [], sessions: [null], measurements: [] } }),
+      'This backup is damaged: the table sessions has a bad row.',
+    ],
   ])('%s is refused', (_, text, message) => {
     expect(readBackup(text, 1, TABLES)).toEqual({ ok: false, message });
   });

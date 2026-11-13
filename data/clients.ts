@@ -98,6 +98,14 @@ export function getSelf(db: DbOrTx): ClientRow | null {
   );
 }
 
+/**
+ * Whether the database holds any client, archived ones included: then it has data worth backing
+ * up (the automatic export, and the safety copy before a restore).
+ */
+export function hasAnyClient(db: DbOrTx): boolean {
+  return db.select({ n: count() }).from(clients).get()!.n > 0;
+}
+
 export function countClients(db: DbOrTx): number {
   return db.select({ n: count() }).from(clients).where(isNull(clients.archivedAt)).get()!.n;
 }

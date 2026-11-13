@@ -89,8 +89,12 @@ export function readBackup(
     };
   }
   for (const name of tableNames) {
-    if (!Array.isArray(f.tables[name])) {
+    const rows = f.tables[name];
+    if (!Array.isArray(rows)) {
       return { ok: false, message: `This backup is incomplete: the table ${name} is missing.` };
+    }
+    if (rows.some((r) => r === null || typeof r !== 'object' || Array.isArray(r))) {
+      return { ok: false, message: `This backup is damaged: the table ${name} has a bad row.` };
     }
   }
   for (const name of ['sessions', 'measurements']) {
