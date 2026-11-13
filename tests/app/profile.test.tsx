@@ -39,6 +39,13 @@ test('the profile shows gender, age with date of birth, height and the latest we
   expect(screen.getByText('63.5 kg · 10 Nov 2026')).toBeTruthy();
 });
 
+test('the profile has no "Start session": it is on the History tab', async () => {
+  const { db } = annaDb();
+  await renderWithDb(<ClientScreen />, db);
+  expect(screen.queryByRole('button', { name: 'Start session' })).toBeNull();
+  expect(screen.getByRole('tab', { name: 'Profile' })).toBeSelected();
+});
+
 test('empty optional fields show "-"', async () => {
   const db = createTestDb();
   const id = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-11-01' });
@@ -47,10 +54,10 @@ test('empty optional fields show "-"', async () => {
   expect(screen.getAllByText('-')).toHaveLength(3); // gender, age, height
 });
 
-test('"History ›" opens the body-weight history and "Edit profile" opens the form', async () => {
+test('"Weight history ›" opens the body-weight history and "Edit profile" opens the form', async () => {
   const { db, id } = annaDb();
   await renderWithDb(<ClientScreen />, db);
-  await fireEvent.press(screen.getByText('History ›'));
+  await fireEvent.press(screen.getByText('Weight history ›'));
   expect(mockRouter.push).toHaveBeenCalledWith(`/clients/${id}/weight`);
   await fireEvent.press(screen.getByText('Edit profile'));
   expect(mockRouter.push).toHaveBeenCalledWith(`/clients/${id}/edit`);

@@ -5,28 +5,20 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { archiveClient, getClient } from '../../../data/clients';
 import { mutate, useDb, useLive } from '../../../data/live';
 import { latestWeight } from '../../../data/measurements';
-import {
-  discardSession,
-  finishSession,
-  getDraft,
-  getSession,
-  resumePoint,
-} from '../../../data/sessions';
 import { ageOn, fullName } from '../../../domain/clients';
-import { formatDayMonth, formatDayMonthYear, todayLocal } from '../../../domain/dates';
+import { formatDayMonthYear, todayLocal } from '../../../domain/dates';
 import { AppBar } from '../../../ui/AppBar';
 import { Button } from '../../../ui/Button';
 import { genderLabel } from '../../../ui/ClientForm';
+import { type ClientTab, ClientTabs } from '../../../ui/ClientTabs';
 import { Dialog } from '../../../ui/Dialog';
 import { Screen } from '../../../ui/Screen';
 import { Text } from '../../../ui/Text';
 import { colors, fonts, sizes } from '../../../ui/theme';
-import { useTapGuard } from '../../../ui/useTapGuard';
 
 /**
- * Boards `client/profile` and `client/profile - me`, with "Start session" from
- * `client/overview`. In Sprint 1 the client screen shows the profile and "Start session"; the
- * History, Recovery and Progress tabs arrive in Sprint 2 (PR #21, decision 7).
+ * Boards `client/profile` and `client/profile - me`: the Profile tab of the client screen.
+ * "Start session" lives on the History tab (Sprint 2 plan, decision 2).
  */
 export default function ClientScreen() {
   const db = useDb();
@@ -35,14 +27,6 @@ export default function ClientScreen() {
   const weight = useLive((d) => latestWeight(d, id), [id]);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const archiving = useRef(false); // a double tap must not go back twice
-  // Spec section 4, "One draft at a time": starting while a draft exists asks first.
-  const draft = useLive((d) => {
-    const info = getDraft(d);
-    return info ? { ...info, date: getSession(d, info.sessionId)!.date } : null;
-  }, []);
-  const [draftPrompt, setDraftPrompt] = useState<'choose' | 'discard' | null>(null);
-  const guard = useTapGuard(); // a double tap must not finish, discard or navigate twice
-
   if (!client) return null;
   const name = fullName(client.firstName, client.lastName);
   const age = client.dateOfBirth
@@ -57,42 +41,19 @@ export default function ClientScreen() {
     router.back();
   };
 
-  const toDateStep = () => router.push(`/session/start?clientId=${client.id}`);
-  const startSession = () => (draft ? setDraftPrompt('choose') : toDateStep());
-
-  const resume = () => {
-    if (!draft) return;
-    setDraftPrompt(null);
-    const point = resumePoint(db, draft.sessionId);
-    router.push(`/session/${draft.sessionId}`);
-    if (point.screen === 'exercise') {
-      router.push(`/session/${draft.sessionId}/exercise/${point.seId}`);
-    }
-  };
-  const finishDraft = () => {
-    if (!draft) return;
-    setDraftPrompt(null);
-    mutate(db, (tx) => finishSession(tx, draft.sessionId));
-    toDateStep();
-  };
-  const discardDraft = () => {
-    if (!draft) return;
-    setDraftPrompt(null);
-    mutate(db, (tx) => discardSession(tx, draft.sessionId));
-    toDateStep();
-  };
-  const exercisesText = (n: number) =>
-    n === 0 ? 'empty' : n === 1 ? '1 exercise' : `${n} exercises`;
-  const draftSummary = draft
-    ? `${draft.clientName} · ${formatDayMonth(draft.date)} · ${exercisesText(draft.exerciseCount)}`
-    : '';
+  const goTab = (t: ClientTab) =>
+    router.replace(t === 'profile' ? `/clients/${id}` : `/clients/${id}/${t}`);
 
   return (
     <Screen
-      header={<AppBar title={name} back={{ label: '‹ Clients', onPress: () => router.back() }} />}
+      header={
+        <>
+          <AppBar title={name} back={{ label: '‹ Clients', onPress: () => router.back() }} />
+          <ClientTabs current="profile" onSelect={goTab} />
+        </>
+      }
       footer={
         <>
-          <Button label="Start session" onPress={startSession} />
           <Button
             label="Edit profile"
             variant="secondary"
@@ -120,12 +81,12 @@ export default function ClientScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Body-weight history"
+              accessibilityLabel="Weight history"
               onPress={() => router.push(`/clients/${client.id}/weight`)}
               hitSlop={8}
               style={styles.link}
             >
-              <Text style={styles.linkText}>History ›</Text>
+              <Text style={styles.linkText}>Weight history ›</Text>
             </Pressable>
           </View>
         </View>
@@ -135,28 +96,6 @@ export default function ClientScreen() {
           &quot;Me&quot; can be renamed but not archived.
         </Text>
       ) : null}
-      <Dialog
-        visible={draftPrompt === 'choose'}
-        title="A session is already in progress"
-        message={draftSummary}
-        onCancel={() => setDraftPrompt(null)}
-        actions={[
-          { label: 'Resume', onPress: () => guard(resume), strong: true },
-          // An empty draft can't be finished (spec section 4, "Finishing needs an exercise").
-          ...(draft && draft.exerciseCount > 0
-            ? [{ label: 'Finish it', onPress: () => guard(finishDraft) }]
-            : []),
-          { label: 'Discard it', onPress: () => setDraftPrompt('discard') },
-        ]}
-      />
-      <Dialog
-        visible={draftPrompt === 'discard'}
-        title="Discard this session?"
-        message="All exercises and sets in this session will be deleted."
-        confirmLabel="Discard"
-        onConfirm={() => guard(discardDraft)}
-        onCancel={() => setDraftPrompt(null)}
-      />
       <Dialog
         visible={confirmArchive}
         title={`Archive ${name}?`}

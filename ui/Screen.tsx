@@ -9,15 +9,21 @@ type Props = {
   children: ReactNode;
   /** Main actions, pinned to the bottom within thumb reach. */
   footer?: ReactNode;
+  /** false for a screen whose content is its own list (a FlatList must not sit in a ScrollView). */
+  scroll?: boolean;
 };
 
-export function Screen({ header, children, footer }: Props) {
+export function Screen({ header, children, footer, scroll = true }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {header}
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {children}
-      </ScrollView>
+      {scroll ? (
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={styles.fill}>{children}</View>
+      )}
       {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SafeAreaView>
   );
@@ -26,5 +32,6 @@ export function Screen({ header, children, footer }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { flexGrow: 1 },
+  fill: { flex: 1 },
   footer: { padding: sizes.gutter, gap: 12 },
 });
