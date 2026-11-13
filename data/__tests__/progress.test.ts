@@ -102,6 +102,20 @@ test('setOneRepMax keeps the history; the newest row is the current 1RM', () => 
   expect(() => setOneRepMax(s.db, s.anna, bench, 0, 'manual')).toThrow();
 });
 
+test('two 1RMs saved in the same millisecond: the last one saved is current', () => {
+  const s = setup();
+  const bench = s.ex('Bench press');
+  const spy = jest.spyOn(Date.prototype, 'toISOString').mockReturnValue('2026-11-12T10:00:00.000Z');
+  try {
+    setOneRepMax(s.db, s.anna, bench, 60, 'manual');
+    setOneRepMax(s.db, s.anna, bench, 63.33, 'estimated');
+    setOneRepMax(s.db, s.anna, bench, 61, 'manual');
+  } finally {
+    spy.mockRestore();
+  }
+  expect(currentOneRepMax(s.db, s.anna, bench)).toMatchObject({ valueKg: 61, source: 'manual' });
+});
+
 test('logging a set never changes the 1RM', () => {
   const s = setup();
   const bench = s.ex('Bench press');

@@ -1,7 +1,7 @@
 // Progress (spec section 5, progress.ts; Sprint 2 plan, Task 5, decision 6): the stored 1RM, the
 // best set per exercise, and the body-weight trend. This file never imports data/sessions.ts:
 // sessions.ts imports the 1RM from here.
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { bodyWeightOn } from '../domain/bodyweight';
 import { bestSet, type ComparableSet, e1rm } from '../domain/progress';
@@ -11,7 +11,10 @@ import { type DbOrTx, newId, nowIso } from './types';
 
 export type OneRepMax = { valueKg: number; source: 'estimated' | 'manual'; createdAt: string };
 
-/** The current 1RM: the newest one_rep_maxes row by created_at (spec section 6). */
+/**
+ * The current 1RM: the newest one_rep_maxes row by created_at (spec section 6). Two rows saved in
+ * the same millisecond are told apart by insertion order (SQLite's rowid), so the last one wins.
+ */
 export function currentOneRepMax(
   db: DbOrTx,
   clientId: string,
@@ -26,7 +29,7 @@ export function currentOneRepMax(
       })
       .from(oneRepMaxes)
       .where(and(eq(oneRepMaxes.clientId, clientId), eq(oneRepMaxes.exerciseId, exerciseId)))
-      .orderBy(desc(oneRepMaxes.createdAt))
+      .orderBy(desc(oneRepMaxes.createdAt), desc(sql`rowid`))
       .limit(1)
       .get() ?? null
   );
