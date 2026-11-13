@@ -14,6 +14,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "allowBackup": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.jedrosz.gymassist"
     },

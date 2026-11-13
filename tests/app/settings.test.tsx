@@ -8,6 +8,7 @@ import {
   BACKUP_FOLDER_NAME,
   BACKUP_FOLDER_URI,
   BACKUP_LAST_AT,
+  BACKUP_LAST_ERROR,
   getSetting,
   setSetting,
   WELCOME_DONE,
@@ -93,6 +94,17 @@ test('tapping Backup folder chooses a folder and writes no file', async () => {
   expect(await screen.findByText('Backups · no backup yet')).toBeTruthy();
   expect(getSetting(db, BACKUP_FOLDER_NAME)).toBe('Backups');
   expect(mockFolder.files.size).toBe(0);
+});
+
+test('choosing a new folder clears an old failure', async () => {
+  const db = setup();
+  setSetting(db, BACKUP_LAST_ERROR, 'Permission denied');
+  pick.mockResolvedValue({ uri: 'content://tree/new', name: 'Backups' });
+  await renderWithDb(<Settings />, db);
+  expect(screen.getByText('Last backup failed: check the folder')).toBeTruthy();
+  await fireEvent.press(button(/^Backup folder/));
+  expect(await screen.findByText('Backups · no backup yet')).toBeTruthy();
+  expect(getSetting(db, BACKUP_LAST_ERROR)).toBeNull();
 });
 
 test('a failed export says so', async () => {

@@ -1,12 +1,14 @@
 import { Redirect, router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { backupStatus } from '../data/autoExport';
 import { countClients } from '../data/clients';
 import { countExercises } from '../data/exercises';
 import { useDb, useLive } from '../data/live';
 import { getDraft, resumePoint } from '../data/sessions';
 import { getSetting, WELCOME_DONE } from '../data/settings';
 import { AppBar } from '../ui/AppBar';
+import { Banner } from '../ui/Banner';
 import { Screen } from '../ui/Screen';
 import { Text } from '../ui/Text';
 import { Tile } from '../ui/Tile';
@@ -16,8 +18,10 @@ import { colors, fonts, sizes } from '../ui/theme';
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * Home (boards `home` and `home - session in progress`): Clients, Settings, Exercise library, in
- * that order (spec section 5). While a draft exists, a bar at the bottom resumes it (section 4).
+ * Home (boards `home`, `home - session in progress` and `home - backup warning`): Clients,
+ * Settings, Exercise library, in that order (spec section 5). A warning under the app bar says
+ * when backups are off or the last one failed. While a draft exists, a bar at the bottom
+ * resumes it (section 4).
  * Opening the app shows Home; it never jumps into the draft by itself.
  */
 export default function Home() {
@@ -29,6 +33,7 @@ export default function Home() {
       clients: countClients(db),
       exercises: countExercises(db),
       draft: getDraft(db),
+      backup: backupStatus(db),
     }),
     [],
   );
@@ -43,10 +48,29 @@ export default function Home() {
     if (point.screen === 'exercise') router.push(`/session/${sessionId}/exercise/${point.seId}`);
   };
   const draft = home.draft;
+  // Board `home - backup warning` (spec section 5, Backup plan; decision 10: on Home).
+  const warning =
+    home.backup.folderName === null
+      ? 'Backups are off: choose a folder'
+      : home.backup.lastError !== null
+        ? 'Last backup failed: check the folder'
+        : null;
 
   return (
     <Screen
-      header={<AppBar title="Gym Assist" />}
+      header={
+        <>
+          <AppBar title="Gym Assist" />
+          {warning ? (
+            <Banner
+              message={warning}
+              actionLabel="FIX"
+              actionAccessibilityLabel="Fix backups"
+              onAction={() => router.push('/settings')}
+            />
+          ) : null}
+        </>
+      }
       footer={
         draft ? (
           <DraftBar
