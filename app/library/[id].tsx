@@ -36,7 +36,6 @@ export default function ExerciseDetailScreen() {
             {exercise.namePl ? <Text variant="small">{exercise.namePl}</Text> : null}
           </View>
           <View style={styles.card}>
-            <Field label="Category" value={displayName(exercise.category)} />
             <Field label="Training type" value={exercise.trainingType} />
             <Field label="Pattern" value={displayName(exercise.pattern)} />
             <Field label="Muscles" value={muscleList(exercise.muscles)} />

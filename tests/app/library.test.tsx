@@ -68,7 +68,6 @@ test('the detail shows every field, and says seed exercises are read-only', asyn
   for (const text of [
     'Overhand pull-up',
     'Podciąganie nachwytem',
-    'Pull',
     'Strength',
     'Pull vertical',
     'Lats, upper back',
@@ -78,6 +77,7 @@ test('the detail shows every field, and says seed exercises are read-only', asyn
   ]) {
     expect(screen.getByText(text)).toBeTruthy();
   }
+  expect(screen.queryByText('Category')).toBeNull(); // stored, not shown (GYM-99)
 });
 
 test('a non-bodyweight exercise says No, and KD shows as Knee Dominant', async () => {

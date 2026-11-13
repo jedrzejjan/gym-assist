@@ -6,8 +6,7 @@ import { addCustomExercise, DuplicateNameError } from '../../data/exercises';
 import { mutate, useDb } from '../../data/live';
 import { addExerciseToSession } from '../../data/sessions';
 import {
-  type Category,
-  CATEGORIES,
+  categoryForPattern,
   displayName,
   type Muscle,
   muscleName,
@@ -35,8 +34,8 @@ const YES_NO = [
 ];
 
 /**
- * Board `library/add exercise` (spec section 5, Add exercise). Required: English name, category,
- * training type, pattern. Opened from a session as "New exercise"
+ * Board `library/add exercise` (spec section 5, Add exercise). Required: English name, training
+ * type, pattern. The category is hidden and derived from the pattern (GYM-99). Opened from a session as "New exercise"
  * (`?returnTo=session&sessionId=…`), saving also adds the exercise to that session and opens it.
  */
 export default function AddExercise() {
@@ -48,7 +47,6 @@ export default function AddExercise() {
   const toSession = returnTo === 'session' && sessionId ? sessionId : null;
   const [nameEn, setNameEn] = useState('');
   const [namePl, setNamePl] = useState('');
-  const [category, setCategory] = useState<Category | null>(null);
   const [trainingType, setTrainingType] = useState<TrainingType | null>(null);
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [muscles, setMuscles] = useState<Muscle[]>([]);
@@ -56,7 +54,7 @@ export default function AddExercise() {
   const [duplicate, setDuplicate] = useState(false);
   const saving = useRef(false); // a double tap must not save twice
 
-  const valid = nameEn.trim() !== '' && category && trainingType && pattern;
+  const valid = nameEn.trim() !== '' && trainingType && pattern;
 
   const save = () => {
     if (!valid || saving.current) return;
@@ -67,7 +65,7 @@ export default function AddExercise() {
         const exerciseId = addCustomExercise(tx, {
           nameEn,
           namePl,
-          category,
+          category: categoryForPattern(pattern),
           trainingType,
           pattern,
           usesBodyweight: bodyweight === 'yes',
@@ -116,12 +114,6 @@ export default function AddExercise() {
           </Text>
         ) : null}
         <TextField label="Polish name" value={namePl} onChangeText={setNamePl} />
-        <Chips
-          label="Category *"
-          options={options(CATEGORIES)}
-          value={category}
-          onChange={setCategory}
-        />
         <Chips
           label="Training type *"
           options={options(TRAINING_TYPES)}

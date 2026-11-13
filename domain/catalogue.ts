@@ -1,5 +1,6 @@
 // Fixed lists (spec section 5, catalogue.ts). Pure data; no UI, no database.
 
+// Category is stored but not shown (GYM-99, owner decision 2026-11-13): kept for later use.
 export const CATEGORIES = ['KD', 'HD', 'Push', 'Pull', 'Core'] as const;
 export const TRAINING_TYPES = ['Strength', 'Plyometric', 'Power', 'Cardio'] as const;
 export const PATTERNS = [
@@ -37,6 +38,18 @@ export type Pattern = (typeof PATTERNS)[number];
 export type Muscle = keyof typeof MUSCLE_NAMES;
 
 export const MUSCLES = Object.keys(MUSCLE_NAMES) as Muscle[];
+
+/**
+ * The hidden category of a custom exercise, from its pattern (GYM-99): Add exercise no longer
+ * asks for it. KD and HD stay, Push and Pull patterns give Push and Pull, and the rest
+ * (anti flexion, anti extension, carries, none) give Core.
+ */
+export function categoryForPattern(p: Pattern): Category {
+  if (p === 'KD' || p === 'HD') return p;
+  if (p.startsWith('Push')) return 'Push';
+  if (p.startsWith('Pull')) return 'Pull';
+  return 'Core';
+}
 
 export function muscleName(m: Muscle): { en: string; pl: string } {
   return MUSCLE_NAMES[m];

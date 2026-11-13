@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`)
+Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`; GYM-99 exercise category hidden, 2026-11-13)
 
 ## 1. Purpose
 
@@ -190,7 +190,7 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
   - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 1 kg (fine enough for small muscle groups such as biceps). For an exercise that uses body weight, the added load is that total minus the body weight on the session date, rounded to the nearest 1 kg and never below 0.
 - `sets.ts` gives the next set number in a session exercise and the display format, where a blank value shows as "-".
 - `catalogue.ts` holds the fixed lists:
-  - categories: KD, HD, Push, Pull, Core (KD and HD shown as "Knee Dominant" and "Hip Dominant", as for patterns);
+  - categories: KD, HD, Push, Pull, Core. Stored but not shown (GYM-99); a custom exercise gets its category from its pattern (KD and HD stay, Push… gives Push, Pull… gives Pull, the rest give Core);
   - training types: Strength, Plyometric, Power, Cardio;
   - movement patterns: KD, HD, Push vertical, Push horizontal, Pull vertical, Pull horizontal, Anti flexion, Anti extension, Carries, none. The screens show KD as "Knee Dominant" and HD as "Hip Dominant";
   - the 12 muscles with English and Polish names.
@@ -232,8 +232,8 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
   - While there is no "Me", an "Add my profile" row sits at the top of the list.
   - An empty list says "No clients yet" above the "Add client" button.
   - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, or later with "Add my profile" on Clients while there is none (only there, not in Settings). The trainer can rename it. It cannot be archived.
-- **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, category, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
-  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, category, training type and pattern ("none" is allowed; such an exercise does not count in pattern recovery). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique (section 6); a duplicate shows "An exercise with this name already exists". The library grows with use.
+- **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
+  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, training type and pattern ("none" is allowed; such an exercise does not count in pattern recovery). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique (section 6); a duplicate shows "An exercise with this name already exists". The library grows with use.
   - Editing and deleting custom exercises are not in the MVP (backlog item 3).
 - **Client:** that client's profile, history, recovery and progress.
   - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set. **Body**: the body weight history. More measurements join this category with backlog item 14.
@@ -283,6 +283,7 @@ exercises ─────────────────────┘
 - **Archiving:** archiving a client hides the client and keeps their history.
 - **Profile fields:** `first_name` is required, and every client has at least one `measurements` row of type `weight` (added together with the client). The other profile columns are optional. `clients.height_cm` is the client's height; `sets.height_cm` is a box height and is unrelated. `gender` is one of `female`, `male`, `other`, `prefer_not_to_say`, or NULL. `date_of_birth` is stored instead of an age, so the age stays correct.
 - **"Me":** at most one client has `is_self = 1`.
+- **Exercise category is hidden** (GYM-99, owner decision 2026-11-13): it mostly repeated the pattern, so no screen shows or asks for it. The `category` column stays, for later use (backlog: equipment categories such as Machine and Free weights).
 - **Exercise names:** `exercises.name_en` is unique, ignoring upper and lower case ("Dips" and "dips" are the same), because the CSV import matches exercises by it. If a later seed update brings a name that already exists as a custom exercise, the seed entry is skipped and the custom one stays.
 - **Measurements:** unique on (`client_id`, `type`, `date`). In the MVP `type` is always `weight` and `value` is in kg. Backlog item 14 adds new types (in cm) without a new table.
 - **Units:** weights in kg, heights and lengths in cm. There is no unit setting.
