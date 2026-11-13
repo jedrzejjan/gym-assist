@@ -28,7 +28,8 @@ export default function StartSession() {
     starting.current = true;
     let sessionId: string;
     try {
-      sessionId = mutate(db, (tx) => startSession(tx, clientId, date));
+      // A new draft changes no finished data: no automatic export (GYM-26).
+      sessionId = mutate(db, (tx) => startSession(tx, clientId, date), { export: false });
     } catch (e) {
       starting.current = false;
       // The client screen asks first (GYM-21). This guards a draft started elsewhere meanwhile.

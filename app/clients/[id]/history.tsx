@@ -68,7 +68,7 @@ export default function HistoryTab() {
   const discardDraft = () => {
     if (!draft) return;
     setDraftPrompt(null);
-    mutate(db, (tx) => discardSession(tx, draft.sessionId));
+    mutate(db, (tx) => discardSession(tx, draft.sessionId), { export: false }); // a draft only
     toDateStep();
   };
   const exercisesText = (n: number) =>

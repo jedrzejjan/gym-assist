@@ -225,6 +225,17 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
 | **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning at the top until it is fixed: "Backups are off: choose a folder" when no folder is chosen, or "Last backup failed: check the folder" when the last export failed, with a "Fix" action that opens Settings. | A silent backup failure |
 
+**How the export works (GYM-26, decision 7):**
+- "Export data (JSON)" in Settings writes today's file into the backup folder, and asks for a folder first if none is chosen. There's no share sheet.
+- The folder comes from Android's folder picker with a lasting permission.
+- Writing over today's file deletes it and creates it again, so no old bytes survive a shorter file.
+- The automatic export skips writes that change no finished data (a draft, choosing the folder, saving the backup status, a restore).
+- It never exports a database with no clients, so a fresh install can't overwrite a real backup with an empty one.
+- With no folder chosen, it does nothing (the Home warning, GYM-27, covers that).
+- A failed write is saved as the last error, and Settings shows "Last backup failed: check the folder".
+- Rows are exported in insertion order, so a restore keeps ties broken the same way.
+- Whether the picker offers Google Drive is checked on the phone.
+
 **Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). When it finishes, the app shows "Restore done" with the backup's date and how many clients and sessions it brought back, and a "Go to clients" button. A restore test on a reinstalled app is part of the MVP's "done when" check.
 
 ### `app/`: screens

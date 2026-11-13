@@ -3,8 +3,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 
+import { startAutoExport } from '../data/autoExport';
 import { openAppDatabase } from '../data/db/open';
+import { openFolder } from '../data/files';
 import { DbProvider } from '../data/live';
+import { BACKUP_FOLDER_URI, getSetting } from '../data/settings';
 import type { Db } from '../data/types';
 import { MigrationError } from '../ui/MigrationError';
 
@@ -23,6 +26,17 @@ export default function RootLayout() {
         setStarted({ ok: false, error: e instanceof Error ? e.message : String(e) }),
       );
   }, []);
+
+  // The automatic export after every change to finished data (GYM-26). The folder is read at
+  // each export, so choosing one in Settings takes effect at once.
+  useEffect(() => {
+    if (!started?.ok) return;
+    const db = started.db;
+    return startAutoExport(db, () => {
+      const uri = getSetting(db, BACKUP_FOLDER_URI);
+      return uri ? openFolder(uri) : null;
+    });
+  }, [started]);
 
   // If the fonts fail to load, carry on with the system font rather than a stuck splash screen.
   const ready = (fontsLoaded || fontError !== null) && started !== null;

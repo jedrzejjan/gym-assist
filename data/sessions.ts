@@ -97,6 +97,14 @@ export function getDraft(db: DbOrTx): DraftInfo | null {
   return { sessionId: s.id, clientId: s.clientId, clientName: s.clientName, exerciseCount: n };
 }
 
+/**
+ * The mutate options for a write to this session (GYM-26): a draft changes no finished data, so
+ * it doesn't trigger the automatic export; a finished session being edited does.
+ */
+export function sessionWriteOptions(db: DbOrTx, sessionId: string): { export: boolean } {
+  return { export: getSession(db, sessionId)?.status === 'finished' };
+}
+
 /** Starts a draft session. Throws DraftExistsError if any draft exists, for any client. */
 export function startSession(db: DbOrTx, clientId: string, date: string): string {
   if (getDraft(db)) throw new DraftExistsError();

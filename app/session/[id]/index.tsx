@@ -62,7 +62,7 @@ export default function SessionPage() {
   const finish = () => leave(() => mutate(db, (tx) => finishSession(tx, id)));
   const discard = () => {
     setConfirmDiscard(false);
-    leave(() => mutate(db, (tx) => discardSession(tx, id)));
+    leave(() => mutate(db, (tx) => discardSession(tx, id), { export: false })); // a draft only
   };
 
   const changeDate = (date: string) =>

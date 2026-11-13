@@ -12,6 +12,17 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-13: The automatic export fails safe (GYM-26, PR #40)
+- **Decision:** `mutate` takes `{ export?: boolean }`, true unless the caller says otherwise. Only writes that change no finished data pass `false`: a draft, choosing the folder, saving the backup status.
+- **Why:** a forgotten flag then costs one extra export, never a missing backup.
+- **Guards:**
+  - it never exports a database with no clients, so a fresh install can't overwrite a real backup with an empty one;
+  - writes that arrive during an export give one more export, not one each;
+  - saving the export's own status can't start another export.
+- **Also:**
+  - today's file is deleted and created again, rather than overwritten, because Android document providers don't always truncate a file;
+  - rows are exported in `rowid` order for GYM-103.
+
 ### 2026-11-13: Ties on the stored 1RM go to the row saved last (GYM-24, PR #38)
 - **Decision:** the current 1RM is the newest `one_rep_maxes` row by `created_at`. When two rows have the same timestamp, the one inserted last wins, using SQLite's `rowid` as the second sort key.
 - **Why:** timestamps aren't unique, so sorting on them alone gives a random winner on a tie (see the incident below).
@@ -102,6 +113,12 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Watch list
 
+- **GYM-26 (PR #40 review, small risks):**
+  - **Picker errors:** `pickFolder` treats any picker error as a cancel, so a real failure is silent.
+  - **Export now vs auto-export:** they aren't queued together, so if both run at the same moment they could leave a "(1)" copy.
+  - **Timing gap:** a write made in the tiny gap after an export's last check would be missed until the next write. Nothing triggers this today.
+  - **Fresh install:** on a fresh install, creating "Me" before restoring would overwrite today's backup, so Task 10 restores first.
+- **Task 10 (phone):** file names from expo-file-system 58 come from the URI. `baseName` strips "primary:" and decodes the name, and the phone check confirms the folder name, and that a second export on one day leaves no "(1)" copy.
 - **GYM-25 (CSV import):** imported sessions must get a non-null `finished_at`. Otherwise "Last time" while editing (`lastTimeSets` with `before`) skips them on the same date.
 - **GYM-103 (Restore):** re-insert `one_rep_maxes` in `(created_at, rowid)` order, so the last 1RM saved stays current after a round trip.
 - **GYM-119 (backlog):** a session dated after today would show "-1 days ago" on Recovery. Clamp the value, or have `startSession` refuse a future date. The same ticket makes the golden script write LF line endings.

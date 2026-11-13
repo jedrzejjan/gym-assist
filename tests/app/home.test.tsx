@@ -44,9 +44,12 @@ test('the Clients tile counts clients and refreshes after a new one is saved', a
   expect(screen.getByText('1 client')).toBeTruthy();
 });
 
-test('Settings is dimmed and disabled until Sprint 2', async () => {
+test('the Settings tile is enabled and opens Settings (GYM-26)', async () => {
   await renderWithDb(<Home />, answeredDb());
-  expect(screen.getByRole('button', { name: /Settings/ })).toBeDisabled();
+  const tile = screen.getByRole('button', { name: /Settings/ });
+  expect(tile).toBeEnabled();
+  await fireEvent.press(tile);
+  expect(mockRouter.push).toHaveBeenCalledWith('/settings');
 });
 
 test('the Exercise library tile counts exercises and opens the library', async () => {
