@@ -21,6 +21,16 @@ function parts(s: string): [number, number, number] {
   return [y, m, d];
 }
 
+/**
+ * Whole calendar days from `from` to `to` ('YYYY-MM-DD'), negative if `to` is earlier. Counted on
+ * the date parts with Date.UTC, so a daylight-saving change can't make a day 23 or 25 hours long.
+ */
+export function daysBetween(from: string, to: string): number {
+  const [fy, fm, fd] = parts(from);
+  const [ty, tm, td] = parts(to);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000);
+}
+
 /** '2026-11-07' → '7 Nov' */
 export function formatDayMonth(s: string): string {
   const [, m, d] = parts(s);

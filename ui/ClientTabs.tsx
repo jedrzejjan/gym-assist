@@ -2,11 +2,12 @@ import { TabBar } from './TabBar';
 
 export type ClientTab = 'profile' | 'history' | 'recovery' | 'progress';
 
-// Board order: Profile | History | Recovery | Progress. Recovery (GYM-23) and Progress (GYM-24)
-// join the list when their screens exist.
+// Board order: Profile | History | Recovery | Progress. Progress (GYM-24) joins the list when
+// its screen exists.
 const TABS: { value: ClientTab; label: string }[] = [
   { value: 'profile', label: 'Profile' },
   { value: 'history', label: 'History' },
+  { value: 'recovery', label: 'Recovery' },
 ];
 
 /** The client screen's tabs. Presentation only: each screen routes in `onSelect`. */

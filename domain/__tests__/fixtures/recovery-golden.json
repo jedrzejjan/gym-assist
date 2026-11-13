@@ -1,0 +1,112 @@
+{
+  "today": "2026-11-12",
+  "patterns": {
+    "KD": {
+      "last": "2026-11-09",
+      "days": 3,
+      "status": "in supercompensation window (48-72 h)"
+    },
+    "HD": {
+      "last": "2026-11-06",
+      "days": 6,
+      "status": "due"
+    },
+    "Push vertical": {
+      "last": "2026-11-12",
+      "days": 0,
+      "status": "recovering, too soon"
+    },
+    "Push horizontal": {
+      "last": "2026-11-03",
+      "days": 9,
+      "status": "due"
+    },
+    "Pull vertical": {
+      "last": "2026-11-06",
+      "days": 6,
+      "status": "due"
+    },
+    "Pull horizontal": {
+      "last": "2026-11-10",
+      "days": 2,
+      "status": "in supercompensation window (48-72 h)"
+    },
+    "Anti flexion": {
+      "last": null,
+      "days": null,
+      "status": "never logged"
+    },
+    "Anti extension": {
+      "last": "2026-10-20",
+      "days": 23,
+      "status": "due"
+    },
+    "Carries": {
+      "last": null,
+      "days": null,
+      "status": "never logged"
+    }
+  },
+  "muscles": {
+    "quadriceps": {
+      "last": "2026-11-09",
+      "days": 3,
+      "status": "in supercompensation window (48-72 h)"
+    },
+    "hamstrings": {
+      "last": "2026-11-06",
+      "days": 6,
+      "status": "due"
+    },
+    "glutes": {
+      "last": "2026-11-09",
+      "days": 3,
+      "status": "in supercompensation window (48-72 h)"
+    },
+    "adductors": {
+      "last": null,
+      "days": null,
+      "status": "never logged"
+    },
+    "calves": {
+      "last": "2026-11-01",
+      "days": 11,
+      "status": "due"
+    },
+    "core": {
+      "last": "2026-11-12",
+      "days": 0,
+      "status": "recovering, too soon"
+    },
+    "chest": {
+      "last": "2026-11-03",
+      "days": 9,
+      "status": "due"
+    },
+    "shoulders": {
+      "last": "2026-11-12",
+      "days": 0,
+      "status": "recovering, too soon"
+    },
+    "triceps": {
+      "last": "2026-11-12",
+      "days": 0,
+      "status": "recovering, too soon"
+    },
+    "biceps": {
+      "last": "2026-11-10",
+      "days": 2,
+      "status": "in supercompensation window (48-72 h)"
+    },
+    "lats": {
+      "last": "2026-11-10",
+      "days": 2,
+      "status": "in supercompensation window (48-72 h)"
+    },
+    "upper back": {
+      "last": "2026-11-10",
+      "days": 2,
+      "status": "in supercompensation window (48-72 h)"
+    }
+  }
+}

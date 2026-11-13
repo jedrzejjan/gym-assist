@@ -1,4 +1,5 @@
 import {
+  daysBetween,
   formatDateOrToday,
   formatDayMonth,
   formatDayMonthYear,
@@ -34,4 +35,12 @@ test('isValidDate accepts real dates only', () => {
 test('formatDateOrToday marks today', () => {
   expect(formatDateOrToday('2026-11-12', '2026-11-12')).toBe('Today, 12 Nov 2026');
   expect(formatDateOrToday('2026-11-10', '2026-11-12')).toBe('10 Nov 2026');
+});
+
+test('daysBetween counts calendar days, also across the October DST change', () => {
+  expect(daysBetween('2026-10-24', '2026-10-26')).toBe(2); // Europe: clocks go back on 25 Oct
+  expect(daysBetween('2026-03-28', '2026-03-30')).toBe(2); // and forward on 29 Mar
+  expect(daysBetween('2026-11-12', '2026-11-12')).toBe(0);
+  expect(daysBetween('2025-12-31', '2026-01-01')).toBe(1);
+  expect(daysBetween('2026-11-12', '2026-11-10')).toBe(-2);
 });
