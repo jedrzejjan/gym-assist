@@ -56,6 +56,11 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Incidents and bugs
 
+### 2026-11-13: PR title without a Jira key (GYM-122, PR #39)
+- **What:** this log's first PR title had no `GYM-<n>` key, and the `title` check (commitlint with the Jira plugin) failed.
+- **Fix:** ticket GYM-122 was created and the PR renamed.
+- **Lesson:** every change, docs included, starts from a Jira ticket. That's also what the squash-commit rule enforces.
+
 ### 2026-11-13: Spec-changing PRs opened without `needs-owner` (PR #37, PR #38)
 - **What:** CLAUDE.md requires owner approval for PRs that change the spec. PRs #37 and #38 edited the spec but were opened without the label. The #38 reviewer caught it.
 - **Impact:** none in the end. The owner approved both merges in chat.
