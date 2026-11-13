@@ -69,3 +69,13 @@ export function openFolder(uri: string): BackupFolder {
     },
   };
 }
+
+/**
+ * Android's file picker, for the one-time CSV import (GYM-25). Any file type: Android labels
+ * CSV files inconsistently. null when the trainer cancels.
+ */
+export async function pickTextFile(): Promise<{ name: string; text: string } | null> {
+  const picked = await File.pickFileAsync();
+  if (picked.canceled) return null;
+  return { name: baseName(picked.result.name), text: await picked.result.text() };
+}

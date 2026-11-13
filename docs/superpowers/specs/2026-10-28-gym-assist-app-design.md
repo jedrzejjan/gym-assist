@@ -246,7 +246,7 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
   - The trainer's own profile is pinned first and marked "me".
   - While there is no "Me", an "Add my profile" row sits at the top of the list.
   - An empty list says "No clients yet" above the "Add client" button.
-  - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, or later with "Add my profile" on Clients while there is none (only there, not in Settings). The trainer can rename it. It cannot be archived.
+  - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, later with "Add my profile" on Clients while there is none, or when Settings › Import history needs it (GYM-25, decision 9: Create my profile opens first, then the import continues). The trainer can rename it. It cannot be archived.
 - **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
   - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, training type and pattern ("none" is allowed; such an exercise does not count in pattern recovery). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique (section 6); a duplicate shows "An exercise with this name already exists". The library grows with use.
   - Editing and deleting custom exercises are not in the MVP (backlog item 3).
@@ -309,7 +309,9 @@ exercises ─────────────────────┘
 
 ### Import of the existing history
 
-- The import is optional; other trainers never need it. Every imported row goes to client "Me", the client with `is_self = 1`, whatever its name. If there is no "Me", the import first asks the trainer to create their profile.
+- The import is optional; other trainers never need it. Every imported row goes to client "Me", the client with `is_self = 1`, whatever its name. If there is no "Me", the import first opens Create my profile, then continues (GYM-25, decision 9).
+- The file is the old tool's `sessions.csv`: the columns `date, exercise_en, set_no, side, weight_kg, reps, height_cm, speed_kmh, minutes, note` in any order. A BOM, `\r\n` line endings and quoted fields are accepted. Every row is checked before anything is written, and a problem reports its row.
+- If "Me" already has a session on any date in the file, the import is refused and lists those dates, so a second import can't double the history (decision 9). `visits.csv` is not imported.
 - Rows are grouped by date into finished sessions.
 - Exercises are matched by `name_en`.
 - Set numbers and every column are kept.
