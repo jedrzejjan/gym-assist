@@ -13,13 +13,29 @@ export interface BackupFolder {
 }
 
 /**
+ * A readable name from what expo-file-system reports. In version 58 a name comes from the URI,
+ * not from Android's display name, so a storage-access URI can give "primary:Gym Assist" or an
+ * encoded "primary%3AGym%20Assist%2Fgym-assist-backup-2026-11-12.json". This keeps the part
+ * after the last "/" or ":", decoded (PR #40 review, N1; checked on the phone in Task 10).
+ */
+export function baseName(raw: string): string {
+  let name = raw;
+  try {
+    name = decodeURIComponent(raw);
+  } catch {
+    // not encoded
+  }
+  return name.split('/').pop()!.split(':').pop()!;
+}
+
+/**
  * Android's folder picker. It keeps a persistable permission, so the folder still works after
  * a restart (checked on the phone in Task 10). null when the trainer cancels.
  */
 export async function pickFolder(): Promise<{ uri: string; name: string } | null> {
   try {
     const dir = await Directory.pickDirectoryAsync();
-    return dir ? { uri: dir.uri, name: dir.name } : null;
+    return dir ? { uri: dir.uri, name: baseName(dir.name) } : null;
   } catch {
     return null; // cancelled
   }
@@ -28,14 +44,14 @@ export async function pickFolder(): Promise<{ uri: string; name: string } | null
 export function openFolder(uri: string): BackupFolder {
   const dir = new Directory(uri);
   const find = (name: string) =>
-    dir.list().find((f): f is File => f instanceof File && f.name === name) ?? null;
+    dir.list().find((f): f is File => f instanceof File && baseName(f.name) === name) ?? null;
   return {
-    name: dir.name,
+    name: baseName(dir.name),
     async list() {
       return dir
         .list()
         .filter((f): f is File => f instanceof File)
-        .map((f) => f.name);
+        .map((f) => baseName(f.name));
     },
     async write(name, text) {
       // Android's document providers don't always truncate a file opened for writing, so a

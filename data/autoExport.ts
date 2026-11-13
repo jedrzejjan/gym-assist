@@ -66,12 +66,13 @@ export function startAutoExport(db: Db, getFolder: () => BackupFolder | null): A
   const run = async () => {
     do {
       pending = false;
-      const folder = getFolder();
-      if (folder === null || !hasClients(db)) continue;
       try {
+        const folder = getFolder();
+        if (folder === null || !hasClients(db)) continue;
         await writeBackup(db, folder, todayLocal(new Date()));
       } catch {
-        // writeBackup saved backup.lastError; the trainer sees it on Home and in Settings.
+        // writeBackup saved backup.lastError; the trainer sees it on Home and in Settings. A
+        // failure before writing (reading the folder setting) is dropped: never throw here.
       }
     } while (pending);
   };

@@ -170,6 +170,22 @@ describe('startAutoExport', () => {
     auto();
   });
 
+  test('a getFolder that throws does not break the export loop', async () => {
+    const { db, folder } = setup();
+    let calls = 0;
+    const auto = startAutoExport(db, () => {
+      calls += 1;
+      if (calls === 1) throw new Error('settings unreadable');
+      return folder;
+    });
+    mutate(db, (tx) => setSetting(tx, 'x', '1'));
+    await expect(auto.idle()).resolves.toBeUndefined();
+    mutate(db, (tx) => setSetting(tx, 'y', '1'));
+    await auto.idle();
+    expect(folder.writes).toBe(1);
+    auto();
+  });
+
   test('after stop, writes no longer export', async () => {
     const { db, folder } = setup();
     const auto = startAutoExport(db, () => folder);
