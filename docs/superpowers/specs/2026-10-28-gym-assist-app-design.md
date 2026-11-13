@@ -310,8 +310,7 @@ exercises ─────────────────────┘
 ### Import of the existing history
 
 - The import is optional; other trainers never need it. Every imported row goes to client "Me", the client with `is_self = 1`, whatever its name. If there is no "Me", the import first opens Create my profile, then continues (GYM-25, decision 9).
-- The file is the old tool's `sessions.csv`: the columns `date, exercise_en, set_no, side, weight_kg, reps, height_cm, speed_kmh, minutes, note` in any order. A BOM, `
-` line endings and quoted fields are accepted. Every row is checked before anything is written, and a problem reports its row.
+- The file is the old tool's `sessions.csv`: the columns `date, exercise_en, set_no, side, weight_kg, reps, height_cm, speed_kmh, minutes, note` in any order. A BOM, `\r\n` line endings and quoted fields are accepted. Every row is checked before anything is written, and a problem reports its row.
 - If "Me" already has a session on any date in the file, the import is refused and lists those dates, so a second import can't double the history (decision 9). `visits.csv` is not imported.
 - Rows are grouped by date into finished sessions.
 - Exercises are matched by `name_en`.

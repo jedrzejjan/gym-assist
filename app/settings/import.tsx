@@ -40,7 +40,18 @@ export default function ImportScreen() {
     if (busy.current) return;
     busy.current = true;
     try {
-      const file = await pickTextFile();
+      let file: { name: string; text: string } | null;
+      try {
+        file = await pickTextFile();
+      } catch (e) {
+        setState({
+          kind: 'error',
+          message: `The file could not be read: ${e instanceof Error ? e.message : String(e)}`,
+          unknownNames: [],
+          hint: 'Choose the CSV file again, or copy it to the phone first.',
+        });
+        return;
+      }
       if (!file) return; // cancelled
       const names = new Set(listExercises(db, {}).map((e) => e.nameEn));
       const check = validateImport(parseCsv(file.text), names, todayLocal(new Date()));

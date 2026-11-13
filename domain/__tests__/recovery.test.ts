@@ -60,8 +60,7 @@ test('recoveryTable keeps the latest date, whatever the input order', () => {
   expect(t.patterns[0]).toMatchObject({ key: 'KD', lastDate: '2026-11-10', days: 2 });
 });
 
-/** The fixtures as the importer reads them (BOM, 
- and quoted fields included). */
+/** The fixtures as the importer reads them (BOM, \r\n and quoted fields included). */
 function readCsv(file: string): Record<string, string>[] {
   const text = fs.readFileSync(path.join(__dirname, '..', '..', 'tests', 'fixtures', file), 'utf8');
   const [keys, ...rows] = parseCsv(text);

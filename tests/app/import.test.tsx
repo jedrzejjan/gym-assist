@@ -141,6 +141,15 @@ test('a bad value shows its row, and dates Me already has are listed', async () 
   expect(listHistory(db, getSelf(db)!.id)).toHaveLength(8); // nothing doubled
 });
 
+test('a file that cannot be read says so', async () => {
+  const db = setup();
+  pick.mockRejectedValue(new Error('Permission denied'));
+  await renderWithDb(<ImportScreen />, db);
+  await fireEvent.press(button('Choose file'));
+  expect(await screen.findByText('The file could not be read: Permission denied')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Choose another file' })).toBeTruthy();
+});
+
 test('cancelling the file picker changes nothing', async () => {
   const db = setup();
   pick.mockResolvedValue(null);

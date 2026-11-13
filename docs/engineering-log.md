@@ -77,12 +77,15 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Incidents and bugs
 
+### 2026-11-13: Docs edited by script lost their `\r\n` text (GYM-25, PR #42)
+- **What:** the edit scripts ran through two layers of escaping: a shell heredoc, then a Python string or a `re.sub` replacement. Both treat a backslash specially, so the text `\r\n` in the spec, this log and a test comment became a real line break.
+- **Found by:** the review subagent ("REQUEST_CHANGES: docs only").
+- **Fix:** a script that builds backslashes with `chr(92)` and passes a function, not a string, to `re.sub`. A sweep confirmed no other changed file has a stray carriage return.
+- **Lesson:** when text contains backslashes, avoid stacked escaping, and read the result back before committing.
+
 ### 2026-11-13: A test passed by luck, and git would have rewritten the fixture (GYM-25, PR #42)
-- **The test:** the recovery golden test read the sample CSV with a naive `split(',')`. When the sample gained a BOM, `
-` and a quoted note with a comma, the test still passed. `trim()` happens to remove the BOM, and the broken columns were ones it never read. It now uses `parseCsv`.
-- **The fixture:** the repo's `.gitattributes` (`* text=auto eol=lf`) would have turned the fixture's `
-` into `
-` on commit, quietly removing the case the import test exists for. A narrow `-text` rule keeps that one file byte-for-byte.
+- **The test:** the recovery golden test read the sample CSV with a naive `split(',')`. When the sample gained a BOM, `\r\n` and a quoted note with a comma, the test still passed. `trim()` happens to remove the BOM, and the broken columns were ones it never read. It now uses `parseCsv`.
+- **The fixture:** the repo's `.gitattributes` (`* text=auto eol=lf`) would have turned the fixture's `\r\n` into `\n` on commit, quietly removing the case the import test exists for. A narrow `-text` rule keeps that one file byte-for-byte.
 - **Lesson:** check that a test fails for the right reason, and check what git does to binary-ish test data.
 
 ### 2026-11-13: PR title without a Jira key (GYM-122, PR #39)

@@ -82,6 +82,22 @@ test('the sample imports 8 sessions into Me with every column kept', () => {
   expect(allSets.some((s) => s.weightKg === 62.5)).toBe(true); // "62,5" in the file
 });
 
+test('a bodyweight set with weight "0" is kept as 0 added load, not blank', () => {
+  const { db } = setup();
+  const names = new Set(listExercises(db, {}).map((e) => e.nameEn));
+  const header = 'date,exercise_en,set_no,side,weight_kg,reps,height_cm,speed_kmh,minutes,note';
+  const r = validateImport(
+    parseCsv(`${header}
+2026-11-01,Overhand pull-up,1,,0,8,,,,
+`),
+    names,
+    '2026-11-12',
+  );
+  if (!r.ok) throw new Error(r.message);
+  importHistory(db, r.rows);
+  expect(db.select().from(sets).get()).toMatchObject({ weightKg: 0, reps: 8 });
+});
+
 test('exercises keep the order of their first appearance in a day', () => {
   const { db } = setup();
   importHistory(db, sampleRows(db));
