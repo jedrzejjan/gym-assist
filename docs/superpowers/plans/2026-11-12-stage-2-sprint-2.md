@@ -478,6 +478,10 @@ The owner runs **build-android → preview** and installs the APK over the Sprin
   - Settings shows the folder's plain name (for example "Gym Assist", not "primary:Gym Assist").
   - Export twice on one day: the folder has one `gym-assist-backup-<today>.json`, with no "(1)" copy.
   - If a Drive folder is offered, repeat both checks there.
+- [ ] **Step 1c: Android Auto Backup (PR #41 review).**
+  - Device backup is on in the phone's settings.
+  - After a day, or after `adb shell bmgr backupnow com.jedrosz.gymassist`, Gym Assist is listed under Settings › Google › Backup.
+  - The app's data stays under Auto Backup's 25 MB limit.
 - [ ] **Step 2: Restore test.** Before uninstalling, note the newest backup file's name and its clients and sessions. Uninstall, reinstall, choose the same folder (no file must appear), restore from the noted file, and check the counts. Restore before making any other change: a weight entry or a new client made first would be backed up over today's file.
 - [ ] **Step 3: Real use.** Three real sessions logged with the app (the spec's "done when").
 - [ ] **Step 4: Record the outcome.** Write the findings as Jira tickets, the sprint summary on GYM-3, and close GYM-3 when every "done when" item holds.

@@ -5,7 +5,14 @@ import { StyleSheet } from 'react-native';
 import { backupStatus, writeBackup } from '../../data/autoExport';
 import { openFolder, pickFolder } from '../../data/files';
 import { mutate, useDb, useLive } from '../../data/live';
-import { BACKUP_FOLDER_NAME, BACKUP_FOLDER_URI, getSetting, setSetting } from '../../data/settings';
+import {
+  BACKUP_FOLDER_NAME,
+  BACKUP_FOLDER_URI,
+  BACKUP_LAST_ERROR,
+  deleteSetting,
+  getSetting,
+  setSetting,
+} from '../../data/settings';
 import type { Db } from '../../data/types';
 import { backupFileName } from '../../domain/backup';
 import { formatDayMonthYear, todayLocal } from '../../domain/dates';
@@ -25,7 +32,10 @@ function when(iso: string): string {
   return day === todayLocal(new Date()) ? `today ${time}` : `${formatDayMonthYear(day)} ${time}`;
 }
 
-/** Asks for a folder and saves it. Choosing a folder writes no file (export: false). */
+/**
+ * Asks for a folder and saves it. Choosing a folder writes no file (export: false). An old
+ * failure belonged to the old folder, so it is cleared (PR #41 review).
+ */
 async function chooseFolder(db: Db): Promise<string | null> {
   const picked = await pickFolder();
   if (!picked) return null;
@@ -34,6 +44,7 @@ async function chooseFolder(db: Db): Promise<string | null> {
     (tx) => {
       setSetting(tx, BACKUP_FOLDER_URI, picked.uri);
       setSetting(tx, BACKUP_FOLDER_NAME, picked.name);
+      deleteSetting(tx, BACKUP_LAST_ERROR);
     },
     { export: false },
   );

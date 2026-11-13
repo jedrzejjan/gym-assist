@@ -9,6 +9,7 @@ import {
   BACKUP_FOLDER_URI,
   BACKUP_LAST_AT,
   BACKUP_LAST_ERROR,
+  deleteSetting,
   setSetting,
   WELCOME_DONE,
 } from '../../data/settings';
@@ -99,6 +100,24 @@ describe('backup warning (GYM-27, board `home - backup warning`)', () => {
     expect(screen.queryByText('Backups are off: choose a folder')).toBeNull();
     expect(screen.queryByText('Last backup failed: check the folder')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Fix backups' })).toBeNull();
+  });
+
+  test('the banner goes away while Home is open once a backup succeeds', async () => {
+    const db = withFolder();
+    setSetting(db, BACKUP_LAST_ERROR, 'Permission denied');
+    await renderWithDb(<Home />, db);
+    expect(screen.getByText('Last backup failed: check the folder')).toBeTruthy();
+    await act(async () =>
+      mutate(
+        db,
+        (tx) => {
+          setSetting(tx, BACKUP_LAST_AT, '2026-11-12T17:42:00.000Z');
+          deleteSetting(tx, BACKUP_LAST_ERROR);
+        },
+        { export: false },
+      ),
+    );
+    expect(screen.queryByText('Last backup failed: check the folder')).toBeNull();
   });
 
   test('the banner and the "Session in progress" bar show together', async () => {
