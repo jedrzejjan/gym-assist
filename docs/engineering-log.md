@@ -12,6 +12,15 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-13: Restore makes a safety copy and accepts only the same schema (GYM-103, PR #43, plan decision 8)
+- **Decision:**
+  - Before replacing anything, restore writes `gym-assist-before-restore.json`, unless there is no folder or no clients. If that write fails, nothing is restored.
+  - The replace is one `mutate(..., { export: false })`: all or nothing, and today's backup isn't overwritten.
+  - This phone's `backup.*` settings are kept.
+  - Only a backup with the same `schemaVersion` is accepted.
+- **Why:** restoring the wrong file is the most likely mistake, and it should be undoable. Accepting an older schema without a migration step could load rows the current tables don't fit.
+- **Follow-up:** GYM-131 (restore older backups) is needed before the next schema change.
+
 ### 2026-11-13: The CSV import is all or nothing, and never doubles history (GYM-25, PR #42, plan decision 9)
 - **Decision:** every row is checked before any write.
   - Unknown exercise names are all listed at once, so the trainer fixes them in one go.
@@ -76,6 +85,11 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 - **Why:** one story, one reviewable PR. The split is by what the user can do, not by technical layer.
 
 ## Incidents and bugs
+
+### 2026-11-13: A wrong ticket reference, and an async test that broke the tests after it (GYM-103, PR #43)
+- **Wrong reference:** GYM-103's description said older backups were covered by GYM-100. GYM-100 is actually "One draft session per client". Checking the ticket before relying on it caught this. The real backlog ticket, GYM-131, was created and the description corrected.
+- **Async test:** one screen test rendered a second Settings screen while the first restore's async work was still running. React reported "overlapping act() calls", and the tests after it failed. Each case is now its own test and waits for the restore to finish.
+- **Lesson:** open a ticket before citing it. In UI tests, wait for the end of an async flow, not just for one of its effects.
 
 ### 2026-11-13: Docs edited by script lost their `\r\n` text (GYM-25, PR #42)
 - **What:** the edit scripts ran through two layers of escaping: a shell heredoc, then a Python string or a `re.sub` replacement. Both treat a backslash specially, so the text `\r\n` in the spec, this log and a test comment became a real line break.

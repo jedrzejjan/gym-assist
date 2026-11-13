@@ -238,6 +238,12 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 
 **Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). When it finishes, the app shows "Restore done" with the backup's date and how many clients and sessions it brought back, and a "Go to clients" button. A restore test on a reinstalled app is part of the MVP's "done when" check.
 
+**How the restore works (GYM-103, decision 8):**
+- It accepts only a Gym Assist backup made with the same database version (`schemaVersion`). An older backup is refused for now (backlog GYM-131); a newer one asks to update the app.
+- Before replacing anything, it writes the current data to `gym-assist-before-restore.json` in the backup folder, so restoring the wrong file can be undone. This is skipped when no folder is chosen or there are no clients. If it fails, nothing is restored.
+- It replaces every table in one write, so a failure changes nothing. It keeps this phone's backup folder and backup status. It never asks for a folder, and it doesn't trigger the automatic export, so today's backup isn't overwritten.
+- Rows go back in their original order, so ties (such as two 1RMs saved in the same millisecond) resolve the same way after a restore.
+
 ### `app/`: screens
 
 - **Welcome** (first start only): "Create my profile" or "Skip for now". "Create my profile" asks for the trainer's first name and body weight (the rest is optional, as for any client) and creates "Me". "Skip for now" goes straight to Home; then there is no "Me" and the client list starts empty. If the app is closed before a choice, Welcome shows again next time.
