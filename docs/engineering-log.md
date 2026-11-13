@@ -1,0 +1,102 @@
+# Engineering log
+
+Important decisions, incidents and bugs during development. Each entry links to its Jira ticket (project `GYM`) and pull request. Claude adds an entry at the end of every ticket that had a decision or an incident worth remembering, newest first in each section.
+
+- **Decision:** a choice that shapes the code or the product, with the reason and the alternative we didn't take.
+- **Incident:** something that went wrong (a bug, a broken build, a wrong claim, a process slip), how it was found, the fix, and the lesson.
+- **Watch:** a known risk that a later ticket must handle.
+
+Earlier work (Stage 0, Stage 1 and Sprint 1, PRs #1–#31) is recorded in each pull request's "Agent notes".
+
+Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://github.com/jedrzejjan/gym-assist/pull/<n>`.
+
+## Decisions
+
+### 2026-11-13: Ties on the stored 1RM go to the row saved last (GYM-24, PR #38)
+- **Decision:** the current 1RM is the newest `one_rep_maxes` row by `created_at`. When two rows have the same timestamp, the one inserted last wins, using SQLite's `rowid` as the second sort key.
+- **Why:** timestamps aren't unique, so sorting on them alone gives a random winner on a tie (see the incident below).
+- **Alternative not taken:** a sequence column. It would need a schema change for a case only fast machines hit.
+- **Follow-up:** Restore must keep this order (GYM-103).
+
+### 2026-11-13: A bodyweight 1RM is the total load (GYM-24, PR #38, plan decision 6)
+- **Decision:** for exercises like pull-ups, the stored 1RM, the best set and the e1RM all use body weight plus the added load. The body weight is the one on the session date; for the "BW + x" label it's the latest one.
+- **Why:** "BW + 10 kg" means something different for a 60 kg and a 90 kg client. The total load is what the muscles moved.
+- **Alternative not taken:** the Python tool ranks such sets by the added load only. This is a known, intended difference from the tool.
+
+### 2026-11-13: Golden-file test against the Python tool (GYM-23, PR #37)
+- **Decision:** `tests/golden/make_recovery_golden.py` runs the real `build_recovery` from `legacy/gym_tracker.py` on a made-up sample and saves its output as JSON. A Jest test checks that `domain/recovery.ts` gives the same days and status for every pattern and muscle.
+- **Why:** it proves the port matches the old tool, instead of trusting a re-reading of the code. Anonymised fixtures keep personal data out of git.
+
+### 2026-11-13: A finished session is edited with the same screens (GYM-102, PR #36, plan decision 4)
+- **Decision:** the session, reorder and exercise pages get an edit mode, instead of separate edit screens.
+  - A set change doesn't reopen an exercise in a finished session.
+  - Reorder stays available with one exercise left, so "delete last exercise" can happen.
+  - "Last time" uses a point-in-time query, so it never shows the edited session or a later one.
+- **Why:** one set of screens to build, test and keep consistent.
+- **Cost:** the pages branch on `session.status`.
+
+### 2026-11-13: History in one aggregate query (GYM-22, PR #35)
+- **Decision:** `listHistory` gets each session with its exercise and set counts in one `LEFT JOIN … GROUP BY` query.
+- **Why:** it avoids the N+1 query problem, which would cost one extra query per session. The owner asked whether loading the whole history would be slow.
+
+### 2026-11-13: Client tabs switch with `router.replace` (GYM-22, PR #35, plan decision 2)
+- **Decision:** Profile | History | Recovery | Progress replace each other in the navigation stack, so "‹ Clients" always goes back in one tap. "Start session" moved to the History tab.
+- **Why:** pushing a screen per tab would pile up the stack, and back would walk through every tab visited.
+
+### 2026-11-13: Category is hidden, not dropped (GYM-99, PR #34)
+- **Decision:** the `exercises.category` column, the seed values and `CATEGORIES` stay; no screen shows or asks for it. Add exercise derives it from the pattern (`categoryForPattern`), because the column is NOT NULL.
+- **Why:** the owner may reuse it for equipment categories (GYM-109). Hiding can be undone; dropping data can't.
+- **History:** the first version dropped the column with a migration, and the owner reversed that (see the incident below).
+
+### 2026-11-12: Oversized stories split by user value (PR #32)
+- **Decision:**
+  - GYM-22 lost "edit a finished session", which became GYM-102.
+  - GYM-26 lost "restore from backup", which became GYM-103.
+- **Why:** one story, one reviewable PR. The split is by what the user can do, not by technical layer.
+
+## Incidents and bugs
+
+### 2026-11-13: Spec-changing PRs opened without `needs-owner` (PR #37, PR #38)
+- **What:** CLAUDE.md requires owner approval for PRs that change the spec. PRs #37 and #38 edited the spec but were opened without the label. The #38 reviewer caught it.
+- **Impact:** none in the end. The owner approved both merges in chat.
+- **Lesson:** before opening a PR, check its diff against the owner-approval list, not only the plan's labels.
+
+### 2026-11-13: Two 1RMs with the same timestamp, so the "current" one was random (GYM-24, PR #38)
+- **Found by:** CI. The fast GitHub runner saved two 1RMs in the same millisecond, so the test got the wrong current 1RM. The slower local Windows run passed.
+- **Fix:** a `rowid` tie-break, plus a test that freezes the clock to force the tie. The test was checked to fail without the fix.
+- **Lesson:** never sort on a non-unique timestamp alone. Timing-dependent tests are flaky tests in disguise.
+
+### 2026-11-13: Merge blocked by the permission check (PR #37)
+- **What:** Claude Code's auto-mode permission check refused a merge that had no explicit owner approval in chat.
+- **Fix:** the owner approved in chat.
+- **Note:** the owner asked for approvals to come as clickable buttons.
+
+### 2026-11-13: `FlatList` hid rows in a test (GYM-23, PR #37)
+- **What:** the Recovery list rendered only the first 10 of 12 muscles, because `FlatList` virtualizes. The "12 never logged" test failed.
+- **Fix:** a plain list, since there are never more than 12 rows. Virtualization is for long lists.
+
+### 2026-11-13: The dialog's `alert` role can't be found in tests (GYM-22, PR #35)
+- **What:** the React Native `Modal` doesn't expose `accessibilityRole="alert"` to Testing Library queries.
+- **Fix:** tests find dialogs by their text and buttons, as the other dialog tests already did.
+
+### 2026-11-13: The owner reversed "drop the Category column" after it was built (GYM-99, PR #34)
+- **What:** migration `0001` dropping the column was written, tested and reviewed. Then the owner decided to keep the column and only hide it.
+- **Fix:** the branch was reset to `main` and redone as a UI-only change, so the squash commit has no migration and sub-task GYM-104 was closed as not needed.
+- **Lesson:** for removing data, offer the reversible option (hide) first.
+
+### 2026-11-13: CI red on every branch after Expo patch releases (GYM-101, PR #33)
+- **What:** `expo-doctor` failed because Expo released `expo` 58.0.25 and `expo-sqlite` 58.0.17 upstream. Nothing in our code changed. This is dependency drift.
+- **Fix:** `npx expo install --fix` in its own small PR before the Sprint 2 plan could merge.
+- **Lesson:** pinned versions and a doctor check in CI catch drift early. An "Expo SDK upgrade routine" is on the backlog.
+
+### 2026-11-12: Two wrong claims in planning, corrected on Jira (GYM-22, GYM-99)
+- **GYM-22:** Claude said the profile needed a new "Workout history" entry, but the board already had a History tab.
+- **GYM-99:** Claude said dropping a column needs a table rebuild in SQLite. SQLite 3.35+ supports `DROP COLUMN` for a column with no index.
+- **Fix:** both were corrected in Jira comments and the PR description.
+- **Lesson:** check the board and the database docs before stating them as facts.
+
+## Watch list
+
+- **GYM-25 (CSV import):** imported sessions must get a non-null `finished_at`. Otherwise "Last time" while editing (`lastTimeSets` with `before`) skips them on the same date.
+- **GYM-103 (Restore):** re-insert `one_rep_maxes` in `(created_at, rowid)` order, so the last 1RM saved stays current after a round trip.
+- **GYM-119 (backlog):** a session dated after today would show "-1 days ago" on Recovery. Clamp the value, or have `startSession` refuse a future date.
