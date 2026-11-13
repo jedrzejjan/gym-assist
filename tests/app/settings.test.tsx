@@ -26,6 +26,7 @@ const mockFolder = createFakeFolder('Gym Assist');
 jest.mock('../../data/files', () => ({
   pickFolder: jest.fn(),
   openFolder: jest.fn(() => mockFolder),
+  pickTextFile: jest.fn(),
 }));
 const pick = pickFolder as jest.MockedFunction<typeof pickFolder>;
 
@@ -120,9 +121,9 @@ test('a failed export says so', async () => {
   }
 });
 
-test('Import history and Restore are shown but not yet available', async () => {
+test('Restore is shown but not yet available; Import history is (GYM-25)', async () => {
   await renderWithDb(<Settings />, setup());
-  expect(button(/^Import history \(CSV\)/)).toBeDisabled();
+  expect(button(/^Import history \(CSV\)/)).toBeEnabled();
   expect(button(/^Restore from backup/)).toBeDisabled();
 });
 

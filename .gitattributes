@@ -3,3 +3,5 @@
 *.jpg binary
 *.xlsx binary
 *.jks binary
+# The CSV import sample must keep its BOM and \r\n line endings, as the old tool wrote them (GYM-25).
+tests/fixtures/sessions-sample.csv -text

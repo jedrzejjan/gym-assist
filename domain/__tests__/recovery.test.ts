@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { Muscle, Pattern } from '../catalogue';
+import { parseCsv } from '../csv';
 import { daysAgo, recoveryLabel, recoveryTable, type RecoveryStatus } from '../recovery';
 import golden from './fixtures/recovery-golden.json';
 
@@ -59,12 +60,12 @@ test('recoveryTable keeps the latest date, whatever the input order', () => {
   expect(t.patterns[0]).toMatchObject({ key: 'KD', lastDate: '2026-11-10', days: 2 });
 });
 
-/** The fixtures have no quoted fields, so a plain split is enough here. */
+/** The fixtures as the importer reads them (BOM, 
+ and quoted fields included). */
 function readCsv(file: string): Record<string, string>[] {
   const text = fs.readFileSync(path.join(__dirname, '..', '..', 'tests', 'fixtures', file), 'utf8');
-  const [header, ...lines] = text.trim().split('\n');
-  const keys = header.split(',');
-  return lines.map((l) => Object.fromEntries(l.split(',').map((v, i) => [keys[i], v])));
+  const [keys, ...rows] = parseCsv(text);
+  return rows.map((r) => Object.fromEntries(r.map((v, i) => [keys[i], v])));
 }
 
 test('recoveryTable matches gym_tracker.py on the golden sample', () => {

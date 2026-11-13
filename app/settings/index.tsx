@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { backupStatus, writeBackup } from '../../data/autoExport';
+import { getSelf } from '../../data/clients';
 import { openFolder, pickFolder } from '../../data/files';
 import { mutate, useDb, useLive } from '../../data/live';
 import {
@@ -52,9 +53,8 @@ async function chooseFolder(db: Db): Promise<string | null> {
 }
 
 /**
- * Board `settings/main` (spec section 5, Settings; Sprint 2 plan, decision 7): the backup
- * folder, "Export data (JSON)" into it, and the CSV import and restore, which arrive with
- * GYM-25 and GYM-103.
+ * Board `settings/main` (spec section 5, Settings; Sprint 2 plan, decisions 7 and 9): the backup
+ * folder, "Export data (JSON)" into it, the CSV import, and the restore (GYM-103).
  */
 export default function Settings() {
   const db = useDb();
@@ -120,7 +120,10 @@ export default function Settings() {
         title="Import history (CSV)"
         subtitle={'One-time import into "Me"'}
         accessibilityLabel={'Import history (CSV), one-time import into "Me"'}
-        disabled
+        // Without a "Me", Create my profile comes first, then the import (decision 9).
+        onPress={() =>
+          router.push(getSelf(db) ? '/settings/import' : '/create-profile?then=import')
+        }
       />
       <ListRow
         title="Restore from backup"

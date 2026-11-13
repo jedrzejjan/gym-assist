@@ -12,6 +12,16 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-13: The CSV import is all or nothing, and never doubles history (GYM-25, PR #42, plan decision 9)
+- **Decision:** every row is checked before any write.
+  - Unknown exercise names are all listed at once, so the trainer fixes them in one go.
+  - The write is one `mutate`.
+  - It refuses dates "Me" already has, rather than merging.
+  - Without a "Me", Create my profile opens first, then the import continues.
+  - Imported sessions get a finish time (noon UTC on their date), so "Last time" handles them like any other (GYM-25 watch item).
+- **Why:** a half-imported or doubled history is worse than a refused file. The trainer can always fix the CSV and retry.
+- **Alternative not taken:** merging or skipping taken dates. That's hard to explain, and it quietly hides a mistake.
+
 ### 2026-11-13: The automatic export fails safe (GYM-26, PR #40)
 - **Decision:** `mutate` takes `{ export?: boolean }`, true unless the caller says otherwise. Only writes that change no finished data pass `false`: a draft, choosing the folder, saving the backup status.
 - **Why:** a forgotten flag then costs one extra export, never a missing backup.
@@ -67,6 +77,14 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Incidents and bugs
 
+### 2026-11-13: A test passed by luck, and git would have rewritten the fixture (GYM-25, PR #42)
+- **The test:** the recovery golden test read the sample CSV with a naive `split(',')`. When the sample gained a BOM, `
+` and a quoted note with a comma, the test still passed. `trim()` happens to remove the BOM, and the broken columns were ones it never read. It now uses `parseCsv`.
+- **The fixture:** the repo's `.gitattributes` (`* text=auto eol=lf`) would have turned the fixture's `
+` into `
+` on commit, quietly removing the case the import test exists for. A narrow `-text` rule keeps that one file byte-for-byte.
+- **Lesson:** check that a test fails for the right reason, and check what git does to binary-ish test data.
+
 ### 2026-11-13: PR title without a Jira key (GYM-122, PR #39)
 - **What:** this log's first PR title had no `GYM-<n>` key, and the `title` check (commitlint with the Jira plugin) failed.
 - **Fix:** ticket GYM-122 was created and the PR renamed.
@@ -119,6 +137,5 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
   - **Timing gap:** a write made in the tiny gap after an export's last check would be missed until the next write. Nothing triggers this today.
   - **Fresh install:** on a fresh install, creating "Me" before restoring would overwrite today's backup, so Task 10 restores first.
 - **Task 10 (phone):** file names from expo-file-system 58 come from the URI. `baseName` strips "primary:" and decodes the name, and the phone check confirms the folder name, and that a second export on one day leaves no "(1)" copy.
-- **GYM-25 (CSV import):** imported sessions must get a non-null `finished_at`. Otherwise "Last time" while editing (`lastTimeSets` with `before`) skips them on the same date.
 - **GYM-103 (Restore):** re-insert `one_rep_maxes` in `(created_at, rowid)` order, so the last 1RM saved stays current after a round trip.
 - **GYM-119 (backlog):** a session dated after today would show "-1 days ago" on Recovery. Clamp the value, or have `startSession` refuse a future date. The same ticket makes the golden script write LF line endings.
