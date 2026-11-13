@@ -3,6 +3,7 @@
 import { router, Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library';
 
+import HistoryTab from '../../app/clients/[id]/history';
 import ClientScreen from '../../app/clients/[id]/index';
 import AddExercise from '../../app/library/add';
 import SessionExercise from '../../app/session/[id]/exercise/[seId]';
@@ -44,6 +45,7 @@ function renderApp(db: Db, initialUrl: string) {
         </DbProvider>
       ),
       'clients/[id]/index': ClientScreen,
+      'clients/[id]/history': HistoryTab,
       'session/start': StartSession,
       'session/[id]/index': SessionPage,
       'session/[id]/patterns': Patterns,
@@ -61,7 +63,7 @@ const press = (name: string) => fireEvent.press(screen.getByRole('button', { nam
 test('"Start session" opens the date step (today by default), then the empty session page', async () => {
   fixToday(2026, 11, 12);
   const { db, anna } = setup();
-  await renderApp(db, `/clients/${anna}`);
+  await renderApp(db, `/clients/${anna}/history`);
   await press('Start session');
   expect(screen).toHavePathname('/session/start');
   expect(screen.getByText('Today, 12 Nov 2026')).toBeTruthy();
@@ -73,7 +75,7 @@ test('"Start session" opens the date step (today by default), then the empty ses
   expect(screen.getByText('No exercises yet. Add the first one:')).toBeTruthy();
   // The date step is not in the history: back goes to the client.
   await act(() => router.back());
-  expect(screen).toHavePathname(`/clients/${anna}`);
+  expect(screen).toHavePathname(`/clients/${anna}/history`);
 });
 
 test('starting while another session is a draft says so and starts nothing', async () => {

@@ -3,7 +3,9 @@
 import { router, Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 
+import HistoryTab from '../../app/clients/[id]/history';
 import ClientScreen from '../../app/clients/[id]/index';
+import Clients from '../../app/clients/index';
 import Home from '../../app/index';
 import SessionExercise from '../../app/session/[id]/exercise/[seId]';
 import SessionPage from '../../app/session/[id]/index';
@@ -65,7 +67,9 @@ function renderApp(db: Db, initialUrl: string) {
         </DbProvider>
       ),
       index: Home,
+      'clients/index': Clients,
       'clients/[id]/index': ClientScreen,
+      'clients/[id]/history': HistoryTab,
       'session/start': StartSession,
       'session/[id]/index': SessionPage,
       'session/[id]/reorder': Reorder,
@@ -123,7 +127,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('asks, with the draft, and offers Resume, Finish it and Discard it', async () => {
     const s = setup();
     annasDraft(s);
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     expect(screen.getByText('A session is already in progress')).toBeTruthy();
     expect(screen.getByText('Anna Kowalska · 10 Nov · 3 exercises')).toBeTruthy();
@@ -135,7 +139,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('an empty draft offers only Resume and Discard it', async () => {
     const s = setup();
     startSession(s.db, s.anna, '2026-11-10');
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     expect(screen.getByText('Anna Kowalska · 10 Nov · empty')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Finish it' })).toBeNull();
@@ -145,7 +149,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('Resume opens the draft where the trainer left off', async () => {
     const s = setup();
     const { sid, bench } = annasDraft(s);
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     await press('Resume');
     expect(screen).toHavePathname(`/session/${sid}/exercise/${bench}`);
@@ -154,7 +158,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('Finish it saves the draft, then continues to the date step', async () => {
     const s = setup();
     const { sid } = annasDraft(s);
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     await press('Finish it');
     expect(getSession(s.db, sid)!.status).toBe('finished');
@@ -164,7 +168,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('Discard it asks "Discard this session?", then continues to the date step', async () => {
     const s = setup();
     const { sid } = annasDraft(s);
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     await press('Discard it');
     expect(screen.getByText('Discard this session?')).toBeTruthy();
@@ -177,7 +181,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('a draft for the same client asks too', async () => {
     const s = setup();
     annasDraft(s);
-    await renderApp(s.db, `/clients/${s.anna}`);
+    await renderApp(s.db, `/clients/${s.anna}/history`);
     await press('Start session');
     expect(screen.getByText('A session is already in progress')).toBeTruthy();
   });
@@ -185,7 +189,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('after Resume from the dialog, back from the exercise lands on the session page', async () => {
     const s = setup();
     const { sid } = annasDraft(s);
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     await press('Resume');
     await act(() => router.back());
@@ -195,7 +199,7 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
   test('a double tap on "Finish it" finishes once and opens the date step once', async () => {
     const s = setup();
     const { sid } = annasDraft(s);
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     const finishIt = screen.getByRole('button', { name: 'Finish it' });
     await act(() => {
@@ -205,14 +209,41 @@ describe('one draft at a time: "Start session" while a draft exists', () => {
     expect(getSession(s.db, sid)!.status).toBe('finished');
     expect(screen).toHavePathname('/session/start');
     await act(() => router.back());
-    expect(screen).toHavePathname(`/clients/${s.jan}`);
+    expect(screen).toHavePathname(`/clients/${s.jan}/history`);
   });
 
   test('without a draft, "Start session" goes straight to the date step', async () => {
     const s = setup();
-    await renderApp(s.db, `/clients/${s.jan}`);
+    await renderApp(s.db, `/clients/${s.jan}/history`);
     await press('Start session');
     expect(screen).toHavePathname('/session/start');
+  });
+});
+
+describe('client tabs', () => {
+  test('tabs replace each other: back from History returns to Clients', async () => {
+    const s = setup();
+    await renderApp(s.db, '/clients');
+    await fireEvent.press(screen.getByText('Jan'));
+    expect(screen).toHavePathname(`/clients/${s.jan}`);
+    await fireEvent.press(screen.getByRole('tab', { name: 'History' }));
+    expect(screen).toHavePathname(`/clients/${s.jan}/history`);
+    await fireEvent.press(screen.getByRole('tab', { name: 'Profile' }));
+    expect(screen).toHavePathname(`/clients/${s.jan}`);
+    await act(() => router.back());
+    expect(screen).toHavePathname('/clients');
+  });
+
+  test('a session finished after Start session on History is listed there', async () => {
+    const s = setup();
+    const { sid } = annasDraft(s);
+    await renderApp(s.db, `/clients/${s.anna}/history`);
+    expect(screen.getByText('No sessions yet. Start the first one below.')).toBeTruthy();
+    await act(() => router.push(`/session/${sid}`));
+    await press('Finish session');
+    expect(screen).toHavePathname(`/clients/${s.anna}/history`);
+    expect(screen.getByText('10 Nov 2026')).toBeTruthy();
+    expect(screen.getByText('3 exercises · 5 sets')).toBeTruthy();
   });
 });
 
