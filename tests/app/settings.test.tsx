@@ -121,10 +121,10 @@ test('a failed export says so', async () => {
   }
 });
 
-test('Restore is shown but not yet available; Import history is (GYM-25)', async () => {
+test('Import history and Restore are both available', async () => {
   await renderWithDb(<Settings />, setup());
   expect(button(/^Import history \(CSV\)/)).toBeEnabled();
-  expect(button(/^Restore from backup/)).toBeDisabled();
+  expect(button(/^Restore from backup/)).toBeEnabled();
 });
 
 test('the Settings tile on Home opens Settings', async () => {

@@ -1,14 +1,12 @@
 // Writing backups: "Export now" and the automatic export after every change to finished data
 // (spec section 5, Backup plan; Sprint 2 plan, Task 6). Not a repository: it runs outside any
 // screen action and saves its own status with mutate(…, { export: false }).
-import { count } from 'drizzle-orm';
-
 import { backupFileName, filesToDelete } from '../domain/backup';
 import { todayLocal } from '../domain/dates';
 import { exportAll } from './backup';
+import { hasAnyClient } from './clients';
 import type { BackupFolder } from './files';
 import { mutate, onWrite } from './live';
-import { clients } from './schema';
 import {
   BACKUP_FOLDER_NAME,
   BACKUP_LAST_AT,
@@ -45,8 +43,6 @@ export async function writeBackup(db: Db, folder: BackupFolder, today: string): 
   );
 }
 
-const hasClients = (db: DbOrTx) => db.select({ n: count() }).from(clients).get()!.n > 0;
-
 export type AutoExport = (() => void) & {
   /** Resolves when no export is running or waiting (for tests and a clean shutdown). */
   idle(): Promise<void>;
@@ -68,7 +64,7 @@ export function startAutoExport(db: Db, getFolder: () => BackupFolder | null): A
       pending = false;
       try {
         const folder = getFolder();
-        if (folder === null || !hasClients(db)) continue;
+        if (folder === null || !hasAnyClient(db)) continue;
         await writeBackup(db, folder, todayLocal(new Date()));
       } catch {
         // writeBackup saved backup.lastError; the trainer sees it on Home and in Settings. A

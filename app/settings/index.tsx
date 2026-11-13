@@ -3,9 +3,11 @@ import { useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { backupStatus, writeBackup } from '../../data/autoExport';
-import { getSelf } from '../../data/clients';
-import { openFolder, pickFolder } from '../../data/files';
+import { BACKUP_TABLES, exportAll, SCHEMA_VERSION } from '../../data/backup';
+import { getSelf, hasAnyClient } from '../../data/clients';
+import { openFolder, pickFolder, pickTextFile } from '../../data/files';
 import { mutate, useDb, useLive } from '../../data/live';
+import { restoreAll } from '../../data/restore';
 import {
   BACKUP_FOLDER_NAME,
   BACKUP_FOLDER_URI,
@@ -15,9 +17,10 @@ import {
   setSetting,
 } from '../../data/settings';
 import type { Db } from '../../data/types';
-import { backupFileName } from '../../domain/backup';
+import { backupFileName, type BackupFile, readBackup } from '../../domain/backup';
 import { formatDayMonthYear, todayLocal } from '../../domain/dates';
 import { AppBar } from '../../ui/AppBar';
+import { Dialog } from '../../ui/Dialog';
 import { ListRow } from '../../ui/ListRow';
 import { Screen } from '../../ui/Screen';
 import { Text } from '../../ui/Text';
@@ -53,13 +56,15 @@ async function chooseFolder(db: Db): Promise<string | null> {
 }
 
 /**
- * Board `settings/main` (spec section 5, Settings; Sprint 2 plan, decisions 7 and 9): the backup
- * folder, "Export data (JSON)" into it, the CSV import, and the restore (GYM-103).
+ * Boards `settings/main` and `settings/dialog - restore` (spec section 5, Settings; Sprint 2 plan,
+ * decisions 7 to 9): the backup folder, "Export data (JSON)" into it, the CSV import, and
+ * "Restore from backup".
  */
 export default function Settings() {
   const db = useDb();
   const status = useLive((d) => backupStatus(d), []);
   const [message, setMessage] = useState<string | null>(null);
+  const [toRestore, setToRestore] = useState<{ name: string; file: BackupFile } | null>(null);
   const busy = useRef(false); // a double tap must not open two pickers or write twice
 
   const folderLine =
@@ -100,6 +105,68 @@ export default function Settings() {
       }
     });
 
+  // Restore (decision 8): choose a file, check it, confirm, write the safety copy, then replace
+  // everything in one write. It never asks for a folder.
+  const chooseBackup = () =>
+    run(async () => {
+      setMessage(null);
+      let picked: { name: string; text: string } | null;
+      try {
+        picked = await pickTextFile();
+      } catch (e) {
+        setMessage(`The file could not be read: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+      }
+      if (!picked) return;
+      const check = readBackup(
+        picked.text,
+        SCHEMA_VERSION,
+        BACKUP_TABLES.map((t) => t.name),
+      );
+      if (!check.ok) {
+        setMessage(check.message);
+        return;
+      }
+      setToRestore({ name: picked.name, file: check.file });
+    });
+
+  const restore = () =>
+    run(async () => {
+      if (!toRestore) return;
+      const { file } = toRestore;
+      setToRestore(null);
+      // The safety copy, so restoring the wrong file can be undone. Skipped with no folder, or
+      // with no clients (a fresh install has nothing to save); a failure stops the restore.
+      const uri = getSetting(db, BACKUP_FOLDER_URI);
+      if (uri && hasAnyClient(db)) {
+        try {
+          await openFolder(uri).write(
+            'gym-assist-before-restore.json',
+            JSON.stringify(exportAll(db)),
+          );
+        } catch (e) {
+          const why = e instanceof Error ? e.message : String(e);
+          setMessage(
+            `Nothing was restored: the safety copy could not be written (${why}). Check the backup folder.`,
+          );
+          return;
+        }
+      }
+      // export: false: restoring must not overwrite today's backup with the restored data. A
+      // file that passed the checks can still break a database rule: then everything rolls back.
+      let result: ReturnType<typeof restoreAll>;
+      try {
+        result = mutate(db, (tx) => restoreAll(tx, file), { export: false });
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        setMessage(`Nothing was restored: the backup could not be loaded (${why}).`);
+        return;
+      }
+      router.push(
+        `/settings/restore-done?date=${result.date}&clients=${result.clients}&sessions=${result.sessions}`,
+      );
+    });
+
   return (
     <Screen
       header={<AppBar title="Settings" back={{ label: '‹ Home', onPress: () => router.back() }} />}
@@ -129,7 +196,7 @@ export default function Settings() {
         title="Restore from backup"
         subtitle="Replaces all data in the app"
         accessibilityLabel="Restore from backup, replaces all data in the app"
-        disabled
+        onPress={chooseBackup}
       />
       {message ? (
         <Text
@@ -141,6 +208,14 @@ export default function Settings() {
           {message}
         </Text>
       ) : null}
+      <Dialog
+        visible={toRestore !== null}
+        title="Restore from backup?"
+        message={toRestore ? `This replaces all data in the app with ${toRestore.name}.` : ''}
+        confirmLabel="Restore"
+        onConfirm={restore}
+        onCancel={() => setToRestore(null)}
+      />
     </Screen>
   );
 }
