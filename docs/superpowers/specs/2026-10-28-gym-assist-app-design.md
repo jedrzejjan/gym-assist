@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`)
+Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`; GYM-99 exercise category hidden, 2026-11-13)
 
 ## 1. Purpose
 
@@ -127,7 +127,7 @@ The items below came from a review of this spec, not from the user. In Jira they
 
 ## 4. Log-session flow
 
-1. **Choose a client:** Home → Clients → a client → "Start session". "Me", if it exists, is a normal client here.
+1. **Choose a client:** Home → Clients → a client → History tab → "Start session". "Me", if it exists, is a normal client here.
 2. **Start a session.** The date is today by default and can be changed.
 3. **Choose an exercise** in one of two ways:
    - by movement pattern, then an exercise from that pattern;
@@ -158,8 +158,10 @@ The session is saved as a draft after every set. If the app closes or the phone 
 
 **Editing a finished session.** From a client's history, a finished session opens as a read-only summary with two buttons: "Edit" and "Delete session". After "Edit", the trainer changes it with the same screens: its date, its exercises and their order, and its sets.
 - Every change is saved at once, as in a draft. There is no separate Save step.
+- The same screens in edit mode (GYM-102, owner decision 2026-11-12): the session page reads "Edit session", with a Date field (today or earlier), numbered rows without the ✓ mark, "+ By pattern", "+ Full list", "+ New exercise", Reorder and the note "Changes are saved at once. The session stays finished."; its button is "Done", with no "Finish session" or "Cancel session". On the exercise page, "Done" replaces "Finish exercise", and a set change doesn't reopen the exercise.
+- "Last time" on a session being edited shows the client's latest finished session before it (by date, then finish time), never the session itself or a later one.
 - The session stays finished and does not count as a draft, so it can be edited while a draft is open elsewhere.
-- Removing the last exercise asks "Delete this session?" instead, because a finished session must have at least one exercise.
+- Removing the last exercise asks "Delete this session?" instead ("<exercise> is its only exercise. A finished session needs at least one."), because a finished session must have at least one exercise. Delete removes the session and returns to History.
 - "Delete session" asks "Delete this session? This cannot be undone."
 - Recovery and progress update by themselves, because they are computed from sets. The stored 1RM does not change (section 5).
 
@@ -185,12 +187,14 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
   - 4 days or more: "due";
   - never trained: "never logged".
   Only finished sessions count. A draft does not.
+  An exercise counts once it has at least one set. The Recovery tab (GYM-23) shows Patterns or Muscles: the patterns in the order above without "none" (such an exercise still counts for its muscles), then the 12 muscles in catalogue order. Each row reads "<status> · N days ago" ("today" for 0 days, "1 day ago" for 1), or "never logged".
 - `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight on the session date + added load, with a blank added load counted as 0). This is an intended difference from the Python tool, which ranks such sets by the added load only, so parity checks against `gym_tracker.py` cover the other exercises.
   - **1RM per client and exercise** is a stored value, not a live calculation. It changes only when the trainer sets it on purpose in Progress, one exercise at a time: "Estimate from history" (the best e1RM from finished sessions; a confirmation shows the value and the set it comes from, e.g. "101.75 kg, from 92.5 kg × 3 on 5 Nov") or "Set manually". Logging a session never changes it. Its date is the date it was set.
+  - **The Progress tab (GYM-24, decision 6):** Strength lists the exercises the client did in finished sessions, most recently trained first, then those with only a stored 1RM. Each card shows the 1RM line ("1RM 101.75 kg · estimated · 5 Nov 2026", or "No 1RM yet"), "Best set: 92.5 kg × 3" ("-" when no set can be compared, which disables Estimate), "Estimate" and "Set manually". The estimate is stored rounded to 2 decimals. For a bodyweight exercise, a 1RM (estimated or manual) is the total load and reads "1RM 81 kg total (BW + 17.5) · manual · 1 Nov 2026", using the latest body weight. Each change adds a row, so the 1RM history is kept. Body shows the latest weight with "−2.3 kg since 15 Sep" and the entries newest first.
   - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 1 kg (fine enough for small muscle groups such as biceps). For an exercise that uses body weight, the added load is that total minus the body weight on the session date, rounded to the nearest 1 kg and never below 0.
 - `sets.ts` gives the next set number in a session exercise and the display format, where a blank value shows as "-".
 - `catalogue.ts` holds the fixed lists:
-  - categories: KD, HD, Push, Pull, Core (KD and HD shown as "Knee Dominant" and "Hip Dominant", as for patterns);
+  - categories: KD, HD, Push, Pull, Core. Stored but not shown (GYM-99); a custom exercise gets its category from its pattern (KD and HD stay, Push… gives Push, Pull… gives Pull, the rest give Core);
   - training types: Strength, Plyometric, Power, Cardio;
   - movement patterns: KD, HD, Push vertical, Push horizontal, Pull vertical, Pull horizontal, Anti flexion, Anti extension, Carries, none. The screens show KD as "Knee Dominant" and HD as "Hip Dominant";
   - the 12 muscles with English and Polish names.
@@ -221,21 +225,38 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
 | **Android Auto Backup** | Android copies the app's data to the trainer's Google account automatically, about once a day, when the phone is idle, charging and on Wi-Fi. Turned on in the app config, with the database file included. | Lost phone, new phone |
 | **Warning** | If no backup folder is chosen, or the last automatic export failed, the Home screen shows a warning at the top until it is fixed: "Backups are off: choose a folder" when no folder is chosen, or "Last backup failed: check the folder" when the last export failed, with a "Fix" action that opens Settings. | A silent backup failure |
 
+**How the export works (GYM-26, decision 7):**
+- "Export data (JSON)" in Settings writes today's file into the backup folder, and asks for a folder first if none is chosen. There's no share sheet.
+- The folder comes from Android's folder picker with a lasting permission.
+- Writing over today's file deletes it and creates it again, so no old bytes survive a shorter file.
+- The automatic export skips writes that change no finished data (a draft, choosing the folder, saving the backup status, a restore).
+- It never exports a database with no clients, so a fresh install can't overwrite a real backup with an empty one.
+- With no folder chosen, it does nothing (the Home warning, GYM-27, covers that).
+- A failed write is saved as the last error, and Settings shows "Last backup failed: check the folder".
+- Rows are exported in insertion order, so a restore keeps ties broken the same way.
+- Whether the picker offers Google Drive is checked on the phone.
+
 **Restore:** Settings has "Restore from backup", which reads a JSON export and replaces all data (every table in section 6) after a confirmation ("This replaces all data in the app"). When it finishes, the app shows "Restore done" with the backup's date and how many clients and sessions it brought back, and a "Go to clients" button. A restore test on a reinstalled app is part of the MVP's "done when" check.
+
+**How the restore works (GYM-103, decision 8):**
+- It accepts only a Gym Assist backup made with the same database version (`schemaVersion`). An older backup is refused for now (backlog GYM-131); a newer one asks to update the app.
+- Before replacing anything, it writes the current data to `gym-assist-before-restore.json` in the backup folder, so restoring the wrong file can be undone. This is skipped when no folder is chosen or there are no clients. If it fails, nothing is restored.
+- It replaces every table in one write, so a failure changes nothing. It keeps this phone's backup folder and backup status. It never asks for a folder, and it doesn't trigger the automatic export, so today's backup isn't overwritten.
+- Rows go back in their original order, so ties (such as two 1RMs saved in the same millisecond) resolve the same way after a restore.
 
 ### `app/`: screens
 
-- **Welcome** (first start only): "Create my profile" or "Skip". "Create my profile" asks for the trainer's first name and body weight (the rest is optional, as for any client) and creates "Me". "Skip" goes straight to Home; then there is no "Me" and the client list starts empty. If the app is closed before a choice, Welcome shows again next time.
+- **Welcome** (first start only): "Create my profile" or "Skip for now". "Create my profile" asks for the trainer's first name and body weight (the rest is optional, as for any client) and creates "Me". "Skip for now" goes straight to Home; then there is no "Me" and the client list starts empty. If the app is closed before a choice, Welcome shows again next time.
 - **Home** (the start screen): three tiles, in this order: Clients, Settings, Exercise library. There is no placeholder for future items. While a draft exists, a "Session in progress" bar resumes it (section 4); the backup warning shows here too. Knowledge materials join Home later (backlog item 16).
 - **Clients:** list, add, edit, archive. Adding a client needs a first name and a body weight; everything else is optional. A client is shown by first name and last name.
   - The trainer's own profile is pinned first and marked "me".
   - While there is no "Me", an "Add my profile" row sits at the top of the list.
   - An empty list says "No clients yet" above the "Add client" button.
-  - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, or later with "Add my profile" on Clients while there is none (only there, not in Settings). The trainer can rename it. It cannot be archived.
-- **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, category, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
-  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, category, training type and pattern ("none" is allowed; such an exercise does not count in pattern recovery). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique (section 6); a duplicate shows "An exercise with this name already exists". The library grows with use.
+  - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, later with "Add my profile" on Clients while there is none, or when Settings › Import history needs it (GYM-25, decision 9: Create my profile opens first, then the import continues). The trainer can rename it. It cannot be archived.
+- **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
+  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, training type and pattern ("none" is allowed; such an exercise does not count in pattern recovery). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique (section 6); a duplicate shows "An exercise with this name already exists". The library grows with use.
   - Editing and deleting custom exercises are not in the MVP (backlog item 3).
-- **Client:** that client's profile, history, recovery and progress.
+- **Client:** that client's profile, history, recovery and progress, as tabs (Profile | History | Recovery | Progress). Tabs replace each other, so back from any tab returns to Clients. "Start session" is at the bottom of the History tab, and the profile's body-weight link reads "Weight history ›" (GYM-22, owner decisions 2026-11-12).
   - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set. **Body**: the body weight history. More measurements join this category with backlog item 14.
   - **Profile:** first name (required), body weight (required), last name, gender (Female, Male, Other, Prefer not to say), date of birth (the screen shows the age), height in cm. Body weight (kg) is a dated history: adding a weight saves it with a date (today by default), and the profile shows the latest one and the list of earlier ones. A weight entry can be edited or deleted, except that the last remaining entry can only be edited, because every client must have a body weight. A client has at most one weight per date: adding a second one for the same date, or moving an entry to a date that already has one, asks "Replace the weight for this date?". Deleting an entry asks "Delete this weight entry?" and shows its weight and date.
 - **Session:** the flow from section 4.
@@ -283,6 +304,7 @@ exercises ─────────────────────┘
 - **Archiving:** archiving a client hides the client and keeps their history.
 - **Profile fields:** `first_name` is required, and every client has at least one `measurements` row of type `weight` (added together with the client). The other profile columns are optional. `clients.height_cm` is the client's height; `sets.height_cm` is a box height and is unrelated. `gender` is one of `female`, `male`, `other`, `prefer_not_to_say`, or NULL. `date_of_birth` is stored instead of an age, so the age stays correct.
 - **"Me":** at most one client has `is_self = 1`.
+- **Exercise category is hidden** (GYM-99, owner decision 2026-11-13): it mostly repeated the pattern, so no screen shows or asks for it. The `category` column stays, for later use (backlog: equipment categories such as Machine and Free weights).
 - **Exercise names:** `exercises.name_en` is unique, ignoring upper and lower case ("Dips" and "dips" are the same), because the CSV import matches exercises by it. If a later seed update brings a name that already exists as a custom exercise, the seed entry is skipped and the custom one stays.
 - **Measurements:** unique on (`client_id`, `type`, `date`). In the MVP `type` is always `weight` and `value` is in kg. Backlog item 14 adds new types (in cm) without a new table.
 - **Units:** weights in kg, heights and lengths in cm. There is no unit setting.
@@ -293,7 +315,9 @@ exercises ─────────────────────┘
 
 ### Import of the existing history
 
-- The import is optional; other trainers never need it. Every imported row goes to client "Me", the client with `is_self = 1`, whatever its name. If there is no "Me", the import first asks the trainer to create their profile.
+- The import is optional; other trainers never need it. Every imported row goes to client "Me", the client with `is_self = 1`, whatever its name. If there is no "Me", the import first opens Create my profile, then continues (GYM-25, decision 9).
+- The file is the old tool's `sessions.csv`: the columns `date, exercise_en, set_no, side, weight_kg, reps, height_cm, speed_kmh, minutes, note` in any order. A BOM, `\r\n` line endings and quoted fields are accepted. Every row is checked before anything is written, and a problem reports its row.
+- If "Me" already has a session on any date in the file, the import is refused and lists those dates, so a second import can't double the history (decision 9). `visits.csv` is not imported.
 - Rows are grouped by date into finished sessions.
 - Exercises are matched by `name_en`.
 - Set numbers and every column are kept.
