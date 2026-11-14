@@ -107,6 +107,11 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Incidents and bugs
 
+### 2026-11-14: A 0 kg set would have blocked "Estimate all 1RMs" (GYM-134, caught in review)
+- **What the review found:** sets of 0 kg × reps are allowed (jumps, band drills), so their estimate is 0 kg. `setOneRepMax` refuses a 1RM of 0, and because "Estimate all" is one transaction, that one refusal rolled back every other exercise. The owner's real history has three such exercises, so the feature would never have worked after the import.
+- **Fix:** the plan skips an estimate that rounds to 0 kg, and the per-exercise Estimate is disabled for it (the same throw existed there since GYM-24).
+- **Lesson:** all-or-nothing writes make one bad row fail everything. Filter what can't be stored before the write, and test with edge values that real data contains, not only typical ones.
+
 ### 2026-11-14: An un-awaited unmount broke the tests after it (GYM-134)
 - **What happened:** `tests/app/progress.test.tsx` had a test that called `unmount()` without `await`. It was the last test in the file, so the "overlapping act() calls" warning it caused hid nothing. When new tests were added after it, they failed to render, although they passed on their own.
 - **Fix:** `await unmount();`. No other test had the pattern.

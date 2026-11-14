@@ -164,7 +164,8 @@ export default function ProgressTab() {
                 <CardAction
                   label="Estimate"
                   a11y={`Estimate ${item.nameEn}`}
-                  disabled={item.best === null}
+                  // A 1RM must be more than 0 kg: sets logged as 0 kg give nothing to estimate.
+                  disabled={item.best === null || !(round2(item.best.e1rmKg) > 0)}
                   onPress={() => setEstimating(item)}
                 />
                 <CardAction
@@ -219,7 +220,7 @@ export default function ProgressTab() {
         onCancel={() => setEstimating(null)}
       />
       <Dialog
-        visible={confirmAll && allCount > 0}
+        visible={confirmAll}
         title="Estimate all 1RMs?"
         message={estimateAllText(allPlan)}
         confirmLabel="Estimate all"

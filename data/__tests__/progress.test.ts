@@ -190,6 +190,14 @@ describe('estimateAll (GYM-134)', () => {
     expect(rows(s.db)).toBe(after);
   });
 
+  test('an exercise logged only as 0 kg does not block the others', () => {
+    const s = history();
+    log(s.db, s.anna, '2026-11-06', [[s.ex('Triple jump'), [[0, 10]]]]);
+    expect(estimateAll(s.db, s.anna)).toEqual({ set: 1, updated: 1 });
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Triple jump'))).toBeNull();
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Back squat'))!.valueKg).toBe(101.75);
+  });
+
   test('only this client is touched', () => {
     const s = history();
     const ewa = createClient(s.db, { firstName: 'Ewa', weightKg: 60, weightDate: '2026-10-01' });

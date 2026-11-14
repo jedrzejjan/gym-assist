@@ -71,14 +71,16 @@ export type EstimatePlan = {
 
 /**
  * "Estimate all 1RMs" (GYM-134, owner decision 2026-11-14: keep the 1RMs set by hand). An
- * exercise with no best set is skipped, a manual 1RM is kept, and an estimated 1RM already equal
- * to the estimate is left alone, so a second run changes nothing.
+ * exercise with no best set, or whose estimate is 0 kg (sets logged as 0 kg, which a 1RM can't
+ * be), is skipped; a manual 1RM is kept; and an estimated 1RM already equal to the estimate is
+ * left alone, so a second run changes nothing.
  */
 export function planEstimateAll(items: EstimateCandidate[]): EstimatePlan {
   const plan: EstimatePlan = { set: [], update: [] };
   for (const { exerciseId, oneRepMax, best } of items) {
     if (best === null) continue;
     const valueKg = round2(best.e1rmKg);
+    if (!(valueKg > 0)) continue;
     if (oneRepMax === null) plan.set.push({ exerciseId, valueKg });
     else if (oneRepMax.source === 'estimated' && oneRepMax.valueKg !== valueKg) {
       plan.update.push({ exerciseId, valueKg });

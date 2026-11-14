@@ -87,6 +87,15 @@ describe('Estimate all (GYM-134): keep the 1RMs set by hand', () => {
     });
   });
 
+  test('an estimate of 0 kg (sets logged as 0 kg) is skipped, not stored', () => {
+    const plan = planEstimateAll([
+      item('jump', null, 0),
+      item('hop', { valueKg: 20, source: 'estimated' }, 0.001), // rounds to 0
+      item('squat', null, 101.75),
+    ]);
+    expect(plan).toEqual({ set: [{ exerciseId: 'squat', valueKg: 101.75 }], update: [] });
+  });
+
   test('nothing to do gives empty lists', () => {
     expect(planEstimateAll([])).toEqual({ set: [], update: [] });
   });

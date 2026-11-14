@@ -126,6 +126,15 @@ test('no comparable set disables Estimate', async () => {
   expect(screen.getByRole('button', { name: 'Set manually Treadmill run' })).toBeEnabled();
 });
 
+test('a best set of 0 kg disables Estimate: a 1RM must be more than 0 kg', async () => {
+  const s = setup();
+  log(s.db, s.anna, '2026-11-05', [[s.ex('Triple jump'), [[0, 10]]]]);
+  await renderWithDb(<ProgressTab />, s.db);
+  expect(screen.getByText('Best set: 0 kg × 10')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Estimate Triple jump' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Estimate all 1RMs' })).toBeDisabled();
+});
+
 test('a bodyweight 1RM reads "1RM 81 kg total (BW + 17.5) · manual · …"', async () => {
   fixToday(2026, 11, 12);
   const s = setup(); // latest body weight 63.5
