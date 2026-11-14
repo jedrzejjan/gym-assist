@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Menu, type MenuItem } from './Menu';
 import { Text } from './Text';
 import { colors, fonts, sizes } from './theme';
 
@@ -7,9 +8,11 @@ type Props = {
   title: string;
   /** e.g. { label: '‹ Home', onPress } — omitted on Home and Welcome. */
   back?: { label: string; onPress: () => void };
+  /** The kebab menu (⋮) at the right, for the screen's rare or risky actions (GYM-133). */
+  menu?: MenuItem[];
 };
 
-export function AppBar({ title, back }: Props) {
+export function AppBar({ title, back, menu }: Props) {
   return (
     <View style={styles.bar}>
       {back ? (
@@ -23,7 +26,10 @@ export function AppBar({ title, back }: Props) {
           <Text style={styles.backText}>{back.label}</Text>
         </Pressable>
       ) : null}
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title} numberOfLines={1}>
+        {title}
+      </Text>
+      {menu ? <Menu items={menu} /> : null}
     </View>
   );
 }
@@ -39,5 +45,5 @@ const styles = StyleSheet.create({
   },
   back: { minHeight: sizes.minTap, justifyContent: 'center' },
   backText: { color: colors.onNavy, fontSize: sizes.small },
-  title: { color: colors.white, fontFamily: fonts.semibold, fontSize: sizes.title },
+  title: { color: colors.white, fontFamily: fonts.semibold, fontSize: sizes.title, flexShrink: 1 },
 });

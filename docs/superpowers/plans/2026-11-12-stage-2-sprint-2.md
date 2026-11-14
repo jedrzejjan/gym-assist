@@ -69,10 +69,10 @@ Sprint 1's Global Constraints still apply (`docs/superpowers/plans/2026-11-11-st
 These are approved with the plan PR. The spec, and `CLAUDE.md` where it is affected, are updated in the task named.
 
 1. **Hide Category; keep the column** (Task 1, GYM-99). Changed by the owner on 2026-11-13, replacing "drop the column": no screen shows or asks for Category, and the database, seed and `CATEGORIES` stay for later use. A custom exercise gets its category from its pattern (`categoryForPattern`). No migration.
-2. **The client screen gets the board's tab bar:** Profile | History | Recovery | Progress (Task 2). Tabs switch with `router.replace`, so back from any tab returns to Clients. "Start session" moves from the Profile tab to the bottom of the History tab, as on the `history/list` board.
+2. **The client screen gets the board's tab bar:** Profile | History | Recovery | Progress (Task 2). Tabs switch with `router.replace`, so back from any tab returns to Clients. "Start session" moves from the Profile tab to the bottom of the History tab, as on the `history/list` board. **Changed by the owner on 2026-11-14 (GYM-133), after the phone review:** "Start session" is back on Profile as its only footer button, History has none, and Edit profile, Weight history and Archive client moved into a kebab menu.
 3. **Labels for the two histories** (Task 2, the owner's phone finding):
    - the History tab is the workout history;
-   - the profile's body-weight link reads "Weight history ›" instead of "History ›", a small departure from the `client/profile` board.
+   - the profile's body-weight link reads "Weight history ›" instead of "History ›", a small departure from the `client/profile` board. Since GYM-133 it is the "Weight history" item in the kebab menu.
 4. **Editing a finished session** (Task 3):
    - it reuses the session page, the reorder page and the exercise page;
    - in a finished session, "Finish exercise" reads "Done", rows show no ✓, and a set change doesn't reopen the exercise;

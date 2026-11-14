@@ -193,7 +193,7 @@ test('removing the last exercise asks "Delete this session?" and Delete returns 
   await press('Delete');
   expect(getSession(s.db, sid)).toBeNull();
   expect(screen).toHavePathname(`/clients/${s.anna}/history`);
-  expect(screen.getByText('No sessions yet. Start the first one below.')).toBeTruthy();
+  expect(screen.getByText('No sessions yet. Start one from the Profile tab.')).toBeTruthy();
 });
 
 test('with two exercises, Remove works as in a draft and the session stays', async () => {

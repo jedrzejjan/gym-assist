@@ -90,19 +90,18 @@ describe('History tab', () => {
     expect(screen.queryByText('7 Nov 2026')).toBeNull();
   });
 
-  test('empty history says "No sessions yet. Start the first one below."', async () => {
+  test('empty history says "No sessions yet. Start one from the Profile tab."', async () => {
     const s = setup();
     mockParams.current = { id: s.anna };
     await renderWithDb(<HistoryTab />, s.db);
-    expect(screen.getByText('No sessions yet. Start the first one below.')).toBeTruthy();
+    expect(screen.getByText('No sessions yet. Start one from the Profile tab.')).toBeTruthy();
   });
 
-  test('"Start session" on History opens the date step', async () => {
+  test('History has no "Start session": it is on the Profile tab (GYM-133)', async () => {
     const s = setup();
     mockParams.current = { id: s.anna };
     await renderWithDb(<HistoryTab />, s.db);
-    await fireEvent.press(button('Start session'));
-    expect(mockRouter.push).toHaveBeenCalledWith(`/session/start?clientId=${s.anna}`);
+    expect(screen.queryByRole('button', { name: 'Start session' })).toBeNull();
   });
 
   test('tapping a session opens its summary', async () => {
