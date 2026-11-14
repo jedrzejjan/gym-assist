@@ -4,7 +4,14 @@
 import { createClient } from '../clients';
 import { listExercises, seedExercises } from '../exercises';
 import { addWeight } from '../measurements';
-import { bodyProgress, currentOneRepMax, setOneRepMax, strengthList } from '../progress';
+import {
+  bodyProgress,
+  currentOneRepMax,
+  estimateAll,
+  setOneRepMax,
+  strengthList,
+} from '../progress';
+import { oneRepMaxes } from '../schema';
 import { SEED_EXERCISES } from '../seed/exercises';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
 import { createTestDb } from '../testing/testDb';
@@ -138,4 +145,64 @@ test('bodyProgress: latest weight, change since the first entry, entries newest 
   expect(b.changeKg).toBeCloseTo(-2.3, 10);
   expect(b.since).toBe('2026-09-15');
   expect(b.entries.map((e) => e.date)).toEqual(['2026-11-10', '2026-10-01', '2026-09-15']);
+});
+
+describe('estimateAll (GYM-134)', () => {
+  /**
+   * Back squat 92.5 × 3, no 1RM → set 101.75. Overhand pull-up BW 63.5 + 10 × 6 = 88.2, stored
+   * estimated 80 → updated. Bench press 50 × 8, manual 70 → kept. Deadlift 100 × 5 = 116.67,
+   * already estimated at 116.67 → skipped. Treadmill run has no comparable set → skipped.
+   */
+  function history() {
+    const s = setup();
+    log(s.db, s.anna, '2026-11-05', [
+      [s.ex('Back squat'), [[92.5, 3]]],
+      [s.ex('Overhand pull-up'), [[10, 6]]],
+      [s.ex('Bench press'), [[50, 8]]],
+      [s.ex('Deadlift'), [[100, 5]]],
+      [s.ex('Treadmill run'), [[null, null]]],
+    ]);
+    setOneRepMax(s.db, s.anna, s.ex('Overhand pull-up'), 80, 'estimated');
+    setOneRepMax(s.db, s.anna, s.ex('Bench press'), 70, 'manual');
+    setOneRepMax(s.db, s.anna, s.ex('Deadlift'), 116.67, 'estimated');
+    return s;
+  }
+  const rows = (db: Db) => db.select().from(oneRepMaxes).all().length;
+
+  test('sets the missing, updates the estimated, keeps manual and equal ones, skips no sets', () => {
+    const s = history();
+    const before = rows(s.db);
+    expect(estimateAll(s.db, s.anna)).toEqual({ set: 1, updated: 1 });
+    expect(rows(s.db)).toBe(before + 2);
+    const orm = (name: string) => currentOneRepMax(s.db, s.anna, s.ex(name));
+    expect(orm('Back squat')).toMatchObject({ valueKg: 101.75, source: 'estimated' });
+    expect(orm('Overhand pull-up')).toMatchObject({ valueKg: 88.2, source: 'estimated' });
+    expect(orm('Bench press')).toMatchObject({ valueKg: 70, source: 'manual' });
+    expect(orm('Deadlift')).toMatchObject({ valueKg: 116.67, source: 'estimated' });
+    expect(orm('Treadmill run')).toBeNull();
+  });
+
+  test('a second run changes nothing', () => {
+    const s = history();
+    estimateAll(s.db, s.anna);
+    const after = rows(s.db);
+    expect(estimateAll(s.db, s.anna)).toEqual({ set: 0, updated: 0 });
+    expect(rows(s.db)).toBe(after);
+  });
+
+  test('an exercise logged only as 0 kg does not block the others', () => {
+    const s = history();
+    log(s.db, s.anna, '2026-11-06', [[s.ex('Triple jump'), [[0, 10]]]]);
+    expect(estimateAll(s.db, s.anna)).toEqual({ set: 1, updated: 1 });
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Triple jump'))).toBeNull();
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Back squat'))!.valueKg).toBe(101.75);
+  });
+
+  test('only this client is touched', () => {
+    const s = history();
+    const ewa = createClient(s.db, { firstName: 'Ewa', weightKg: 60, weightDate: '2026-10-01' });
+    log(s.db, ewa, '2026-11-06', [[s.ex('Back squat'), [[50, 5]]]]);
+    estimateAll(s.db, s.anna);
+    expect(currentOneRepMax(s.db, ewa, s.ex('Back squat'))).toBeNull();
+  });
 });

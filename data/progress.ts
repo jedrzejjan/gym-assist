@@ -4,7 +4,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { bodyWeightOn } from '../domain/bodyweight';
-import { bestSet, type ComparableSet, e1rm } from '../domain/progress';
+import { bestSet, type ComparableSet, e1rm, planEstimateAll } from '../domain/progress';
 import { listWeights, type WeightRow } from './measurements';
 import { exercises, oneRepMaxes, sessionExercises, sessions, sets } from './schema';
 import { type DbOrTx, newId, nowIso } from './types';
@@ -51,6 +51,19 @@ export function setOneRepMax(
   db.insert(oneRepMaxes)
     .values({ id: newId(), clientId, exerciseId, valueKg, source, createdAt: now, updatedAt: now })
     .run();
+}
+
+/**
+ * "Estimate all 1RMs" (GYM-134): one estimated row for each exercise the plan sets or updates.
+ * It reads the list again here, so it acts on the data as it is when the write runs. The screen
+ * calls it inside one `mutate`, so it is all or nothing.
+ */
+export function estimateAll(db: DbOrTx, clientId: string): { set: number; updated: number } {
+  const plan = planEstimateAll(strengthList(db, clientId));
+  for (const { exerciseId, valueKg } of [...plan.set, ...plan.update]) {
+    setOneRepMax(db, clientId, exerciseId, valueKg, 'estimated');
+  }
+  return { set: plan.set.length, updated: plan.update.length };
 }
 
 export type StrengthItem = {
