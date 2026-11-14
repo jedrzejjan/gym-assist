@@ -7,6 +7,7 @@ import { mutate, useDb, useLive } from '../../../data/live';
 import { latestWeight } from '../../../data/measurements';
 import {
   bodyProgress,
+  estimateAll,
   type OneRepMax,
   setOneRepMax,
   type StrengthItem,
@@ -14,8 +15,10 @@ import {
 } from '../../../data/progress';
 import { fullName } from '../../../domain/clients';
 import { formatDayMonth, formatDayMonthYear, todayLocal } from '../../../domain/dates';
+import { estimateAllText, planEstimateAll, round2 } from '../../../domain/progress';
 import { formatKg, formatSet, parseWeight } from '../../../domain/sets';
 import { AppBar } from '../../../ui/AppBar';
+import { Button } from '../../../ui/Button';
 import { Chips } from '../../../ui/Chips';
 import { type ClientTab, ClientTabs } from '../../../ui/ClientTabs';
 import { Dialog } from '../../../ui/Dialog';
@@ -31,9 +34,6 @@ const VIEWS = [
   { value: 'strength' as const, label: 'Strength' },
   { value: 'body' as const, label: 'Body' },
 ];
-
-/** Stored with 2 decimals (Sprint 2 plan, decision 6). */
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * "1RM 101.75 kg · estimated · 5 Nov 2026"; for a bodyweight exercise the stored value is the
@@ -57,7 +57,8 @@ function changeText(changeKg: number, since: string) {
 /**
  * Boards `progress/strength`, `progress/strength - no 1RM`, the two 1RM dialogs and
  * `progress/body` (spec section 5, progress.ts; Sprint 2 plan, decision 6). The 1RM changes only
- * here, on purpose: "Estimate" from the best set, or "Set manually".
+ * here, on purpose: "Estimate" from the best set, "Set manually", or "Estimate all 1RMs"
+ * (board `progress/dialog - estimate all`, GYM-134), which keeps the 1RMs set by hand.
  */
 export default function ProgressTab() {
   const db = useDb();
@@ -70,6 +71,7 @@ export default function ProgressTab() {
   const [estimating, setEstimating] = useState<StrengthItem | null>(null);
   const [manual, setManual] = useState<StrengthItem | null>(null);
   const [manualText, setManualText] = useState('');
+  const [confirmAll, setConfirmAll] = useState(false);
   const saving = useRef(false); // a double tap must not store two rows
   if (!client) return null;
   const name = fullName(client.firstName, client.lastName);
@@ -109,6 +111,19 @@ export default function ProgressTab() {
 
   const estimate = estimating?.best ?? null;
 
+  const allPlan = planEstimateAll(strength);
+  const allCount = allPlan.set.length + allPlan.update.length;
+  const confirmEstimateAll = () => {
+    setConfirmAll(false);
+    if (saving.current) return;
+    saving.current = true;
+    try {
+      mutate(db, (tx) => estimateAll(tx, id));
+    } finally {
+      saving.current = false;
+    }
+  };
+
   return (
     <Screen
       header={
@@ -124,7 +139,16 @@ export default function ProgressTab() {
 
       {view === 'strength' ? (
         <View style={styles.list}>
-          {strength.length === 0 ? <Text variant="small">No finished sessions yet.</Text> : null}
+          {strength.length === 0 ? (
+            <Text variant="small">No finished sessions yet.</Text>
+          ) : (
+            <Button
+              label="Estimate all 1RMs"
+              variant="secondary"
+              disabled={allCount === 0}
+              onPress={() => setConfirmAll(true)}
+            />
+          )}
           {strength.map((item) => (
             <View key={item.exerciseId} style={styles.card}>
               <Text style={styles.name}>{item.nameEn}</Text>
@@ -193,6 +217,14 @@ export default function ProgressTab() {
         confirmLabel="Set 1RM"
         onConfirm={confirmEstimate}
         onCancel={() => setEstimating(null)}
+      />
+      <Dialog
+        visible={confirmAll && allCount > 0}
+        title="Estimate all 1RMs?"
+        message={estimateAllText(allPlan)}
+        confirmLabel="Estimate all"
+        onConfirm={confirmEstimateAll}
+        onCancel={() => setConfirmAll(false)}
       />
       <Dialog
         visible={manual !== null}

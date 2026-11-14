@@ -52,3 +52,51 @@ export function addedLoadFromPercent(
 ): number {
   return Math.max(0, Math.round((oneRmKg * percent) / 100 - bodyWeightKg));
 }
+
+/** A 1RM is stored with 2 decimals (Sprint 2 plan, decision 6). */
+export const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export type EstimateCandidate = {
+  exerciseId: string;
+  oneRepMax: { valueKg: number; source: 'estimated' | 'manual' } | null;
+  best: { e1rmKg: number } | null;
+};
+
+export type EstimatePlan = {
+  /** Exercises with no 1RM yet. */
+  set: { exerciseId: string; valueKg: number }[];
+  /** Exercises whose estimated 1RM differs from the estimate from their best set. */
+  update: { exerciseId: string; valueKg: number }[];
+};
+
+/**
+ * "Estimate all 1RMs" (GYM-134, owner decision 2026-11-14: keep the 1RMs set by hand). An
+ * exercise with no best set is skipped, a manual 1RM is kept, and an estimated 1RM already equal
+ * to the estimate is left alone, so a second run changes nothing.
+ */
+export function planEstimateAll(items: EstimateCandidate[]): EstimatePlan {
+  const plan: EstimatePlan = { set: [], update: [] };
+  for (const { exerciseId, oneRepMax, best } of items) {
+    if (best === null) continue;
+    const valueKg = round2(best.e1rmKg);
+    if (oneRepMax === null) plan.set.push({ exerciseId, valueKg });
+    else if (oneRepMax.source === 'estimated' && oneRepMax.valueKg !== valueKg) {
+      plan.update.push({ exerciseId, valueKg });
+    }
+  }
+  return plan;
+}
+
+/** The confirm dialog's text: "Set 3 new 1RMs and update 2 from each exercise's best set. …" */
+export function estimateAllText(plan: EstimatePlan): string {
+  const n = plan.set.length;
+  const u = plan.update.length;
+  const rms = (k: number) => (k === 1 ? '1RM' : '1RMs');
+  const what =
+    n > 0 && u > 0
+      ? `Set ${n} new ${rms(n)} and update ${u}`
+      : n > 0
+        ? `Set ${n} new ${rms(n)}`
+        : `Update ${u} ${rms(u)}`;
+  return `${what} from each exercise's best set. 1RMs set by hand stay.`;
+}

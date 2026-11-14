@@ -4,6 +4,7 @@ import ProgressTab from '../../app/clients/[id]/progress';
 import SessionExercise from '../../app/session/[id]/exercise/[seId]';
 import { createClient } from '../../data/clients';
 import { listExercises, seedExercises } from '../../data/exercises';
+import { onWrite } from '../../data/live';
 import { addWeight } from '../../data/measurements';
 import { currentOneRepMax, setOneRepMax } from '../../data/progress';
 import { SEED_EXERCISES } from '../../data/seed/exercises';
@@ -165,8 +166,70 @@ test('after a stored 1RM, the exercise page enables %', async () => {
   mockParams.current = { id: sid, seId };
   const { unmount } = await renderWithDb(<SessionExercise />, s.db);
   expect(screen.getByRole('radio', { name: '%' })).toBeDisabled();
-  unmount();
+  await unmount();
   setOneRepMax(s.db, s.anna, s.ex('Back squat'), 100, 'manual');
   await renderWithDb(<SessionExercise />, s.db);
   expect(screen.getByRole('radio', { name: '%' })).toBeEnabled();
+});
+
+describe('Estimate all 1RMs (GYM-134)', () => {
+  function twoToSet() {
+    const s = setup();
+    log(s.db, s.anna, '2026-11-05', [
+      [s.ex('Back squat'), [[92.5, 3]]],
+      [s.ex('Bench press'), [[50, 8]]],
+      [s.ex('Deadlift'), [[100, 5]]],
+    ]);
+    setOneRepMax(s.db, s.anna, s.ex('Deadlift'), 150, 'manual');
+    return s;
+  }
+
+  test('asks first, with the counts; Cancel stores nothing', async () => {
+    const s = twoToSet();
+    await renderWithDb(<ProgressTab />, s.db);
+    await press('Estimate all 1RMs');
+    expect(screen.getByText('Estimate all 1RMs?')).toBeTruthy();
+    expect(
+      screen.getByText("Set 2 new 1RMs from each exercise's best set. 1RMs set by hand stay."),
+    ).toBeTruthy();
+    await press('Cancel');
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Back squat'))).toBeNull();
+    expect(screen.queryByText('Estimate all 1RMs?')).toBeNull();
+  });
+
+  test('Estimate all stores them in one write and keeps the manual 1RM', async () => {
+    fixToday(2026, 11, 12);
+    const s = twoToSet();
+    await renderWithDb(<ProgressTab />, s.db);
+    const writes: boolean[] = [];
+    const stop = onWrite((e) => writes.push(e.export));
+    await press('Estimate all 1RMs');
+    await press('Estimate all');
+    stop();
+    expect(writes).toEqual([true]); // one write, exported once
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Back squat'))!.valueKg).toBe(101.75);
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Bench press'))!.valueKg).toBe(63.33);
+    expect(currentOneRepMax(s.db, s.anna, s.ex('Deadlift'))).toMatchObject({
+      valueKg: 150,
+      source: 'manual',
+    });
+    expect(screen.getByText('1RM 101.75 kg · estimated · 12 Nov 2026')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Estimate all 1RMs' })).toBeDisabled();
+  });
+
+  test('is disabled when nothing would change', async () => {
+    const s = setup();
+    log(s.db, s.anna, '2026-11-05', [[s.ex('Treadmill run'), [[null, null]]]]);
+    await renderWithDb(<ProgressTab />, s.db);
+    expect(screen.getByRole('button', { name: 'Estimate all 1RMs' })).toBeDisabled();
+  });
+
+  test('is not shown with no finished sessions, nor on Body', async () => {
+    const s = setup();
+    await renderWithDb(<ProgressTab />, s.db);
+    expect(screen.queryByRole('button', { name: 'Estimate all 1RMs' })).toBeNull();
+    log(s.db, s.anna, '2026-11-05', [[s.ex('Back squat'), [[92.5, 3]]]]);
+    await fireEvent.press(screen.getByRole('radio', { name: 'Body' }));
+    expect(screen.queryByRole('button', { name: 'Estimate all 1RMs' })).toBeNull();
+  });
 });

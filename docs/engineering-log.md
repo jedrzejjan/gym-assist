@@ -12,6 +12,18 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-14: "Estimate all 1RMs" keeps the 1RMs set by hand (GYM-134)
+- **Decision (owner, after the phone review):**
+  - One button estimates every exercise.
+  - A missing 1RM is set, and an estimated one is refreshed from the best set.
+  - A manual one is kept.
+  - An estimated 1RM that already equals the estimate is not written again.
+- **Why:** a 1RM typed by hand is the trainer's judgement (for example from a real max test), so a bulk action must not overwrite it. Skipping equal values makes the action idempotent: a second tap changes nothing and adds no rows.
+- **How:**
+  - `planEstimateAll` in `domain/progress.ts` is the pure rule, and the screen uses it for the dialog text and the disabled state.
+  - `estimateAll` in `data/progress.ts` reads the list again inside the write, so it acts on the data as it is then.
+  - It is one `mutate`: all or nothing, one automatic export.
+
 ### 2026-11-14: Profile gets a kebab menu, and "Start session" moves back to it (GYM-133, plan decision 2 changed)
 - **Decision (owner, after the phone review):**
   - "Start session" is the only button at the bottom of Profile; History has none.
@@ -94,6 +106,11 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 - **Why:** one story, one reviewable PR. The split is by what the user can do, not by technical layer.
 
 ## Incidents and bugs
+
+### 2026-11-14: An un-awaited unmount broke the tests after it (GYM-134)
+- **What happened:** `tests/app/progress.test.tsx` had a test that called `unmount()` without `await`. It was the last test in the file, so the "overlapping act() calls" warning it caused hid nothing. When new tests were added after it, they failed to render, although they passed on their own.
+- **Fix:** `await unmount();`. No other test had the pattern.
+- **Lesson:** this is the same class of bug as the GYM-103 restore test: an async step left running leaks into the next test. A test that passes alone but fails in the file points to shared state or unfinished async work, not to the test itself.
 
 ### 2026-11-13: A wrong ticket reference, and an async test that broke the tests after it (GYM-103, PR #43)
 - **Wrong reference:** GYM-103's description said older backups were covered by GYM-100. GYM-100 is actually "One draft session per client". Checking the ticket before relying on it caught this. The real backlog ticket, GYM-131, was created and the description corrected.
