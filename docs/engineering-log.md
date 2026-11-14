@@ -12,6 +12,15 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-14: Profile gets a kebab menu, and "Start session" moves back to it (GYM-133, plan decision 2 changed)
+- **Decision (owner, after the phone review):**
+  - "Start session" is the only button at the bottom of Profile; History has none.
+  - Edit profile, Weight history and Archive client are in a kebab menu (⋮) at the top right.
+  - The profile shows the age in years, without the date of birth.
+- **Why:** the owner found "Archive client" and "Weight history" too prominent for actions used rarely, and starting a session from Profile more natural. This is progressive disclosure: the main action stays visible, rare or risky ones are one tap away.
+- **How:** `ui/Menu.tsx` is a reusable menu, opened through `AppBar`'s new `menu` prop. It closes on an item, a tap outside it and the Android back button. The draft dialog moved with "Start session", code and all.
+- **Lesson:** the Penpot design was approved, but using the app on the phone changed the owner's mind within a day. Testing a real build early is cheaper than redesigning later.
+
 ### 2026-11-13: Restore makes a safety copy and accepts only the same schema (GYM-103, PR #43, plan decision 8)
 - **Decision:**
   - Before replacing anything, restore writes `gym-assist-before-restore.json`, unless there is no folder or no clients. If that write fails, nothing is restored.
