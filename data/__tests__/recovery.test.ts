@@ -4,12 +4,10 @@
 import { createClient } from '../clients';
 import { trainedFor } from '../recovery';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
-import { createTestDb } from '../testing/testDb';
-import { exerciseId, seedLibrary } from '../testing/library';
+import { exerciseId, seededTestDb } from '../testing/library';
 
 function setup() {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   const anna = createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
   const ex = (name: string) => exerciseId(db, name);
@@ -21,7 +19,10 @@ test('trainedFor gives each exercise with a set in a finished session, with its 
   const sid = startSession(s.db, s.anna, '2026-11-09');
   addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Back squat')), { weightKg: 80, reps: 5 });
   addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Bench press')), { weightKg: 60, reps: 8 });
-  addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Treadmill run')), { weightKg: null, reps: null });
+  addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Treadmill run')), {
+    weightKg: null,
+    reps: null,
+  });
   finishSession(s.db, sid);
   const rows = trainedFor(s.db, s.anna);
   expect(rows).toHaveLength(3);

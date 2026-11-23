@@ -63,7 +63,12 @@ const aliases = (db: Db, id: string) =>
 
 test('the 22 kept exercises keep their ids, take the library name, and keep the old one as an alias', () => {
   const { db, anna, migrateRest } = v1Phone();
-  logSession(db, { clientId: anna, date: '2026-11-03', exerciseId: idOf('Bench press'), sets: [[60, 8]] });
+  logSession(db, {
+    clientId: anna,
+    date: '2026-11-03',
+    exerciseId: idOf('Bench press'),
+    sets: [[60, 8]],
+  });
   setOneRepMax(db, anna, idOf('Bench press'), 80, 'manual');
   migrateRest();
 
@@ -95,7 +100,12 @@ test('the 22 kept exercises keep their ids, take the library name, and keep the 
 
 test('the hip flexor and an unknown custom exercise go, with their sets, 1RMs and emptied sessions', () => {
   const { db, sqlite, anna, migrateRest } = v1Phone(['My drill']);
-  const onlyDrill = logSession(db, { clientId: anna, date: '2026-11-03', exerciseId: idOf('My drill'), sets: [[10, 5]] });
+  const onlyDrill = logSession(db, {
+    clientId: anna,
+    date: '2026-11-03',
+    exerciseId: idOf('My drill'),
+    sets: [[10, 5]],
+  });
   const onlyHip = logSession(db, {
     clientId: anna,
     date: '2026-11-04',
@@ -103,7 +113,12 @@ test('the hip flexor and an unknown custom exercise go, with their sets, 1RMs an
     sets: [[null, 10]],
   });
   // A session with the drill and a kept exercise keeps the kept one.
-  const mixed = logSession(db, { clientId: anna, date: '2026-11-05', exerciseId: idOf('Back squat'), sets: [[80, 5]] });
+  const mixed = logSession(db, {
+    clientId: anna,
+    date: '2026-11-05',
+    exerciseId: idOf('Back squat'),
+    sets: [[80, 5]],
+  });
   db.run(
     sql`INSERT INTO session_exercises (id, session_id, exercise_id, position, updated_at) VALUES ('mixed-drill', ${mixed}, ${idOf('My drill')}, 2, ${T})`,
   );
@@ -137,7 +152,12 @@ test('a draft in progress goes only if all its exercises were dropped', () => {
     sets: [[10, 5]],
     status: 'draft',
   });
-  const finished = logSession(db, { clientId: jan, date: '2026-11-06', exerciseId: idOf('Deadlift'), sets: [[100, 5]] });
+  const finished = logSession(db, {
+    clientId: jan,
+    date: '2026-11-06',
+    exerciseId: idOf('Deadlift'),
+    sets: [[100, 5]],
+  });
   migrateRest();
 
   syncLibrary(db, SEED_EXERCISES);
@@ -175,7 +195,11 @@ test('a custom exercise that has a library name is mapped and becomes built-in',
 
   syncLibrary(db, SEED_EXERCISES);
 
-  expect(row(db, idOf('push-up'))).toMatchObject({ name_en: 'Push-Up', is_custom: 0, importance: 1 });
+  expect(row(db, idOf('push-up'))).toMatchObject({
+    name_en: 'Push-Up',
+    is_custom: 0,
+    importance: 1,
+  });
   expect(countExercises(db)).toBe(831);
 });
 
@@ -203,7 +227,10 @@ test('a later seed version only adds exercises whose names are free', () => {
   syncLibrary(db, SEED_EXERCISES);
   const extra = { ...SEED_EXERCISES[0], nameEn: 'Brand new lift', aliases: [] };
   const clash = { ...SEED_EXERCISES[0], nameEn: 'Something', aliases: [SEED_EXERCISES[1].nameEn] };
-  expect(syncLibrary(db, [...SEED_EXERCISES, extra, clash])).toMatchObject({ inserted: 1, dropped: 0 });
+  expect(syncLibrary(db, [...SEED_EXERCISES, extra, clash])).toMatchObject({
+    inserted: 1,
+    dropped: 0,
+  });
   expect(countExercises(db)).toBe(832);
 });
 

@@ -65,7 +65,7 @@ test('the Exercise library tile counts exercises and opens the library', async (
   const db = answeredDb();
   seedLibrary(db);
   await renderWithDb(<Home />, db);
-  expect(screen.getByText('23 exercises')).toBeTruthy();
+  expect(screen.getByText('831 exercises')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: /Exercise library/ }));
   expect(mockRouter.push).toHaveBeenCalledWith('/library');
 });

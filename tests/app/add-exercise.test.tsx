@@ -1,84 +1,137 @@
-import { fireEvent, screen, within } from '@testing-library/react-native';
+// Boards `library / add exercise` and `- muscles open` (GYM-149).
+import { fireEvent, screen } from '@testing-library/react-native';
 
 import AddExercise from '../../app/library/add';
 import { countExercises, getExercise, listExercises } from '../../data/exercises';
-import { createTestDb } from '../../data/testing/testDb';
+import { seededTestDb } from '../../data/testing/library';
 import { renderWithDb } from '../renderWithDb';
 import { mockRouter } from '../routerMock';
-import { seedLibrary } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
 const save = () => screen.getByRole('button', { name: 'Save exercise' });
-const pick = async (group: string, option: string) =>
-  fireEvent.press(
-    within(screen.getByTestId(`chips:${group}`)).getByRole('radio', { name: option }),
-  );
+const field = (label: string) =>
+  screen.queryByRole('button', { name: new RegExp(`^${label.replace('*', '\\*')}, `) });
 
-async function fillRequired(name = 'Dips') {
-  await fireEvent.changeText(screen.getByLabelText('English name *'), name);
-  await pick('Training type *', 'Strength');
-  await pick('Pattern *', 'Push vertical');
+async function choose(label: string, option: string) {
+  await fireEvent.press(field(label)!);
+  await fireEvent.press(screen.getByRole('radio', { name: option }));
 }
 
-test('Save exercise stays disabled until name, training type and pattern are set', async () => {
+async function tick(label: string, options: string[]) {
+  await fireEvent.press(field(label)!);
+  for (const o of options) await fireEvent.press(screen.getByRole('checkbox', { name: o }));
+  await fireEvent.press(screen.getByRole('button', { name: `Done (${options.length})` }));
+}
+
+async function fillRequired(name = 'Landmine press') {
+  await fireEvent.changeText(screen.getByLabelText('English name *'), name);
+  await choose('Training type *', 'Strength');
+  await choose('Pattern *', 'Push');
+  await choose('Equipment *', 'Barbell');
+  await tick('Primary muscles *', ['Shoulders']);
+}
+
+test('Save stays disabled until name, training type, pattern, equipment and a muscle are set', async () => {
   await renderWithDb(<AddExercise />);
   expect(save()).toBeDisabled();
-  await fireEvent.changeText(screen.getByLabelText('English name *'), 'Dips');
-  await pick('Training type *', 'Strength');
+  await fireEvent.changeText(screen.getByLabelText('English name *'), 'Landmine press');
+  await choose('Training type *', 'Strength');
+  await choose('Pattern *', 'Push');
+  await choose('Equipment *', 'Barbell');
   expect(save()).toBeDisabled();
-  await pick('Pattern *', 'Push vertical');
+  await tick('Primary muscles *', ['Shoulders']);
   expect(save()).toBeEnabled();
 });
 
-test('"none" is an allowed pattern, and KD shows as Knee Dominant', async () => {
+test('the pattern offers the 5 patterns', async () => {
   await renderWithDb(<AddExercise />);
-  const patterns = within(screen.getByTestId('chips:Pattern *'));
-  expect(patterns.getByRole('radio', { name: 'none' })).toBeTruthy();
-  expect(patterns.getByRole('radio', { name: 'Knee Dominant' })).toBeTruthy();
+  await fireEvent.press(field('Pattern *')!);
+  for (const p of ['Knee dominant', 'Hip dominant', 'Push', 'Pull', 'Core']) {
+    expect(screen.getByRole('radio', { name: p })).toBeTruthy();
+  }
 });
 
-test('saving stores the exercise with muscles and body weight, then goes back', async () => {
+test('Subcategory shows for Push, Pull and Core only, and a pattern change clears it', async () => {
+  await renderWithDb(<AddExercise />);
+  expect(field('Subcategory')).toBeNull();
+  await choose('Pattern *', 'Push');
+  await choose('Subcategory', 'Vertical');
+  expect(field('Subcategory')).toHaveProp('accessibilityLabel', 'Subcategory, Vertical');
+  await choose('Pattern *', 'Core');
+  expect(field('Subcategory')).toHaveProp('accessibilityLabel', 'Subcategory, -');
+  await fireEvent.press(field('Subcategory')!);
+  expect(screen.getByRole('radio', { name: 'Anti-rotation' })).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Close list' }));
+  await choose('Pattern *', 'Knee dominant');
+  expect(field('Subcategory')).toBeNull();
+});
+
+test('Cardio hides the pattern and saves without one', async () => {
+  const { db } = await renderWithDb(<AddExercise />);
+  await fireEvent.changeText(screen.getByLabelText('English name *'), 'Rowing sprint');
+  await choose('Training type *', 'Cardio');
+  expect(field('Pattern *')).toBeNull();
+  await choose('Equipment *', 'Machine');
+  await tick('Primary muscles *', ['Upper back']);
+  await fireEvent.press(save());
+  expect(getExercise(db, listExercises(db, { search: 'Rowing sprint' })[0].id)).toMatchObject({
+    pattern: null,
+    subcategory: null,
+    trainingType: 'Cardio',
+  });
+});
+
+test('saving stores every field, importance 1, then goes back', async () => {
   const { db } = await renderWithDb(<AddExercise />);
   await fillRequired();
-  await fireEvent.changeText(screen.getByLabelText('Polish name'), 'Pompki na poręczach');
-  await fireEvent.press(screen.getByRole('checkbox', { name: 'Chest' }));
-  await fireEvent.press(screen.getByRole('checkbox', { name: 'Triceps' }));
-  await pick('Uses body weight', 'Yes');
+  await fireEvent.changeText(screen.getByLabelText('Polish name'), 'Wyciskanie landmine');
+  await choose('Subcategory', 'Vertical');
+  await fireEvent.press(screen.getByRole('radio', { name: 'Unilateral: Yes' }));
   await fireEvent.press(save());
-  const id = listExercises(db, { search: 'Dips' })[0].id;
+  const id = listExercises(db, { search: 'Landmine press' })[0].id;
   expect(getExercise(db, id)).toMatchObject({
-    nameEn: 'Dips',
-    namePl: 'Pompki na poręczach',
-    category: 'Push', // hidden, derived from the pattern (GYM-99)
+    nameEn: 'Landmine press',
+    namePl: 'Wyciskanie landmine',
     trainingType: 'Strength',
-    pattern: 'Push vertical',
-    usesBodyweight: true,
+    pattern: 'Push',
+    subcategory: 'vertical',
+    equipment: 'barbell',
+    primaryMuscles: ['shoulders'],
+    unilateral: true,
+    usesBodyweight: false,
+    importance: 1,
     isCustom: true,
-    muscles: ['chest', 'triceps'],
   });
   expect(mockRouter.back).toHaveBeenCalled();
 });
 
-test('a name that already exists shows the message and saves nothing', async () => {
-  const db = createTestDb();
-  seedLibrary(db);
+test('a name that exists, or is another name of an exercise, saves nothing', async () => {
+  const db = seededTestDb();
   await renderWithDb(<AddExercise />, db);
-  await fillRequired('bench PRESS');
+  await fillRequired('military PRESS');
   await fireEvent.press(save());
   expect(screen.getByText('An exercise with this name already exists')).toBeTruthy();
-  expect(countExercises(db)).toBe(23); // nothing was added
+  expect(countExercises(db)).toBe(831);
   expect(mockRouter.back).not.toHaveBeenCalled();
 });
 
-test('the form does not show a category', async () => {
-  await renderWithDb(<AddExercise />);
-  expect(screen.queryByText(/Category/)).toBeNull();
+test('the duplicate message clears as soon as the name changes', async () => {
+  await renderWithDb(<AddExercise />, seededTestDb());
+  await fillRequired('Deadlift');
+  await fireEvent.press(save());
+  expect(screen.getByText('An exercise with this name already exists')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('English name *'), 'Deadlift 2');
+  expect(screen.queryByText('An exercise with this name already exists')).toBeNull();
 });
 
-test('the required note from the design is shown', async () => {
+test('the footnote from the design is shown', async () => {
   await renderWithDb(<AddExercise />);
-  expect(screen.getByText('* required · the English name must be unique')).toBeTruthy();
+  expect(
+    screen.getByText(
+      '* required · Primary muscles: pick one or more · Subcategory only for Push, Pull and Core · no pattern for Cardio',
+    ),
+  ).toBeTruthy();
 });
 
 test('a double tap on Save exercise saves once', async () => {
@@ -87,15 +140,4 @@ test('a double tap on Save exercise saves once', async () => {
   await fireEvent.press(save());
   await fireEvent.press(save());
   expect(countExercises(db)).toBe(1);
-});
-
-test('the duplicate message clears as soon as the name changes', async () => {
-  const db = createTestDb();
-  seedLibrary(db);
-  await renderWithDb(<AddExercise />, db);
-  await fillRequired('Deadlift');
-  await fireEvent.press(save());
-  expect(screen.getByText('An exercise with this name already exists')).toBeTruthy();
-  await fireEvent.changeText(screen.getByLabelText('English name *'), 'Deadlift 2');
-  expect(screen.queryByText('An exercise with this name already exists')).toBeNull();
 });

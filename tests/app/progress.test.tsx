@@ -7,26 +7,23 @@ import { onWrite } from '../../data/live';
 import { addWeight } from '../../data/measurements';
 import { currentOneRepMax, setOneRepMax } from '../../data/progress';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../../data/sessions';
-import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
 import { fixToday } from '../fixedToday';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams } from '../routerMock';
-import { exerciseId, seedLibrary } from '../../data/testing/library';
+import { exerciseId, seededTestDb } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
 function setup() {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
     weightKg: 63.5,
     weightDate: '2026-10-01',
   });
-  const ex = (name: string) =>
-    exerciseId(db, name);
+  const ex = (name: string) => exerciseId(db, name);
   mockParams.current = { id: anna };
   return { db, anna, ex };
 }
@@ -58,19 +55,19 @@ test('Strength lists each exercise with "No 1RM yet" and its best set', async ()
   await renderWithDb(<ProgressTab />, s.db);
   expect(screen.getByRole('tab', { name: 'Progress' })).toBeSelected();
   expect(screen.getByRole('radio', { name: 'Strength' })).toBeChecked();
-  expect(screen.getByText('Back squat')).toBeTruthy();
+  expect(screen.getByText('Back Squat')).toBeTruthy();
   expect(screen.getByText('No 1RM yet')).toBeTruthy();
   expect(screen.getByText('Best set: 92.5 kg × 3')).toBeTruthy();
   expect(screen.getByText('Weight entry in % needs a 1RM for the exercise.')).toBeTruthy();
 });
 
-test('Estimate dialog reads "Back squat: 101.75 kg, from 92.5 kg × 3 on 5 Nov 2026." and Cancel stores nothing', async () => {
+test('Estimate dialog reads "Back Squat: 101.75 kg, from 92.5 kg × 3 on 5 Nov 2026." and Cancel stores nothing', async () => {
   const s = setup();
   log(s.db, s.anna, '2026-11-05', [[s.ex('Back squat'), [[92.5, 3]]]]);
   await renderWithDb(<ProgressTab />, s.db);
-  await press('Estimate Back squat');
+  await press('Estimate Back Squat');
   expect(screen.getByText('Set the 1RM from history?')).toBeTruthy();
-  expect(screen.getByText('Back squat: 101.75 kg, from 92.5 kg × 3 on 5 Nov 2026.')).toBeTruthy();
+  expect(screen.getByText('Back Squat: 101.75 kg, from 92.5 kg × 3 on 5 Nov 2026.')).toBeTruthy();
   await press('Cancel');
   expect(currentOneRepMax(s.db, s.anna, s.ex('Back squat'))).toBeNull();
   expect(screen.queryByText('Set the 1RM from history?')).toBeNull();
@@ -82,14 +79,14 @@ test('Estimate stores round(e1rm, 2) as estimated and the 1RM line reads "1RM 10
   log(s.db, s.anna, '2026-11-05', [[s.ex('Back squat'), [[92.5, 3]]]]);
   log(s.db, s.anna, '2026-11-06', [[s.ex('Bench press'), [[50, 7]]]]); // 50 × (1 + 7/30) = 61.666…
   await renderWithDb(<ProgressTab />, s.db);
-  await press('Estimate Back squat');
+  await press('Estimate Back Squat');
   await press('Set 1RM');
   expect(currentOneRepMax(s.db, s.anna, s.ex('Back squat'))).toMatchObject({
     valueKg: 101.75,
     source: 'estimated',
   });
   expect(screen.getByText('1RM 101.75 kg · estimated · 12 Nov 2026')).toBeTruthy();
-  await press('Estimate Bench press');
+  await press('Estimate Bench Press');
   await press('Set 1RM');
   expect(currentOneRepMax(s.db, s.anna, s.ex('Bench press'))!.valueKg).toBe(61.67);
 });
@@ -99,9 +96,9 @@ test('Set manually saves a typed 1RM; 0, blank and text keep Save disabled', asy
   const s = setup();
   log(s.db, s.anna, '2026-11-05', [[s.ex('Back squat'), [[80, 5]]]]);
   await renderWithDb(<ProgressTab />, s.db);
-  await press('Set manually Back squat');
+  await press('Set manually Back Squat');
   expect(screen.getByText('Set 1RM manually')).toBeTruthy();
-  expect(screen.getByText('Back squat · Anna Kowalska')).toBeTruthy();
+  expect(screen.getByText('Back Squat · Anna Kowalska')).toBeTruthy();
   const field = screen.getByLabelText('1RM (kg)');
   for (const bad of ['', '0', 'abc', '-5']) {
     await fireEvent.changeText(field, bad);
@@ -121,8 +118,8 @@ test('no comparable set disables Estimate', async () => {
   log(s.db, s.anna, '2026-11-05', [[s.ex('Treadmill run'), [[null, null]]]]);
   await renderWithDb(<ProgressTab />, s.db);
   expect(screen.getByText('Best set: -')).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Estimate Treadmill run' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Set manually Treadmill run' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Estimate Running, Treadmill' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Set manually Running, Treadmill' })).toBeEnabled();
 });
 
 test('a best set of 0 kg disables Estimate: a 1RM must be more than 0 kg', async () => {
@@ -140,7 +137,7 @@ test('a bodyweight 1RM reads "1RM 81 kg total (BW + 17.5) · manual · …"', as
   log(s.db, s.anna, '2026-11-05', [[s.ex('Overhand pull-up'), [[10, 6]]]]);
   await renderWithDb(<ProgressTab />, s.db);
   expect(screen.getByText('Best set: BW + 10 kg × 6')).toBeTruthy();
-  await press('Set manually Overhand pull-up');
+  await press('Set manually Pull-Up');
   await fireEvent.changeText(screen.getByLabelText('1RM (kg)'), '81');
   await press('Save');
   expect(screen.getByText('1RM 81 kg total (BW + 17.5) · manual · 12 Nov 2026')).toBeTruthy();

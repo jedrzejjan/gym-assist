@@ -10,11 +10,10 @@ import journal from '../migrations/meta/_journal.json';
 import { setOneRepMax } from '../progress';
 import * as schema from '../schema';
 import { createTestDb } from '../testing/testDb';
-import { seedLibrary } from '../testing/library';
+import { seededTestDb } from '../testing/library';
 
 test('exportAll has every schema table and the schemaVersion from the journal', () => {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const schemaTables = (Object.values(schema) as unknown[])
     .filter((v): v is SQLiteTable => v instanceof SQLiteTable)
@@ -42,8 +41,7 @@ test('exportAll has every schema table and the schemaVersion from the journal', 
 });
 
 test('exportAll keeps insertion order, so a 1RM tie stays resolved after a restore', () => {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   const anna = createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const bench = (exportAll(db).tables.exercises as { id: string; nameEn: string }[]).find(
     (e) => e.nameEn === 'Bench Press',

@@ -15,17 +15,14 @@ import {
   moveExercise,
   startSession,
 } from '../sessions';
-import { createTestDb } from '../testing/testDb';
 import type { Db } from '../types';
-import { exerciseId, seedLibrary } from '../testing/library';
+import { exerciseId, seededTestDb } from '../testing/library';
 
 function setup() {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   const anna = createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
-  const ex = (name: string) =>
-    exerciseId(db, name);
+  const ex = (name: string) => exerciseId(db, name);
   return { db, anna, jan, ex };
 }
 

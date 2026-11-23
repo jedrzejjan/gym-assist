@@ -97,7 +97,5 @@ test('choose row: Polish name · equipment · primary muscles, plus the alias hi
   expect(chooseRowText({ ...base, matchedAlias: 'military press' })).toBe(
     'Wyciskanie sztangi nad głowę · Barbell · Shoulders · also: military press',
   );
-  expect(chooseRowText({ ...base, namePl: null, matchedAlias: null })).toBe(
-    'Barbell · Shoulders',
-  );
+  expect(chooseRowText({ ...base, namePl: null, matchedAlias: null })).toBe('Barbell · Shoulders');
 });

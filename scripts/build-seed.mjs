@@ -11,7 +11,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PATTERNS = { 'Knee dominant': 'KD', 'Hip dominant': 'HD', Push: 'Push', Pull: 'Pull', Core: 'Core' };
+const PATTERNS = {
+  'Knee dominant': 'KD',
+  'Hip dominant': 'HD',
+  Push: 'Push',
+  Pull: 'Pull',
+  Core: 'Core',
+};
 const SUBCATEGORIES = {
   vertical: 'vertical',
   horizontal: 'horizontal',
@@ -20,12 +26,35 @@ const SUBCATEGORIES = {
   Carry: 'carry',
 };
 const TRAINING_TYPES = ['Strength', 'Plyometric', 'Power', 'Cardio'];
-const EQUIPMENT = ['barbell', 'dumbbell', 'kettlebell', 'machine', 'cable', 'bodyweight', 'band', 'other'];
+const EQUIPMENT = [
+  'barbell',
+  'dumbbell',
+  'kettlebell',
+  'machine',
+  'cable',
+  'bodyweight',
+  'band',
+  'other',
+];
 const LEVELS = ['beginner', 'intermediate', 'advanced'];
 const MECHANICS = ['compound', 'isolation'];
 const MUSCLES = [
-  'quadriceps', 'hamstrings', 'glutes', 'adductors', 'abductors', 'calves', 'core', 'lower back',
-  'chest', 'shoulders', 'triceps', 'biceps', 'forearms', 'lats', 'upper back', 'traps',
+  'quadriceps',
+  'hamstrings',
+  'glutes',
+  'adductors',
+  'abductors',
+  'calves',
+  'core',
+  'lower back',
+  'chest',
+  'shoulders',
+  'triceps',
+  'biceps',
+  'forearms',
+  'lats',
+  'upper back',
+  'traps',
 ];
 
 const source = process.argv[2];
@@ -53,7 +82,8 @@ function oneOf(list, value, name, field, { nullable }) {
 }
 function muscles(list, name, field) {
   const out = list ?? [];
-  for (const m of out) check(MUSCLES.includes(m), name, `unknown ${field} muscle ${JSON.stringify(m)}`);
+  for (const m of out)
+    check(MUSCLES.includes(m), name, `unknown ${field} muscle ${JSON.stringify(m)}`);
   return out;
 }
 

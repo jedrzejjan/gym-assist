@@ -31,12 +31,10 @@ import {
   startSession,
 } from '../sessions';
 import { logSession } from '../testing/logSession';
-import { createTestDb } from '../testing/testDb';
-import { exerciseId, seedLibrary } from '../testing/library';
+import { exerciseId, seededTestDb } from '../testing/library';
 
 function setup() {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
@@ -44,8 +42,7 @@ function setup() {
     weightDate: '2026-10-01',
   });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
-  const id = (name: string) =>
-    exerciseId(db, name);
+  const id = (name: string) => exerciseId(db, name);
   return { db, anna, jan, squat: id('Back Squat'), bench: id('Bench Press') };
 }
 
@@ -266,8 +263,7 @@ describe('sets', () => {
 describe('finish, discard, reorder, remove, resume', () => {
   function threeExercises() {
     const s = setup();
-    const id = (name: string) =>
-      exerciseId(s.db, name);
+    const id = (name: string) => exerciseId(s.db, name);
     const sid = startSession(s.db, s.anna, '2026-11-10');
     const a = addExerciseToSession(s.db, sid, s.squat);
     const b = addExerciseToSession(s.db, sid, s.bench);

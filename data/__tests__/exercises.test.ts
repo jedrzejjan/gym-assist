@@ -13,13 +13,12 @@ import {
   type NewExercise,
 } from '../exercises';
 import { createTestDb } from '../testing/testDb';
-import { exerciseId, seedLibrary } from '../testing/library';
+import { exerciseId, seededTestDb } from '../testing/library';
 
 const names = (rows: { nameEn: string }[]) => rows.map((r) => r.nameEn);
 
 function library() {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   return db;
 }
 
@@ -27,7 +26,11 @@ test('the list starts with the most common exercises, A to Z, cardio included', 
   const db = library();
   const all = listExercises(db, {});
   expect(all).toHaveLength(831);
-  expect(names(all.slice(0, 3))).toEqual(['Back Squat', 'Band hop forward and backward', 'Band Pull-Apart']);
+  expect(names(all.slice(0, 3))).toEqual([
+    'Back Squat',
+    'Band hop forward and backward',
+    'Band Pull-Apart',
+  ]);
   const importance = all.map((e) => e.importance);
   expect(importance).toEqual([...importance].sort((a, b) => a - b));
   expect(all.some((e) => e.pattern === null)).toBe(true);
@@ -62,12 +65,16 @@ test('search puts names that start with the text first', () => {
   const hits = listExercises(db, { search: 'deadlift' });
   const firstNot = hits.findIndex((e) => !e.nameEn.toLowerCase().startsWith('deadlift'));
   expect(firstNot).toBeGreaterThan(0);
-  expect(hits.slice(firstNot).every((e) => !e.nameEn.toLowerCase().startsWith('deadlift'))).toBe(true);
+  expect(hits.slice(firstNot).every((e) => !e.nameEn.toLowerCase().startsWith('deadlift'))).toBe(
+    true,
+  );
 });
 
 test('search folds Polish letters and ignores case and spaces', () => {
   const db = library();
-  expect(names(listExercises(db, { search: 'ŁAW' }))).toEqual(names(listExercises(db, { search: '  ław ' })));
+  expect(names(listExercises(db, { search: 'ŁAW' }))).toEqual(
+    names(listExercises(db, { search: '  ław ' })),
+  );
   expect(listExercises(db, { search: 'ław' }).length).toBeGreaterThan(0);
 });
 
@@ -152,9 +159,15 @@ test('addCustomExercise saves a trimmed custom exercise, importance 1, muscles a
 test('addCustomExercise refuses a name or an alias that exists, ignoring case and spaces', () => {
   const db = library();
   addCustomExercise(db, dips);
-  expect(() => addCustomExercise(db, { ...dips, nameEn: 'MY RING DIPS' })).toThrow(DuplicateNameError);
-  expect(() => addCustomExercise(db, { ...dips, nameEn: 'bench PRESS' })).toThrow(DuplicateNameError);
-  expect(() => addCustomExercise(db, { ...dips, nameEn: ' military press' })).toThrow(DuplicateNameError);
+  expect(() => addCustomExercise(db, { ...dips, nameEn: 'MY RING DIPS' })).toThrow(
+    DuplicateNameError,
+  );
+  expect(() => addCustomExercise(db, { ...dips, nameEn: 'bench PRESS' })).toThrow(
+    DuplicateNameError,
+  );
+  expect(() => addCustomExercise(db, { ...dips, nameEn: ' military press' })).toThrow(
+    DuplicateNameError,
+  );
   expect(countExercises(db)).toBe(832);
 });
 
@@ -175,7 +188,9 @@ test('addCustomExercise refuses what the form never allows', () => {
   expect(() => addCustomExercise(db, { ...dips, nameEn: '   ' })).toThrow();
   expect(() => addCustomExercise(db, { ...dips, primaryMuscles: [] })).toThrow();
   expect(() => addCustomExercise(db, { ...dips, pattern: null })).toThrow();
-  expect(() => addCustomExercise(db, { ...dips, pattern: 'KD', subcategory: 'vertical' })).toThrow();
+  expect(() =>
+    addCustomExercise(db, { ...dips, pattern: 'KD', subcategory: 'vertical' }),
+  ).toThrow();
   const id = addCustomExercise(db, { ...dips, namePl: '  ' });
   expect(getExercise(db, id)!.namePl).toBeNull();
 });

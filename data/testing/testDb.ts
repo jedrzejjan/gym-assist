@@ -37,7 +37,9 @@ export function createTestDbAt(migrations: number): {
     migrate(db, { migrationsFolder: folder });
     sqlite.pragma('foreign_keys = ON');
   };
-  const journal = JSON.parse(fs.readFileSync(path.join(MIGRATIONS, 'meta', '_journal.json'), 'utf8'));
+  const journal = JSON.parse(
+    fs.readFileSync(path.join(MIGRATIONS, 'meta', '_journal.json'), 'utf8'),
+  );
   if (migrations >= journal.entries.length) {
     run(MIGRATIONS);
   } else {

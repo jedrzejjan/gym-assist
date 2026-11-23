@@ -237,7 +237,14 @@ export function addCustomExercise(db: DbOrTx, e: NewExercise): string {
     throw err;
   }
   db.insert(exerciseMuscles)
-    .values(e.primaryMuscles.map((muscle) => ({ exerciseId: id, muscle, role: 'primary' as const, updatedAt: now })))
+    .values(
+      e.primaryMuscles.map((muscle) => ({
+        exerciseId: id,
+        muscle,
+        role: 'primary' as const,
+        updatedAt: now,
+      })),
+    )
     .run();
   return id;
 }

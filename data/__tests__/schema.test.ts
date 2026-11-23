@@ -246,7 +246,11 @@ test('migration 0001 keeps a v1 exercise, its id and its sets', () => {
 
   const row = db.get<Record<string, unknown>>(sql`SELECT * FROM exercises WHERE id = 'e1'`)!;
   // The pattern is re-tagged by syncLibrary (data/library.ts), not by the SQL migration.
-  expect(row).toMatchObject({ name_en: 'Overhead press', pattern: 'Push vertical', equipment: 'other' });
+  expect(row).toMatchObject({
+    name_en: 'Overhead press',
+    pattern: 'Push vertical',
+    equipment: 'other',
+  });
   expect(db.get<{ role: string }>(sql`SELECT role FROM exercise_muscles`)!.role).toBe('primary');
   expect(count(db, 'sets')).toBe(1);
   expect(sqlite.pragma('foreign_key_check')).toEqual([]);

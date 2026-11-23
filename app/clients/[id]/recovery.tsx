@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { getClient } from '../../../data/clients';
 import { useLive } from '../../../data/live';
 import { trainedFor } from '../../../data/recovery';
-import { displayName, muscleName } from '../../../domain/catalogue';
+import { muscleName, patternName } from '../../../domain/catalogue';
 import { fullName } from '../../../domain/clients';
 import { todayLocal } from '../../../domain/dates';
 import { daysAgo, type RecoveryRow, recoveryTable } from '../../../domain/recovery';
@@ -45,7 +45,7 @@ export default function RecoveryTab() {
   const table = recoveryTable(trained, todayLocal(new Date()));
   const items: { title: string; sub: string; key: string }[] =
     view === 'patterns'
-      ? table.patterns.map((r) => ({ title: displayName(r.key), sub: subtitle(r), key: r.key }))
+      ? table.patterns.map((r) => ({ title: patternName(r.key), sub: subtitle(r), key: r.key }))
       : table.muscles.map((r) => ({ title: muscleName(r.key).en, sub: subtitle(r), key: r.key }));
 
   return (
@@ -63,7 +63,7 @@ export default function RecoveryTab() {
       <View style={styles.chips}>
         <Chips options={VIEWS} value={view} onChange={(v) => v && setView(v)} clearable={false} />
       </View>
-      {/* At most 12 rows: a plain list, so every row is always rendered. */}
+      {/* At most 16 rows: a plain list, so every row is always rendered. */}
       {items.map((item) => (
         <ListRow
           key={item.key}

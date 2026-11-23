@@ -24,8 +24,7 @@ export function MultiSelect<T extends string>({ label, options, value, onChange 
   const [draft, setDraft] = useState<T[]>(value);
   const labelOf = (v: T) => options.find((o) => o.value === v)?.label ?? v;
   const text = value.length > 0 ? value.map(labelOf).join(', ') : null;
-  const toggle = (v: T) =>
-    setDraft((d) => (d.includes(v) ? d.filter((x) => x !== v) : [...d, v]));
+  const toggle = (v: T) => setDraft((d) => (d.includes(v) ? d.filter((x) => x !== v) : [...d, v]));
 
   return (
     <>
@@ -79,7 +78,13 @@ export function MultiSelect<T extends string>({ label, options, value, onChange 
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: '50%', minHeight: sizes.minTap, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cell: {
+    width: '50%',
+    minHeight: sizes.minTap,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   box: {
     width: 24,
     height: 24,

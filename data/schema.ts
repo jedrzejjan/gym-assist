@@ -89,7 +89,9 @@ export const exerciseMuscles = sqliteTable(
       .references(() => exercises.id, { onDelete: 'cascade' }),
     muscle: text('muscle').notNull(),
     // Only primary muscles count for Recovery (GYM-149).
-    role: text('role', { enum: ['primary', 'secondary'] }).notNull().default('primary'),
+    role: text('role', { enum: ['primary', 'secondary'] })
+      .notNull()
+      .default('primary'),
     updatedAt: text('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.exerciseId, t.muscle] })],

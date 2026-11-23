@@ -12,9 +12,8 @@ import { listHistory } from '../history';
 import { DatesTakenError, importHistory, NoSelfError } from '../import';
 import { sessionExercises, sessions, sets } from '../schema';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
-import { createTestDb } from '../testing/testDb';
 import type { Db } from '../types';
-import { exerciseId, seedLibrary } from '../testing/library';
+import { exerciseId, seededTestDb } from '../testing/library';
 
 const SAMPLE = fs.readFileSync(
   path.join(__dirname, '..', '..', 'tests', 'fixtures', 'sessions-sample.csv'),
@@ -22,8 +21,7 @@ const SAMPLE = fs.readFileSync(
 );
 
 function setup({ withSelf = true } = {}) {
-  const db = createTestDb();
-  seedLibrary(db);
+  const db = seededTestDb();
   const me = withSelf
     ? createClient(db, { firstName: 'Me', isSelf: true, weightKg: 82, weightDate: '2026-10-01' })
     : null;

@@ -46,7 +46,9 @@ export type SyncResult = {
 export function syncLibrary(db: DbOrTx, seed: SeedExercise[]): SyncResult {
   const version = Number(getSetting(db, LIBRARY_VERSION) ?? '1');
   const result =
-    version < SEED_VERSION ? upgrade(db, seed) : { ...addNew(db, seed), mapped: 0, dropped: 0, sessionsDeleted: 0 };
+    version < SEED_VERSION
+      ? upgrade(db, seed)
+      : { ...addNew(db, seed), mapped: 0, dropped: 0, sessionsDeleted: 0 };
   if (version < SEED_VERSION) setSetting(db, LIBRARY_VERSION, String(SEED_VERSION));
   return result;
 }
@@ -86,7 +88,11 @@ function upgrade(db: DbOrTx, seed: SeedExercise[]): SyncResult {
     }
     insertChildren(db, [{ id, s, aliases }], now);
   }
-  const inserted = insertExercises(db, plan.insert.map((i) => seed[i]), now);
+  const inserted = insertExercises(
+    db,
+    plan.insert.map((i) => seed[i]),
+    now,
+  );
   return { mapped: plan.map.length, dropped: plan.drop.length, inserted, sessionsDeleted };
 }
 
@@ -158,7 +164,13 @@ function insertExercises(db: DbOrTx, seed: SeedExercise[], now: string): number 
   for (const part of chunks(rows)) {
     db.insert(exercises)
       .values(
-        part.map(({ id, s }) => ({ id, ...exerciseColumns(s), isCustom: false, createdAt: now, updatedAt: now })),
+        part.map(({ id, s }) => ({
+          id,
+          ...exerciseColumns(s),
+          isCustom: false,
+          createdAt: now,
+          updatedAt: now,
+        })),
       )
       .run();
   }
@@ -172,8 +184,18 @@ function insertChildren(
   now: string,
 ) {
   const muscles = rows.flatMap(({ id, s }) => [
-    ...s.primaryMuscles.map((muscle) => ({ exerciseId: id, muscle, role: 'primary' as const, updatedAt: now })),
-    ...s.secondaryMuscles.map((muscle) => ({ exerciseId: id, muscle, role: 'secondary' as const, updatedAt: now })),
+    ...s.primaryMuscles.map((muscle) => ({
+      exerciseId: id,
+      muscle,
+      role: 'primary' as const,
+      updatedAt: now,
+    })),
+    ...s.secondaryMuscles.map((muscle) => ({
+      exerciseId: id,
+      muscle,
+      role: 'secondary' as const,
+      updatedAt: now,
+    })),
   ]);
   for (const part of chunks(muscles)) db.insert(exerciseMuscles).values(part).run();
   const aliases = rows.flatMap(({ id, aliases: list }) =>
@@ -181,4 +203,3 @@ function insertChildren(
   );
   for (const part of chunks(aliases)) db.insert(exerciseAliases).values(part).run();
 }
-
