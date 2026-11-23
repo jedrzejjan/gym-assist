@@ -46,7 +46,7 @@ function setup() {
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
   const id = (name: string) =>
     exerciseId(db, name);
-  return { db, anna, jan, squat: id('Back squat'), bench: id('Bench press') };
+  return { db, anna, jan, squat: id('Back Squat'), bench: id('Bench Press') };
 }
 
 test('startSession makes a draft for the client on that date', () => {
@@ -79,8 +79,8 @@ test('addExerciseToSession appends at the end of the list', () => {
   const a = addExerciseToSession(db, sid, squat);
   const b = addExerciseToSession(db, sid, bench);
   expect(listSessionExercises(db, sid).map((e) => [e.id, e.nameEn, e.position])).toEqual([
-    [a, 'Back squat', 1],
-    [b, 'Bench press', 2],
+    [a, 'Back Squat', 1],
+    [b, 'Bench Press', 2],
   ]);
   expect(getDraft(db)!.exerciseCount).toBe(2);
 });
@@ -253,7 +253,7 @@ describe('sets', () => {
     const { db, anna, bench, seId } = withExercise();
     addSet(db, seId, { weightKg: 60, reps: 8 });
     const d = exerciseScreenData(db, seId)!;
-    expect(d.exercise).toMatchObject({ id: bench, nameEn: 'Bench press', usesBodyweight: false });
+    expect(d.exercise).toMatchObject({ id: bench, nameEn: 'Bench Press', usesBodyweight: false });
     expect(d.sets.map((x) => [x.setNo, x.weightKg, x.reps])).toEqual([[1, 60, 8]]);
     expect(d.oneRepMax).toBeNull();
     expect(d.bodyWeight).toEqual({ valueKg: 63.5, date: '2026-10-01' });
@@ -285,7 +285,7 @@ describe('finish, discard, reorder, remove, resume', () => {
     discardSession(db, empty);
     const { sid } = (() => {
       const s2 = startSession(db, anna, '2026-11-11');
-      addExerciseToSession(db, s2, listExercises(db, { search: 'Bench press' })[0].id);
+      addExerciseToSession(db, s2, listExercises(db, { search: 'Bench Press' })[0].id);
       return { sid: s2 };
     })();
     finishSession(db, sid);

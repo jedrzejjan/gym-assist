@@ -8,8 +8,8 @@ import type { DbOrTx } from './types';
 
 /**
  * One row per session exercise with at least one set, in the client's finished sessions: the
- * session date, the exercise's pattern and its muscles. A draft never counts. Two queries in
- * all, however long the history is.
+ * session date, the exercise's pattern and its primary muscles (only those count, GYM-149). A
+ * draft never counts. Two queries in all, however long the history is.
  */
 export function trainedFor(db: DbOrTx, clientId: string): Trained[] {
   const rows = db
@@ -37,13 +37,13 @@ export function trainedFor(db: DbOrTx, clientId: string): Trained[] {
   for (const m of db
     .select({ exerciseId: exerciseMuscles.exerciseId, muscle: exerciseMuscles.muscle })
     .from(exerciseMuscles)
-    .where(inArray(exerciseMuscles.exerciseId, ids))
+    .where(and(inArray(exerciseMuscles.exerciseId, ids), eq(exerciseMuscles.role, 'primary')))
     .all()) {
     musclesOf.set(m.exerciseId, [...(musclesOf.get(m.exerciseId) ?? []), m.muscle as Muscle]);
   }
   return rows.map((r) => ({
     date: r.date,
-    pattern: r.pattern as Pattern,
+    pattern: r.pattern as Pattern | null,
     muscles: musclesOf.get(r.exerciseId) ?? [],
   }));
 }

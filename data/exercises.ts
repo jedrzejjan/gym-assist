@@ -1,106 +1,185 @@
-import { asc, count, eq, sql } from 'drizzle-orm';
+// Reading and adding exercises (spec section 5; GYM-144, GYM-149). The library has 831 rows:
+// lists read everything in three queries and filter, search and sort in JS, where Polish letters
+// fold properly (SQLite's lower() folds ASCII only).
+import { count, eq, isNotNull, sql } from 'drizzle-orm';
 
 import {
-  type Category,
+  type Equipment,
+  type Level,
   type Muscle,
   type Pattern,
   PATTERNS,
+  type Subcategory,
+  subcategoryFits,
   type TrainingType,
 } from '../domain/catalogue';
-import { exerciseMuscles, exercises } from './schema';
+import { foldName } from '../domain/library';
+import { exerciseAliases, exerciseMuscles, exercises } from './schema';
 import { type DbOrTx, newId, nowIso } from './types';
+
+export { foldName };
 
 export type ExerciseListItem = {
   id: string;
   nameEn: string;
   namePl: string | null;
-  pattern: Pattern;
+  pattern: Pattern | null;
+  subcategory: Subcategory | null;
+  equipment: Equipment;
+  primaryMuscles: Muscle[];
+  importance: number;
   usesBodyweight: boolean;
   isCustom: boolean;
+  /** The alias a search matched, when neither the English nor the Polish name did. */
+  matchedAlias: string | null;
 };
 
 export type ExerciseDetail = ExerciseListItem & {
-  category: string;
-  trainingType: string;
-  muscles: Muscle[];
+  trainingType: TrainingType;
+  secondaryMuscles: Muscle[];
+  unilateral: boolean;
+  level: Level | null;
+  aliases: string[];
 };
 
-import { foldName } from '../domain/library';
+type Row = typeof exercises.$inferSelect;
 
-export { foldName };
+/** Every exercise with its muscles by role and its aliases. Muscles keep their saved order. */
+function loadAll(db: DbOrTx, id?: string) {
+  const rows = (
+    id ? db.select().from(exercises).where(eq(exercises.id, id)) : db.select().from(exercises)
+  ).all();
+  const muscles = new Map<string, { primary: Muscle[]; secondary: Muscle[] }>();
+  // rowid order is the order the muscles were saved in (the seed's order).
+  for (const m of (id
+    ? db.select().from(exerciseMuscles).where(eq(exerciseMuscles.exerciseId, id))
+    : db.select().from(exerciseMuscles)
+  )
+    .orderBy(sql`rowid`)
+    .all()) {
+    const entry = muscles.get(m.exerciseId) ?? { primary: [], secondary: [] };
+    entry[m.role].push(m.muscle as Muscle);
+    muscles.set(m.exerciseId, entry);
+  }
+  const aliases = new Map<string, string[]>();
+  for (const a of (id
+    ? db.select().from(exerciseAliases).where(eq(exerciseAliases.exerciseId, id))
+    : db.select().from(exerciseAliases)
+  ).all()) {
+    aliases.set(a.exerciseId, [...(aliases.get(a.exerciseId) ?? []), a.alias]);
+  }
+  return rows.map((r) => ({
+    row: r,
+    muscles: muscles.get(r.id) ?? { primary: [], secondary: [] },
+    aliases: aliases.get(r.id) ?? [],
+  }));
+}
 
-const listColumns = {
-  id: exercises.id,
-  nameEn: exercises.nameEn,
-  namePl: exercises.namePl,
-  pattern: exercises.pattern,
-  usesBodyweight: exercises.usesBodyweight,
-  isCustom: exercises.isCustom,
-};
+function listItem(r: Row, primary: Muscle[], matchedAlias: string | null): ExerciseListItem {
+  return {
+    id: r.id,
+    nameEn: r.nameEn,
+    namePl: r.namePl,
+    pattern: r.pattern as Pattern | null,
+    subcategory: r.subcategory as Subcategory | null,
+    equipment: r.equipment as Equipment,
+    primaryMuscles: primary,
+    importance: r.importance,
+    usesBodyweight: r.usesBodyweight,
+    isCustom: r.isCustom,
+    matchedAlias,
+  };
+}
 
-/** Exercises sorted by English name, optionally one pattern, optionally matching a search. */
+const byImportanceThenName = (a: ExerciseListItem, b: ExerciseListItem) =>
+  a.importance - b.importance || a.nameEn.localeCompare(b.nameEn, 'en');
+
+/**
+ * Exercises, optionally one pattern and one subcategory ('other' = none), optionally matching a
+ * search in the English name, the Polish name or an alias (GYM-149). Order: with a search, names
+ * that start with the text first; then importance (1 first); then the English name.
+ */
 export function listExercises(
   db: DbOrTx,
-  f: { pattern?: Pattern; search?: string },
+  f: { pattern?: Pattern; subcategory?: Subcategory | 'other'; search?: string },
 ): ExerciseListItem[] {
-  const rows = db.select(listColumns).from(exercises).all() as ExerciseListItem[];
   const search = f.search ? foldName(f.search) : '';
-  return rows
-    .filter((e) => !f.pattern || e.pattern === f.pattern)
-    .filter(
-      (e) =>
-        !search ||
-        foldName(e.nameEn).includes(search) ||
-        (e.namePl !== null && foldName(e.namePl).includes(search)),
-    )
-    .sort((a, b) => a.nameEn.localeCompare(b.nameEn, 'en'));
+  const out: (ExerciseListItem & { starts: boolean })[] = [];
+  for (const { row, muscles, aliases } of loadAll(db)) {
+    if (f.pattern && row.pattern !== f.pattern) continue;
+    if (f.subcategory === 'other' && row.subcategory !== null) continue;
+    if (f.subcategory && f.subcategory !== 'other' && row.subcategory !== f.subcategory) continue;
+    let matchedAlias: string | null = null;
+    let starts = false;
+    if (search) {
+      const names = [row.nameEn, row.namePl].filter((n): n is string => n !== null).map(foldName);
+      if (names.some((n) => n.includes(search))) {
+        starts = names.some((n) => n.startsWith(search));
+      } else {
+        const alias = aliases.find((a) => foldName(a).includes(search));
+        if (alias === undefined) continue;
+        matchedAlias = alias;
+        starts = foldName(alias).startsWith(search);
+      }
+    }
+    out.push({ ...listItem(row, muscles.primary, matchedAlias), starts });
+  }
+  return out
+    .sort((a, b) => Number(b.starts) - Number(a.starts) || byImportanceThenName(a, b))
+    .map(({ starts: _starts, ...item }) => item);
 }
 
 export function getExercise(db: DbOrTx, id: string): ExerciseDetail | null {
-  const row = db
-    .select({ ...listColumns, category: exercises.category, trainingType: exercises.trainingType })
-    .from(exercises)
-    .where(eq(exercises.id, id))
-    .get();
-  if (!row) return null;
-  // Muscles in the order they were saved (the seed's order). Best effort: rowid order survives
-  // normal use, but VACUUM may renumber rows. If the order ever matters, add a position column.
-  const muscles = db
-    .select({ muscle: exerciseMuscles.muscle })
-    .from(exerciseMuscles)
-    .where(eq(exerciseMuscles.exerciseId, id))
-    .orderBy(asc(sql`rowid`))
-    .all()
-    .map((m) => m.muscle as Muscle);
-  return { ...(row as Omit<ExerciseDetail, 'muscles'>), muscles };
+  const [found] = loadAll(db, id);
+  if (!found) return null;
+  const { row, muscles, aliases } = found;
+  return {
+    ...listItem(row, muscles.primary, null),
+    trainingType: row.trainingType as TrainingType,
+    secondaryMuscles: muscles.secondary,
+    unilateral: row.unilateral,
+    level: row.level as Level | null,
+    aliases,
+  };
 }
 
 export function countExercises(db: DbOrTx): number {
   return db.select({ n: count() }).from(exercises).get()!.n;
 }
 
-/** How many exercises each pattern has, with 0 for empty ones (the "by pattern" list). */
+/** How many exercises each of the 5 patterns has (the "by pattern" list); cardio isn't one. */
 export function countByPattern(db: DbOrTx): Record<Pattern, number> {
   const counts = Object.fromEntries(PATTERNS.map((p) => [p, 0])) as Record<Pattern, number>;
-  const rows = db
+  for (const r of db
     .select({ pattern: exercises.pattern, n: count() })
     .from(exercises)
+    .where(isNotNull(exercises.pattern))
     .groupBy(exercises.pattern)
-    .all();
-  for (const r of rows) {
-    if (r.pattern in counts) counts[r.pattern as Pattern] = r.n;
+    .all()) {
+    if (r.pattern! in counts) counts[r.pattern as Pattern] = r.n;
   }
   return counts;
+}
+
+/** Every English name and alias: what the CSV import may refer to. */
+export function allExerciseNames(db: DbOrTx): string[] {
+  return [
+    ...db.select({ n: exercises.nameEn }).from(exercises).all(),
+    ...db.select({ n: exerciseAliases.alias }).from(exerciseAliases).all(),
+  ].map((r) => r.n);
 }
 
 export type NewExercise = {
   nameEn: string;
   namePl?: string;
-  category: Category;
   trainingType: TrainingType;
-  pattern: Pattern;
+  /** Ignored (saved as none) for Cardio. */
+  pattern: Pattern | null;
+  subcategory: Subcategory | null;
+  equipment: Equipment;
+  primaryMuscles: Muscle[];
+  unilateral: boolean;
   usesBodyweight: boolean;
-  muscles: Muscle[];
 };
 
 /** "An exercise with this name already exists" (spec section 5, Add exercise). */
@@ -112,48 +191,53 @@ export class DuplicateNameError extends Error {
 }
 
 /**
- * Saves a custom exercise (`is_custom = 1`) with its muscles. The English name is trimmed and must
- * be unique ignoring case; the check is in JS (Polish letters fold too), the index is the backstop.
+ * Saves the trainer's own exercise (`is_custom = 1`, importance 1 so it lists first; GYM-149).
+ * The English name is trimmed and must differ, ignoring case, from every English name and alias;
+ * the check is in JS (Polish letters fold too), the unique indexes are the backstop. Cardio has
+ * no pattern. Muscles are saved as primary (Add exercise asks for those only).
  * Call it inside one `mutate` from the screen.
  */
 export function addCustomExercise(db: DbOrTx, e: NewExercise): string {
   const nameEn = e.nameEn.trim();
   if (!nameEn) throw new Error('An exercise needs an English name');
+  if (e.primaryMuscles.length === 0) throw new Error('An exercise needs a primary muscle');
+  const cardio = e.trainingType === 'Cardio';
+  const pattern = cardio ? null : e.pattern;
+  const subcategory = cardio ? null : e.subcategory;
+  if (!cardio && pattern === null) throw new Error('An exercise needs a pattern');
+  if (!subcategoryFits(pattern, subcategory)) {
+    throw new Error(`${subcategory} is not a subcategory of ${pattern}`);
+  }
   const key = foldName(nameEn);
-  const taken = db
-    .select({ nameEn: exercises.nameEn })
-    .from(exercises)
-    .all()
-    .some((x) => foldName(x.nameEn) === key);
-  if (taken) throw new DuplicateNameError(nameEn);
+  if (allExerciseNames(db).some((n) => foldName(n) === key)) throw new DuplicateNameError(nameEn);
+
   const id = newId();
   const now = nowIso();
   try {
-    insertCustom(db, id, nameEn, e, now);
+    db.insert(exercises)
+      .values({
+        id,
+        nameEn,
+        namePl: e.namePl?.trim() || null,
+        trainingType: e.trainingType,
+        pattern,
+        subcategory,
+        equipment: e.equipment,
+        unilateral: e.unilateral,
+        usesBodyweight: e.usesBodyweight,
+        importance: 1,
+        isCustom: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
   } catch (err) {
     // The lower(name_en) index is the backstop: report it the same way as the JS check.
     if (String(err).includes('UNIQUE')) throw new DuplicateNameError(nameEn);
     throw err;
   }
-  for (const muscle of e.muscles) {
-    db.insert(exerciseMuscles).values({ exerciseId: id, muscle, updatedAt: now }).run();
-  }
-  return id;
-}
-
-function insertCustom(db: DbOrTx, id: string, nameEn: string, e: NewExercise, now: string) {
-  db.insert(exercises)
-    .values({
-      id,
-      nameEn,
-      namePl: e.namePl?.trim() || null,
-      category: e.category,
-      trainingType: e.trainingType,
-      pattern: e.pattern,
-      usesBodyweight: e.usesBodyweight,
-      isCustom: true,
-      createdAt: now,
-      updatedAt: now,
-    })
+  db.insert(exerciseMuscles)
+    .values(e.primaryMuscles.map((muscle) => ({ exerciseId: id, muscle, role: 'primary' as const, updatedAt: now })))
     .run();
+  return id;
 }

@@ -51,7 +51,7 @@ test('strengthList: finished sessions only, most recently trained first, with th
   log(s.db, s.anna, '2026-11-05', [[s.ex('Bench press'), [[50, 8]]]]);
   log(s.db, s.anna, '2026-11-07', [[s.ex('Deadlift'), [[200, 1]]]], false); // a draft
   const list = strengthList(s.db, s.anna);
-  expect(list.map((e) => e.nameEn)).toEqual(['Bench press', 'Back squat']);
+  expect(list.map((e) => e.nameEn)).toEqual(['Bench Press', 'Back Squat']);
   expect(list[1].best).toMatchObject({
     loadKg: 92.5,
     reps: 3,
@@ -91,7 +91,7 @@ test('an exercise with a stored 1RM is listed even if never trained; no comparab
   setOneRepMax(s.db, s.anna, s.ex('Bench press'), 60, 'manual');
   log(s.db, s.anna, '2026-11-05', [[s.ex('Treadmill run'), [[null, null]]]]);
   const list = strengthList(s.db, s.anna);
-  expect(list.map((e) => e.nameEn)).toEqual(['Treadmill run', 'Bench press']);
+  expect(list.map((e) => e.nameEn)).toEqual(['Running, Treadmill', 'Bench Press']);
   expect(list[0].best).toBeNull();
   expect(list[1]).toMatchObject({ best: null, oneRepMax: { valueKg: 60, source: 'manual' } });
 });
@@ -174,11 +174,11 @@ describe('estimateAll (GYM-134)', () => {
     expect(estimateAll(s.db, s.anna)).toEqual({ set: 1, updated: 1 });
     expect(rows(s.db)).toBe(before + 2);
     const orm = (name: string) => currentOneRepMax(s.db, s.anna, s.ex(name));
-    expect(orm('Back squat')).toMatchObject({ valueKg: 101.75, source: 'estimated' });
-    expect(orm('Overhand pull-up')).toMatchObject({ valueKg: 88.2, source: 'estimated' });
-    expect(orm('Bench press')).toMatchObject({ valueKg: 70, source: 'manual' });
+    expect(orm('Back Squat')).toMatchObject({ valueKg: 101.75, source: 'estimated' });
+    expect(orm('Pull-Up')).toMatchObject({ valueKg: 88.2, source: 'estimated' });
+    expect(orm('Bench Press')).toMatchObject({ valueKg: 70, source: 'manual' });
     expect(orm('Deadlift')).toMatchObject({ valueKg: 116.67, source: 'estimated' });
-    expect(orm('Treadmill run')).toBeNull();
+    expect(orm('Running, Treadmill')).toBeNull();
   });
 
   test('a second run changes nothing', () => {

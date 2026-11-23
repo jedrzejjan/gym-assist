@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { getSelf } from '../../data/clients';
-import { listExercises } from '../../data/exercises';
+import { allExerciseNames } from '../../data/exercises';
 import { pickTextFile } from '../../data/files';
 import { DatesTakenError, importHistory } from '../../data/import';
 import { mutate, useDb, useLive } from '../../data/live';
@@ -53,7 +53,7 @@ export default function ImportScreen() {
         return;
       }
       if (!file) return; // cancelled
-      const names = new Set(listExercises(db, {}).map((e) => e.nameEn));
+      const names = new Set(allExerciseNames(db)); // English names and aliases (GYM-149)
       const check = validateImport(parseCsv(file.text), names, todayLocal(new Date()));
       if (!check.ok) {
         setState({

@@ -7,14 +7,14 @@ import path from 'node:path';
 import { parseCsv } from '../../domain/csv';
 import { validateImport } from '../../domain/importRows';
 import { createClient } from '../clients';
-import { listExercises } from '../exercises';
+import { allExerciseNames } from '../exercises';
 import { listHistory } from '../history';
 import { DatesTakenError, importHistory, NoSelfError } from '../import';
 import { sessionExercises, sessions, sets } from '../schema';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
 import { createTestDb } from '../testing/testDb';
 import type { Db } from '../types';
-import { seedLibrary } from '../testing/library';
+import { exerciseId, seedLibrary } from '../testing/library';
 
 const SAMPLE = fs.readFileSync(
   path.join(__dirname, '..', '..', 'tests', 'fixtures', 'sessions-sample.csv'),
@@ -32,7 +32,7 @@ function setup({ withSelf = true } = {}) {
 }
 
 function sampleRows(db: Db) {
-  const names = new Set(listExercises(db, {}).map((e) => e.nameEn));
+  const names = new Set(allExerciseNames(db));
   const r = validateImport(parseCsv(SAMPLE), names, '2026-11-12');
   if (!r.ok) throw new Error(r.message);
   return r.rows;
@@ -84,7 +84,7 @@ test('the sample imports 8 sessions into Me with every column kept', () => {
 
 test('a bodyweight set with weight "0" is kept as 0 added load, not blank', () => {
   const { db } = setup();
-  const names = new Set(listExercises(db, {}).map((e) => e.nameEn));
+  const names = new Set(allExerciseNames(db));
   const header = 'date,exercise_en,set_no,side,weight_kg,reps,height_cm,speed_kmh,minutes,note';
   const r = validateImport(
     parseCsv(`${header}
@@ -112,17 +112,16 @@ test('exercises keep the order of their first appearance in a day', () => {
     .all()
     .filter((e) => e.sessionId === nov6.id)
     .sort((a, b) => a.position - b.position);
-  const names = new Map(listExercises(db, {}).map((e) => [e.id, e.nameEn]));
-  expect(items.map((e) => names.get(e.exerciseId))).toEqual([
-    'Overhand pull-up',
-    'Kettlebell swing',
+  expect(items.map((e) => e.exerciseId)).toEqual([
+    exerciseId(db, 'Overhand pull-up'),
+    exerciseId(db, 'Kettlebell swing'),
   ]);
 });
 
 test('a date Me already has is refused with nothing written', () => {
   const { db, me } = setup();
   const sid = startSession(db, me!, '2026-11-09');
-  addSet(db, addExerciseToSession(db, sid, listExercises(db, { search: 'Deadlift' })[0].id), {
+  addSet(db, addExerciseToSession(db, sid, exerciseId(db, 'Deadlift')), {
     weightKg: 100,
     reps: 5,
   });
@@ -144,4 +143,21 @@ test('no Me throws NoSelfError', () => {
   const { db } = setup({ withSelf: false });
   expect(() => importHistory(db, sampleRows(db))).toThrow(NoSelfError);
   expect(db.select().from(sessions).all()).toEqual([]);
+});
+
+test('an old app name in the CSV imports into the renamed exercise (it is an alias now)', () => {
+  const { db } = setup();
+  const header = 'date,exercise_en,set_no,side,weight_kg,reps,height_cm,speed_kmh,minutes,note';
+  const r = validateImport(
+    parseCsv(`${header}
+2026-11-01,Treadmill run,1,,,,,10,20,
+`),
+    new Set(allExerciseNames(db)),
+    '2026-11-12',
+  );
+  if (!r.ok) throw new Error(r.message);
+  importHistory(db, r.rows);
+  expect(db.select().from(sessionExercises).get()!.exerciseId).toBe(
+    exerciseId(db, 'Running, Treadmill'),
+  );
 });
