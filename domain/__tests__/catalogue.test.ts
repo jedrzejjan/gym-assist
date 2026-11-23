@@ -1,85 +1,103 @@
 import {
-  CATEGORIES,
-  categoryForPattern,
-  displayName,
-  exerciseSubtitle,
+  chooseRowText,
+  EQUIPMENT,
+  equipmentName,
+  LEVELS,
+  libraryRowText,
+  MECHANICS,
   MUSCLES,
   muscleList,
   muscleName,
+  patternName,
   PATTERNS,
+  SUBCATEGORIES,
+  subcategoryName,
   TRAINING_TYPES,
 } from '../catalogue';
 
-test('categoryForPattern derives the hidden category from the pattern (GYM-99)', () => {
-  expect(categoryForPattern('KD')).toBe('KD');
-  expect(categoryForPattern('HD')).toBe('HD');
-  expect(categoryForPattern('Push vertical')).toBe('Push');
-  expect(categoryForPattern('Push horizontal')).toBe('Push');
-  expect(categoryForPattern('Pull vertical')).toBe('Pull');
-  expect(categoryForPattern('Pull horizontal')).toBe('Pull');
-  expect(categoryForPattern('Anti flexion')).toBe('Core');
-  expect(categoryForPattern('Anti extension')).toBe('Core');
-  expect(categoryForPattern('Carries')).toBe('Core');
-  expect(categoryForPattern('none')).toBe('Core');
-});
-
-test('the fixed lists are exactly those in spec section 5', () => {
-  expect(CATEGORIES).toEqual(['KD', 'HD', 'Push', 'Pull', 'Core']);
+test('the 5 patterns, in the owner order (GYM-149)', () => {
+  expect(PATTERNS).toEqual(['KD', 'HD', 'Push', 'Pull', 'Core']);
   expect(TRAINING_TYPES).toEqual(['Strength', 'Plyometric', 'Power', 'Cardio']);
-  expect(PATTERNS).toEqual([
-    'KD',
-    'HD',
-    'Push vertical',
-    'Push horizontal',
-    'Pull vertical',
-    'Pull horizontal',
-    'Anti flexion',
-    'Anti extension',
-    'Carries',
-    'none',
-  ]);
 });
 
-test('there are 12 muscles, with Polish names from the legacy tool', () => {
-  expect(MUSCLES).toHaveLength(12);
+test('pattern names: KD and HD spelled out, no pattern reads Cardio', () => {
+  expect(patternName('KD')).toBe('Knee dominant');
+  expect(patternName('HD')).toBe('Hip dominant');
+  expect(patternName('Push')).toBe('Push');
+  expect(patternName(null)).toBe('Cardio');
+});
+
+test('subcategories belong to Push, Pull and Core only', () => {
+  expect(SUBCATEGORIES.Push).toEqual(['vertical', 'horizontal']);
+  expect(SUBCATEGORIES.Pull).toEqual(['vertical', 'horizontal']);
+  expect(SUBCATEGORIES.Core).toEqual(['anti-extension', 'anti-rotation', 'carry']);
+  expect(SUBCATEGORIES.KD).toEqual([]);
+  expect(SUBCATEGORIES.HD).toEqual([]);
+  expect(subcategoryName('vertical')).toBe('Vertical');
+  expect(subcategoryName('anti-rotation')).toBe('Anti-rotation');
+  expect(subcategoryName(null)).toBe('Other');
+});
+
+test('equipment, level and mechanic lists', () => {
+  expect(EQUIPMENT).toEqual([
+    'barbell',
+    'dumbbell',
+    'kettlebell',
+    'machine',
+    'cable',
+    'bodyweight',
+    'band',
+    'other',
+  ]);
+  expect(equipmentName('barbell')).toBe('Barbell');
+  expect(LEVELS).toEqual(['beginner', 'intermediate', 'advanced']);
+  expect(MECHANICS).toEqual(['compound', 'isolation']);
+});
+
+test('16 muscles, each with an English and a Polish name', () => {
+  expect(MUSCLES).toHaveLength(16);
+  for (const m of ['forearms', 'lower back', 'traps', 'abductors'] as const) {
+    expect(MUSCLES).toContain(m);
+  }
+  for (const m of MUSCLES) {
+    expect(muscleName(m).en).not.toBe('');
+    expect(muscleName(m).pl).not.toBe('');
+  }
   expect(muscleName('upper back')).toEqual({
     en: 'Upper back',
     pl: 'mięśnie górnej części pleców',
   });
-  expect(muscleName('core')).toEqual({ en: 'Core', pl: 'mięśnie tułowia (core)' });
-});
-
-test('KD and HD display as Knee Dominant and Hip Dominant; others unchanged', () => {
-  expect(displayName('KD')).toBe('Knee Dominant');
-  expect(displayName('HD')).toBe('Hip Dominant');
-  expect(displayName('Push vertical')).toBe('Push vertical');
-  expect(displayName('none')).toBe('none');
 });
 
 test('muscleList reads like the design: "Lats, biceps"', () => {
   expect(muscleList(['lats', 'biceps'])).toBe('Lats, biceps');
-  expect(muscleList(['upper back', 'lats'])).toBe('Upper back, lats');
+  expect(muscleList(['lower back'])).toBe('Lower back');
   expect(muscleList([])).toBe('-');
 });
 
-test('exerciseSubtitle follows the library board: PL name, then pattern or BW, then custom', () => {
-  const base = {
-    namePl: 'Przysiad ze sztangą',
-    pattern: 'KD',
-    usesBodyweight: false,
-    isCustom: false,
-  };
-  expect(exerciseSubtitle(base)).toBe('Przysiad ze sztangą · Knee Dominant');
-  expect(exerciseSubtitle({ ...base, namePl: 'Podciąganie nachwytem', usesBodyweight: true })).toBe(
-    'Podciąganie nachwytem · BW',
-  );
+test('library row: Polish name · pattern · equipment (board library / list)', () => {
   expect(
-    exerciseSubtitle({
-      ...base,
-      namePl: 'Pompki na poręczach',
-      usesBodyweight: true,
-      isCustom: true,
-    }),
-  ).toBe('Pompki na poręczach · BW · custom');
-  expect(exerciseSubtitle({ ...base, namePl: null, pattern: 'none' })).toBe('none');
+    libraryRowText({ namePl: 'Przysiad ze sztangą', pattern: 'KD', equipment: 'barbell' }),
+  ).toBe('Przysiad ze sztangą · Knee dominant · Barbell');
+  expect(libraryRowText({ namePl: 'Bieżnia', pattern: null, equipment: 'machine' })).toBe(
+    'Bieżnia · Cardio · Machine',
+  );
+  expect(libraryRowText({ namePl: null, pattern: 'Push', equipment: 'cable' })).toBe(
+    'Push · Cable',
+  );
+});
+
+test('choose row: Polish name · equipment · primary muscles, plus the alias hit', () => {
+  const base = {
+    namePl: 'Wyciskanie sztangi nad głowę',
+    equipment: 'barbell' as const,
+    primaryMuscles: ['shoulders' as const],
+  };
+  expect(chooseRowText(base)).toBe('Wyciskanie sztangi nad głowę · Barbell · Shoulders');
+  expect(chooseRowText({ ...base, matchedAlias: 'military press' })).toBe(
+    'Wyciskanie sztangi nad głowę · Barbell · Shoulders · also: military press',
+  );
+  expect(chooseRowText({ ...base, namePl: null, matchedAlias: null })).toBe(
+    'Barbell · Shoulders',
+  );
 });
