@@ -10,18 +10,18 @@ import {
   countExercises,
   getExercise,
   listExercises,
-  seedExercises,
-} from '../exercises';
+  } from '../exercises';
 import { SEED_EXERCISES } from '../seed/exercises';
 import { createTestDb } from '../testing/testDb';
+import { seedLibrary } from '../testing/library';
 
 const names = (rows: { nameEn: string }[]) => rows.map((r) => r.nameEn);
 
 test('seeding inserts the 23 exercises once', () => {
   const db = createTestDb();
   expect(SEED_EXERCISES).toHaveLength(23);
-  expect(seedExercises(db, SEED_EXERCISES)).toBe(23);
-  expect(seedExercises(db, SEED_EXERCISES)).toBe(0);
+  expect(seedLibrary(db)).toBe(23);
+  expect(seedLibrary(db)).toBe(0);
   expect(countExercises(db)).toBe(23);
 });
 
@@ -31,7 +31,7 @@ test('a custom exercise with a seed name (any case) is kept, and the seed entry 
     sql`INSERT INTO exercises (id, name_en, category, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
         VALUES ('mine', 'back squat', 'KD', 'Strength', 'KD', 0, 1, 'x', 'x')`,
   );
-  expect(seedExercises(db, SEED_EXERCISES)).toBe(22);
+  expect(seedLibrary(db)).toBe(22);
   const squat = listExercises(db, { search: 'back squat' });
   expect(squat).toHaveLength(1);
   expect(squat[0]).toMatchObject({ id: 'mine', nameEn: 'back squat', isCustom: true });
@@ -39,7 +39,7 @@ test('a custom exercise with a seed name (any case) is kept, and the seed entry 
 
 test('only the two pull-ups use body weight', () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const bw = listExercises(db, {}).filter((e) => e.usesBodyweight);
   expect(names(bw).sort()).toEqual(['Overhand pull-up', 'Underhand pull-up']);
 });
@@ -53,7 +53,7 @@ test('seed categories use the codes: "Knee dominant" became KD and "Hip dominant
 
 test('search matches English or Polish names, ignoring case and spaces', () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   expect(names(listExercises(db, { search: 'przysiad' })).sort()).toEqual([
     'Back squat',
     'Bulgarian split squat',
@@ -63,7 +63,7 @@ test('search matches English or Polish names, ignoring case and spaces', () => {
 
 test('search folds Polish letters ("ŁAWCE" finds "…na ławce płaskiej")', () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   expect(names(listExercises(db, { search: 'ŁAWCE' }))).toEqual(
     expect.arrayContaining(['Bench press', 'Single-arm dumbbell bench press']),
   );
@@ -71,7 +71,7 @@ test('search folds Polish letters ("ŁAWCE" finds "…na ławce płaskiej")', ()
 
 test('the pattern filter returns only that pattern, sorted by English name', () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const kd = listExercises(db, { pattern: 'KD' });
   expect(kd.length).toBeGreaterThan(0);
   expect(kd.every((e) => e.pattern === 'KD')).toBe(true);
@@ -80,7 +80,7 @@ test('the pattern filter returns only that pattern, sorted by English name', () 
 
 test('getExercise returns the detail with muscles in the seed order', () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const id = listExercises(db, { search: 'Overhand pull-up' })[0].id;
   expect(getExercise(db, id)).toMatchObject({
     nameEn: 'Overhand pull-up',
@@ -97,7 +97,7 @@ test('getExercise returns the detail with muscles in the seed order', () => {
 
 test('countByPattern counts every pattern, with 0 for empty ones', () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const counts = countByPattern(db);
   expect(counts.Carries).toBe(0);
   expect(counts.HD).toBe(3);
@@ -128,7 +128,7 @@ test('addCustomExercise saves a trimmed, custom exercise with its muscles', () =
 
 test('addCustomExercise refuses a name that already exists, ignoring case and spaces', () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   addCustomExercise(db, dips);
   expect(() => addCustomExercise(db, { ...dips, nameEn: 'Dips' })).toThrow(DuplicateNameError);
   expect(() => addCustomExercise(db, { ...dips, nameEn: 'bench PRESS' })).toThrow(

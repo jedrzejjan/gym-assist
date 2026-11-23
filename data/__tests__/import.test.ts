@@ -7,14 +7,14 @@ import path from 'node:path';
 import { parseCsv } from '../../domain/csv';
 import { validateImport } from '../../domain/importRows';
 import { createClient } from '../clients';
-import { listExercises, seedExercises } from '../exercises';
+import { listExercises } from '../exercises';
 import { listHistory } from '../history';
 import { DatesTakenError, importHistory, NoSelfError } from '../import';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { sessionExercises, sessions, sets } from '../schema';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
 import { createTestDb } from '../testing/testDb';
 import type { Db } from '../types';
+import { seedLibrary } from '../testing/library';
 
 const SAMPLE = fs.readFileSync(
   path.join(__dirname, '..', '..', 'tests', 'fixtures', 'sessions-sample.csv'),
@@ -23,7 +23,7 @@ const SAMPLE = fs.readFileSync(
 
 function setup({ withSelf = true } = {}) {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const me = withSelf
     ? createClient(db, { firstName: 'Me', isSelf: true, weightKg: 82, weightDate: '2026-10-01' })
     : null;

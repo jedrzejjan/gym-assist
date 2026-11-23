@@ -12,9 +12,7 @@ import SessionPage from '../../app/session/[id]/index';
 import Reorder from '../../app/session/[id]/reorder';
 import StartSession from '../../app/session/start';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
 import { DbProvider } from '../../data/live';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import {
   addExerciseToSession,
   addSet,
@@ -28,10 +26,11 @@ import {
 import { setSetting, WELCOME_DONE } from '../../data/settings';
 import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
+import { exerciseId, seedLibrary } from '../../data/testing/library';
 
 function setup() {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   setSetting(db, WELCOME_DONE, '1');
   const anna = createClient(db, {
     firstName: 'Anna',
@@ -41,7 +40,7 @@ function setup() {
   });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
   const ex = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+    exerciseId(db, name);
   return { db, anna, jan, ex };
 }
 

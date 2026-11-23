@@ -1,11 +1,11 @@
 import { fireEvent, screen, within } from '@testing-library/react-native';
 
 import AddExercise from '../../app/library/add';
-import { countExercises, getExercise, listExercises, seedExercises } from '../../data/exercises';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
+import { countExercises, getExercise, listExercises } from '../../data/exercises';
 import { createTestDb } from '../../data/testing/testDb';
 import { renderWithDb } from '../renderWithDb';
 import { mockRouter } from '../routerMock';
+import { seedLibrary } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
@@ -62,7 +62,7 @@ test('saving stores the exercise with muscles and body weight, then goes back', 
 
 test('a name that already exists shows the message and saves nothing', async () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   await renderWithDb(<AddExercise />, db);
   await fillRequired('bench PRESS');
   await fireEvent.press(save());
@@ -91,7 +91,7 @@ test('a double tap on Save exercise saves once', async () => {
 
 test('the duplicate message clears as soon as the name changes', async () => {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   await renderWithDb(<AddExercise />, db);
   await fillRequired('Deadlift');
   await fireEvent.press(save());

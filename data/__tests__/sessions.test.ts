@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { createClient } from '../clients';
-import { listExercises, seedExercises } from '../exercises';
+import { listExercises } from '../exercises';
 import { currentOneRepMax } from '../progress';
 import { oneRepMaxes } from '../schema';
 import {
@@ -30,13 +30,13 @@ import {
   listSessionExercises,
   startSession,
 } from '../sessions';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { logSession } from '../testing/logSession';
 import { createTestDb } from '../testing/testDb';
+import { exerciseId, seedLibrary } from '../testing/library';
 
 function setup() {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
@@ -45,7 +45,7 @@ function setup() {
   });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
   const id = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+    exerciseId(db, name);
   return { db, anna, jan, squat: id('Back squat'), bench: id('Bench press') };
 }
 
@@ -267,7 +267,7 @@ describe('finish, discard, reorder, remove, resume', () => {
   function threeExercises() {
     const s = setup();
     const id = (name: string) =>
-      listExercises(s.db, { search: name }).find((e) => e.nameEn === name)!.id;
+      exerciseId(s.db, name);
     const sid = startSession(s.db, s.anna, '2026-11-10');
     const a = addExerciseToSession(s.db, sid, s.squat);
     const b = addExerciseToSession(s.db, sid, s.bench);

@@ -8,7 +8,6 @@ import {
   type TrainingType,
 } from '../domain/catalogue';
 import { exerciseMuscles, exercises } from './schema';
-import type { SeedExercise } from './seed/exercises';
 import { type DbOrTx, newId, nowIso } from './types';
 
 export type ExerciseListItem = {
@@ -26,11 +25,9 @@ export type ExerciseDetail = ExerciseListItem & {
   muscles: Muscle[];
 };
 
-/**
- * Case folding in JS, not SQL: SQLite's lower() folds ASCII only, so "Ł" would not match "ł".
- * Used for search and for the "same name" check (spec section 6: names are unique ignoring case).
- */
-export const foldName = (s: string) => s.trim().toLocaleLowerCase('pl');
+import { foldName } from '../domain/library';
+
+export { foldName };
 
 const listColumns = {
   id: exercises.id,
@@ -40,48 +37,6 @@ const listColumns = {
   usesBodyweight: exercises.usesBodyweight,
   isCustom: exercises.isCustom,
 };
-
-/**
- * Adds the seed exercises whose English name is not in the library yet, with their muscles.
- * Returns how many were added. A custom exercise with the same name always stays (spec section 6).
- * Call it inside one transaction, so a crash can't leave an exercise without its muscles.
- */
-export function seedExercises(db: DbOrTx, seed: SeedExercise[]): number {
-  const existing = new Set(
-    db
-      .select({ nameEn: exercises.nameEn })
-      .from(exercises)
-      .all()
-      .map((e) => foldName(e.nameEn)),
-  );
-  const now = nowIso();
-  let added = 0;
-  for (const s of seed) {
-    const key = foldName(s.nameEn);
-    if (existing.has(key)) continue;
-    const id = newId();
-    db.insert(exercises)
-      .values({
-        id,
-        nameEn: s.nameEn,
-        namePl: s.namePl,
-        category: s.category,
-        trainingType: s.trainingType,
-        pattern: s.pattern,
-        usesBodyweight: s.usesBodyweight,
-        isCustom: false,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
-    for (const muscle of s.muscles) {
-      db.insert(exerciseMuscles).values({ exerciseId: id, muscle, updatedAt: now }).run();
-    }
-    existing.add(key);
-    added += 1;
-  }
-  return added;
-}
 
 /** Exercises sorted by English name, optionally one pattern, optionally matching a search. */
 export function listExercises(

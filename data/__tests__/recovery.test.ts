@@ -2,19 +2,18 @@
  * @jest-environment node
  */
 import { createClient } from '../clients';
-import { listExercises, seedExercises } from '../exercises';
 import { trainedFor } from '../recovery';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
 import { createTestDb } from '../testing/testDb';
+import { exerciseId, seedLibrary } from '../testing/library';
 
 function setup() {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const anna = createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
   const ex = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+    exerciseId(db, name);
   return { db, anna, jan, ex };
 }
 

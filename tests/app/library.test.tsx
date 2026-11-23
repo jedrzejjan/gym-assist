@@ -3,17 +3,17 @@ import { sql } from 'drizzle-orm';
 
 import ExerciseDetailScreen from '../../app/library/[id]';
 import Library from '../../app/library/index';
-import { listExercises, seedExercises } from '../../data/exercises';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
+import { listExercises } from '../../data/exercises';
 import { createTestDb } from '../../data/testing/testDb';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';
+import { seedLibrary } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
 function seededDb() {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   return db;
 }
 

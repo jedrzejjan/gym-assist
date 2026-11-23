@@ -5,11 +5,9 @@ import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testin
 import SessionExercise from '../../app/session/[id]/exercise/[seId]';
 import SessionPage from '../../app/session/[id]/index';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
 import { DbProvider } from '../../data/live';
 import { addWeight } from '../../data/measurements';
 import { oneRepMaxes } from '../../data/schema';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import {
   addExerciseToSession,
   addSet,
@@ -19,10 +17,11 @@ import {
 } from '../../data/sessions';
 import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
+import { exerciseId, seedLibrary } from '../../data/testing/library';
 
 function setup(exercise = 'Bench press', date = '2026-11-10') {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
@@ -30,7 +29,7 @@ function setup(exercise = 'Bench press', date = '2026-11-10') {
     weightDate: '2026-10-01',
   });
   addWeight(db, anna, '2026-11-07', 82, { replace: false });
-  const exerciseId = listExercises(db, { search: exercise }).find((e) => e.nameEn === exercise)!.id;
+  const exerciseId = exerciseId(db, exercise);
   const sid = startSession(db, anna, date);
   const seId = addExerciseToSession(db, sid, exerciseId);
   return { db, anna, exerciseId, sid, seId };

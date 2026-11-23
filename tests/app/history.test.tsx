@@ -4,8 +4,6 @@ import HistoryTab from '../../app/clients/[id]/history';
 import ClientScreen from '../../app/clients/[id]/index';
 import SessionSummary from '../../app/session/[id]/summary';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import {
   addExerciseToSession,
   addSet,
@@ -17,12 +15,13 @@ import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';
+import { exerciseId, seedLibrary } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
 function setup() {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
@@ -30,7 +29,7 @@ function setup() {
     weightDate: '2026-10-01',
   });
   const ex = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+    exerciseId(db, name);
   return { db, anna, ex };
 }
 

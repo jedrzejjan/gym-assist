@@ -13,18 +13,17 @@ import Patterns from '../../app/session/[id]/patterns';
 import SearchExercises from '../../app/session/[id]/search';
 import StartSession from '../../app/session/start';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
 import { DbProvider } from '../../data/live';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import { getDraft, listSessionExercises, startSession } from '../../data/sessions';
 import { logSession } from '../../data/testing/logSession';
 import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
 import { fixToday } from '../fixedToday';
+import { exerciseId, seedLibrary } from '../../data/testing/library';
 
 function setup() {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
@@ -32,7 +31,7 @@ function setup() {
     weightDate: '2026-10-01',
   });
   const exerciseId = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+    exerciseId(db, name);
   return { db, anna, exerciseId };
 }
 

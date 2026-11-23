@@ -7,15 +7,14 @@ import CreateProfile from '../../app/create-profile';
 import ImportScreen from '../../app/settings/import';
 import Settings from '../../app/settings/index';
 import { createClient, getSelf } from '../../data/clients';
-import { seedExercises } from '../../data/exercises';
 import { pickTextFile } from '../../data/files';
 import { listHistory } from '../../data/history';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import { setSetting, WELCOME_DONE } from '../../data/settings';
 import { createTestDb } from '../../data/testing/testDb';
 import { fixToday } from '../fixedToday';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';
+import { seedLibrary } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 jest.mock('../../data/files', () => ({
@@ -38,7 +37,7 @@ beforeEach(() => {
 
 function setup({ withSelf = true } = {}) {
   const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   setSetting(db, WELCOME_DONE, '1');
   if (withSelf) {
     createClient(db, { firstName: 'Me', isSelf: true, weightKg: 82, weightDate: '2026-10-01' });
