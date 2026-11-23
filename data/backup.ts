@@ -7,6 +7,7 @@ import journal from './migrations/meta/_journal.json';
 import {
   appSettings,
   clients,
+  exerciseAliases,
   exerciseMuscles,
   exercises,
   measurements,
@@ -25,6 +26,7 @@ export const BACKUP_TABLES: { name: string; table: SQLiteTable }[] = [
   clients,
   exercises,
   exerciseMuscles,
+  exerciseAliases,
   measurements,
   oneRepMaxes,
   sessions,
