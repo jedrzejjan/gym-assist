@@ -12,6 +12,18 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-24: The library upgrade runs in app code, once, keyed by a version (GYM-144, GYM-149)
+- **Decision (owner-approved plan):** migration 0001 changes the schema only. A JS step, `syncLibrary` (`data/library.ts`), runs at every start in one transaction. Below `library.version = 2` it maps the old exercises onto the 831-exercise library by name or alias (ids and history stay), deletes the unmatched ones with their history and emptied sessions, and inserts the rest. At version 2 it only adds exercises whose names are all free.
+- **Why:** matching by aliases with Polish case folding needs JS, not SQL. The version key makes the destructive part happen exactly once, so a custom exercise added after the upgrade is never deleted on a later start.
+- **Alternative not taken:** data changes inside the SQL migration (no alias or case-folding logic in SQLite), or re-running the mapping at every start (it would delete new custom exercises).
+
+### 2026-11-24: Only primary muscles count for Recovery; the golden test is retired (GYM-149)
+- **Decision (owner, 2026-11-23):** the Muscles view counts an exercise's primary muscles only (a bench press refreshes chest, not triceps), and the Patterns view shows the 5 patterns.
+- **Consequence:** `legacy/gym_tracker.py` knows the old 9 patterns and counts every muscle, so the golden-file test against it (GYM-23) can no longer agree; it was removed with its fixtures. The recovery thresholds keep their unit tests, and the new rules have explicit tests. The Sprint 2 phone check against `gym_tracker.py status` must be done on a build before GYM-144.
+
+### 2026-11-24: The hidden `category` column is dropped (GYM-144, reverses GYM-99's "hidden, not dropped")
+- **Decision (owner-approved plan):** with 5 patterns the category equalled the pattern, so it carried no information.
+
 ### 2026-11-14: "Estimate all 1RMs" keeps the 1RMs set by hand (GYM-134)
 - **Decision (owner, after the phone review):**
   - One button estimates every exercise.
@@ -106,6 +118,25 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 - **Why:** one story, one reviewable PR. The split is by what the user can do, not by technical layer.
 
 ## Incidents and bugs
+
+### 2026-11-24: drizzle-kit wrote a migration that would have failed on every phone (GYM-144)
+- **What happened:** `drizzle-kit generate` needs a terminal to ask "is this a rename?" when a column is dropped and others are added, so the migration was generated in two passes and merged. The generated table rebuild then copied the *new* columns from the old table (`INSERT … SELECT "subcategory", "equipment" … FROM exercises`), and it quoted the `lower("name_en")` index expression as a column name. Both would have failed on an updated phone.
+- **How it was caught:** the test "migration 0001 keeps a v1 exercise, its id and its sets", which migrates a real version-1 database (`createTestDbAt(1)`), and every `createTestDb()`.
+- **Fix:** the SQL was corrected by hand (copy only the old columns; unquoted expression), and a fresh `drizzle-kit generate` confirmed "No schema changes", so the snapshot matches the schema.
+- **Lesson:** generated migrations are code: read them, and test them on a database in the old state, not only on a fresh one.
+
+### 2026-11-24: Test expectations came from a superseded mapping (GYM-149)
+- **What happened:** the plan said "Bench press" becomes "Barbell Bench Press - Medium Grip", taken from the GYM-144 mapping table that the owner's library replaced. The owner's library names it "Bench Press".
+- **Caught by:** the first upgrade test run. The test now asserts the real seed, which is the source of truth.
+- **Lesson:** when a ticket says a file is the source of truth, take test values from the file, not from earlier comments.
+
+### 2026-11-24: A bulk test rename made a helper call itself (GYM-149)
+- **What happened:** a scripted change renamed lookups to a new `exerciseId()` helper; in two files a local variable of the same name shadowed it (`const exerciseId = (n) => exerciseId(db, n)`), an endless recursion.
+- **Caught by:** reading the diff before running the app tests. Fixed with an import alias.
+- **Lesson:** after a scripted rename, grep for the new name being defined locally.
+
+### Watch: the legacy CSV still names the removed hip flexor (GYM-149)
+- The owner's real `sessions.csv` has rows for "Hip flexor variation with locked leg", which the library no longer has, so importing that file again would be refused. The import is one-time and already done; GYM-145 converts the backup instead.
 
 ### 2026-11-14: A 0 kg set would have blocked "Estimate all 1RMs" (GYM-134, caught in review)
 - **What the review found:** sets of 0 kg × reps are allowed (jumps, band drills), so their estimate is 0 kg. `setOneRepMax` refuses a 1RM of 0, and because "Estimate all" is one transaction, that one refusal rolled back every other exercise. The owner's real history has three such exercises, so the feature would never have worked after the import.

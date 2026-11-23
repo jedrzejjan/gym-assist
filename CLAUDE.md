@@ -36,7 +36,7 @@ The full design is in `docs/superpowers/specs/2026-10-28-gym-assist-app-design.m
 
 0. **Foundations:** repo, Jira, MCP connections, CI, Expo skeleton.
 1. **UX design in Penpot:** flows, wireframes, then a clickable prototype. Each MVP ticket links to its Penpot board.
-2. **MVP on the phone:** a Home screen (Clients, Settings, Exercise library with Add exercise), an optional "Me" profile, clients with a basic profile (name, gender, date of birth, height, body-weight history), log session (reorder and remove exercises), history (read-only, with edit and delete), recovery, progress (Strength with a stored 1RM, Body with body weight), weight entry in kg or % of 1RM, bodyweight exercises, optional CSV import, JSON export. Kilograms only.
+2. **MVP on the phone:** a Home screen (Clients, Settings, Exercise library with Add exercise; since GYM-149 the library has 831 exercises with aliases, grouped by 5 patterns: Knee dominant, Hip dominant, Push, Pull, Core), an optional "Me" profile, clients with a basic profile (name, gender, date of birth, height, body-weight history), log session (reorder and remove exercises), history (read-only, with edit and delete), recovery, progress (Strength with a stored 1RM, Body with body weight), weight entry in kg or % of 1RM, bodyweight exercises, optional CSV import, JSON export. Kilograms only.
 3. **Backlog after the MVP.** **Terraform for the GitHub repo comes first** (`terraform import`, with state kept out of git). **Planning a session in advance comes second** (GYM-55).
 4. **Play Store:** privacy policy, GDPR, AAB build, testing tracks.
 
@@ -97,7 +97,7 @@ The user is preparing for IT job interviews. When a key concept comes up, explai
 These come from the earlier Gym Assist project, a Python CLI and AI gym assistant. They're here to give context for building the app: the domain logic, the data model and real sample data. They aren't app code, and they'll be removed once the MVP replaces them. In Stage 0 they move to `legacy/`.
 
 - `gym_tracker.py`: the reference implementation. Port its logic to `domain/` and check the app's results against its output, e.g. recovery status and the Epley e1RM.
-- `data/exercises.csv`: seed data for the exercise library (PL/EN names, category, training type, pattern, muscles).
+- `data/exercises.csv`: the first seed of the exercise library (PL/EN names, category, training type, pattern, muscles). Replaced by the owner's 831-exercise library in GYM-149 (`data/seed/exercises.json`).
 - `data/sessions.csv` and `data/visits.csv`: the user's real history, imported into the app as client "Me". Not committed.
 - `plans/training-planner.md`: rules for the backlog item "What should I train today?". Recovery windows are 48 to 72 hours.
 - `profile/`, `reports/` and `plans/training plan.xlsx`: background only. Don't edit them, and don't delete `plans/training plan.xlsx` unless the user confirms.
