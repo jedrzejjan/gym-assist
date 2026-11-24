@@ -14,6 +14,11 @@ test.each([
   'data/sessions.csv',
   'data/visits.csv',
   'legacy/data/sessions.csv',
+  // App backups and converted backups (GYM-145), wherever they are copied in the repo.
+  'gym-assist-backup-2026-11-24.json',
+  'scripts/gym-assist-backup-2026-11-24.json',
+  'docs/gym-assist-converted-v2.json',
+  'local-data/gym-assist-converted-v2.json',
 ])('ignores personal history at %s', (file) => {
   expect(isIgnored(file)).toBe(true);
 });
