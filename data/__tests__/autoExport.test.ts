@@ -3,10 +3,9 @@
  */
 import { backupStatus, startAutoExport, writeBackup } from '../autoExport';
 import { createClient } from '../clients';
-import { listExercises, seedExercises } from '../exercises';
+import { listExercises } from '../exercises';
 import { mutate } from '../live';
 import { addWeight } from '../measurements';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
 import {
   BACKUP_FOLDER_NAME,
@@ -16,13 +15,12 @@ import {
   setSetting,
 } from '../settings';
 import { createFakeFolder } from '../testing/fakeFolder';
-import { createTestDb } from '../testing/testDb';
+import { seededTestDb } from '../testing/library';
 
 const TODAY_FILE = (d: string) => `gym-assist-backup-${d}.json`;
 
 function setup(withClient = true) {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   const anna = withClient
     ? createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' })
     : '';

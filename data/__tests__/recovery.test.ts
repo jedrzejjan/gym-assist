@@ -2,40 +2,35 @@
  * @jest-environment node
  */
 import { createClient } from '../clients';
-import { listExercises, seedExercises } from '../exercises';
 import { trainedFor } from '../recovery';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
-import { createTestDb } from '../testing/testDb';
+import { exerciseId, seededTestDb } from '../testing/library';
 
 function setup() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   const anna = createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
-  const ex = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+  const ex = (name: string) => exerciseId(db, name);
   return { db, anna, jan, ex };
 }
 
-test('trainedFor gives each exercise with a set in a finished session, with pattern and muscles', () => {
+test('trainedFor gives each exercise with a set in a finished session, with its pattern and primary muscles', () => {
   const s = setup();
   const sid = startSession(s.db, s.anna, '2026-11-09');
   addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Back squat')), { weightKg: 80, reps: 5 });
-  addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Med ball slam')), { weightKg: 6, reps: 10 });
+  addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Bench press')), { weightKg: 60, reps: 8 });
+  addSet(s.db, addExerciseToSession(s.db, sid, s.ex('Treadmill run')), {
+    weightKg: null,
+    reps: null,
+  });
   finishSession(s.db, sid);
   const rows = trainedFor(s.db, s.anna);
-  expect(rows).toHaveLength(2);
-  expect(rows).toContainEqual({
-    date: '2026-11-09',
-    pattern: 'KD',
-    muscles: expect.arrayContaining(['quadriceps', 'glutes']),
-  });
-  expect(rows).toContainEqual({
-    date: '2026-11-09',
-    pattern: 'none',
-    muscles: expect.arrayContaining(['core', 'shoulders']),
-  });
+  expect(rows).toHaveLength(3);
+  // Only primary muscles count (GYM-149): the bench press refreshes chest, not triceps.
+  expect(rows).toContainEqual({ date: '2026-11-09', pattern: 'KD', muscles: ['quadriceps'] });
+  expect(rows).toContainEqual({ date: '2026-11-09', pattern: 'Push', muscles: ['chest'] });
+  // Cardio has no pattern but still counts for its muscles.
+  expect(rows).toContainEqual({ date: '2026-11-09', pattern: null, muscles: ['quadriceps'] });
 });
 
 test('a draft and an exercise with no sets do not count', () => {

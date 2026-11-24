@@ -5,11 +5,9 @@ import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testin
 import SessionExercise from '../../app/session/[id]/exercise/[seId]';
 import SessionPage from '../../app/session/[id]/index';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
 import { DbProvider } from '../../data/live';
 import { addWeight } from '../../data/measurements';
 import { oneRepMaxes } from '../../data/schema';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import {
   addExerciseToSession,
   addSet,
@@ -17,12 +15,11 @@ import {
   listSets,
   startSession,
 } from '../../data/sessions';
-import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
+import { exerciseId as idOf, seededTestDb } from '../../data/testing/library';
 
-function setup(exercise = 'Bench press', date = '2026-11-10') {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+function setup(exercise = 'Bench Press', date = '2026-11-10') {
+  const db = seededTestDb();
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
@@ -30,7 +27,7 @@ function setup(exercise = 'Bench press', date = '2026-11-10') {
     weightDate: '2026-10-01',
   });
   addWeight(db, anna, '2026-11-07', 82, { replace: false });
-  const exerciseId = listExercises(db, { search: exercise }).find((e) => e.nameEn === exercise)!.id;
+  const exerciseId = idOf(db, exercise);
   const sid = startSession(db, anna, date);
   const seId = addExerciseToSession(db, sid, exerciseId);
   return { db, anna, exerciseId, sid, seId };
@@ -83,7 +80,7 @@ test('blank weight and reps add a "- × -" set; invalid numbers are refused with
 });
 
 test('without a 1RM the % chip is disabled with a hint', async () => {
-  const { db, sid, seId } = setup('Back squat');
+  const { db, sid, seId } = setup('Back Squat');
   await renderExercise(db, sid, seId);
   expect(chip('%')).toBeDisabled();
   expect(screen.getByText('Set a 1RM in Progress to use %')).toBeTruthy();
@@ -133,7 +130,7 @@ function addOneRepMax(db: Db, clientId: string, exerciseId: string, valueKg: num
 }
 
 test('bodyweight in %: 85% of a 120 kg 1RM minus 82 kg body weight saves 20 kg added', async () => {
-  const { db, anna, exerciseId, sid, seId } = setup('Overhand pull-up');
+  const { db, anna, exerciseId, sid, seId } = setup('Pull-Up');
   addOneRepMax(db, anna, exerciseId, 120);
   await renderExercise(db, sid, seId);
   await fireEvent.press(chip('%'));
@@ -159,7 +156,7 @@ test('editing a set while % is chosen shows and saves kg', async () => {
 });
 
 test('bodyweight: the line about body weight shows and a set reads "BW + 10 kg × 6"', async () => {
-  const { db, sid, seId } = setup('Overhand pull-up', '2026-11-10');
+  const { db, sid, seId } = setup('Pull-Up', '2026-11-10');
   await renderExercise(db, sid, seId);
   expect(screen.getByText('Body weight 82 kg (7 Nov) is added to the load.')).toBeTruthy();
   await fireEvent.changeText(screen.getByLabelText('Added (kg)'), '10');
@@ -210,6 +207,6 @@ test('"Finish exercise" marks it finished and goes back to the session page', as
   expect(getSessionExercise(db, seId)!.finishedAt).not.toBeNull();
   expect(screen).toHavePathname(`/session/${sid}`);
   expect(
-    within(screen.getByTestId('session-exercises')).getByText('1  Bench press  ✓'),
+    within(screen.getByTestId('session-exercises')).getByText('1  Bench Press  ✓'),
   ).toBeTruthy();
 });

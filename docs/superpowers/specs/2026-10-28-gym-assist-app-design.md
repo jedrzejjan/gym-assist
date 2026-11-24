@@ -1,7 +1,7 @@
 # Gym Assist app: design
 
 Date: 2026-10-28
-Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`; GYM-99 exercise category hidden, 2026-11-13)
+Status: approved 2026-10-28, updated 2026-11-11 (Stage 1 kickoff decisions; GYM-63 draft return; GYM-68 1RM, % weight, body weight exercises, progress categories; GYM-70 Home screen, optional "Me", exercise library, Add exercise in the MVP; GYM-71 Stage 1 screen details; GYM-75 wording tidy-up; GYM-16 `app_settings`, `useLive`; GYM-99 exercise category hidden, 2026-11-13; GYM-144/GYM-149 exercise library v2: 831 exercises, 5 patterns, aliases, 2026-11-24)
 
 ## 1. Purpose
 
@@ -74,7 +74,7 @@ Two 2-week sprints:
 
 - the APK is installed on the user's phone;
 - the user has logged three real sessions with it;
-- the recovery screen matches `python legacy/gym_tracker.py status` for the same data (on the owner's install, with their history imported into "Me");
+- the recovery screen matched `python legacy/gym_tracker.py status` for the same data during Sprint 2. Since GYM-144 the Python tool is no longer a reference point (owner decision, 2026-11-24): the app's own rules and tests are;
 - a backup restores correctly on a reinstalled app;
 - CI is green.
 
@@ -187,24 +187,30 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
   - 4 days or more: "due";
   - never trained: "never logged".
   Only finished sessions count. A draft does not.
-  An exercise counts once it has at least one set. The Recovery tab (GYM-23) shows Patterns or Muscles: the patterns in the order above without "none" (such an exercise still counts for its muscles), then the 12 muscles in catalogue order. Each row reads "<status> · N days ago" ("today" for 0 days, "1 day ago" for 1), or "never logged".
-- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight on the session date + added load, with a blank added load counted as 0). This is an intended difference from the Python tool, which ranks such sets by the added load only, so parity checks against `gym_tracker.py` cover the other exercises.
+  An exercise counts once it has at least one set. The Recovery tab (GYM-23) shows Patterns or Muscles: the 5 patterns in the catalogue order (a cardio exercise has no pattern but still counts for its muscles), then the 16 muscles in catalogue order. **Only primary muscles count** (GYM-149, owner decision 2026-11-23): a bench press refreshes chest, not triceps. This differs from the Python tool, which counted every listed muscle, so the golden test against it was retired; the thresholds above still match it. Each row reads "<status> · N days ago" ("today" for 0 days, "1 day ago" for 1), or "never logged".
+- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight on the session date + added load, with a blank added load counted as 0). This is an intended difference from the Python tool, which ranked such sets by the added load only.
   - **1RM per client and exercise** is a stored value, not a live calculation. It changes only when the trainer sets it on purpose in Progress: per exercise, "Estimate from history" (the best e1RM from finished sessions; a confirmation shows the value and the set it comes from, e.g. "101.75 kg, from 92.5 kg × 3 on 5 Nov") or "Set manually"; or for all exercises at once, "Estimate all 1RMs" (GYM-134, owner decision 2026-11-14). That one keeps the 1RMs set by hand: an exercise with no 1RM gets the estimate, an estimated 1RM that differs from the estimate is updated, and an exercise with no comparable set, or whose estimate is 0 kg (only 0 kg sets, e.g. jumps), is skipped; the per-exercise Estimate is disabled for it too. A confirmation first says how many change ("Set 2 new 1RMs and update 1 from each exercise's best set. 1RMs set by hand stay."), and everything is saved in one write. The button is disabled when nothing would change. Logging a session never changes the 1RM. Its date is the date it was set.
   - **The Progress tab (GYM-24, decision 6):** Strength lists the exercises the client did in finished sessions, most recently trained first, then those with only a stored 1RM. Each card shows the 1RM line ("1RM 101.75 kg · estimated · 5 Nov 2026", or "No 1RM yet"), "Best set: 92.5 kg × 3" ("-" when no set can be compared, which disables Estimate), "Estimate" and "Set manually". The estimate is stored rounded to 2 decimals. For a bodyweight exercise, a 1RM (estimated or manual) is the total load and reads "1RM 81 kg total (BW + 17.5) · manual · 1 Nov 2026", using the latest body weight. Each change adds a row, so the 1RM history is kept. Body shows the latest weight with "−2.3 kg since 15 Sep" and the entries newest first.
   - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 1 kg (fine enough for small muscle groups such as biceps). For an exercise that uses body weight, the added load is that total minus the body weight on the session date, rounded to the nearest 1 kg and never below 0.
 - `sets.ts` gives the next set number in a session exercise and the display format, where a blank value shows as "-".
-- `catalogue.ts` holds the fixed lists:
-  - categories: KD, HD, Push, Pull, Core. Stored but not shown (GYM-99); a custom exercise gets its category from its pattern (KD and HD stay, Push… gives Push, Pull… gives Pull, the rest give Core);
+- `catalogue.ts` holds the fixed lists (GYM-144, GYM-149):
   - training types: Strength, Plyometric, Power, Cardio;
-  - movement patterns: KD, HD, Push vertical, Push horizontal, Pull vertical, Pull horizontal, Anti flexion, Anti extension, Carries, none. The screens show KD as "Knee Dominant" and HD as "Hip Dominant";
-  - the 12 muscles with English and Polish names.
+  - movement patterns, in this order: KD, HD, Push, Pull, Core. The screens show "Knee dominant" and "Hip dominant". A cardio exercise has no pattern and shows "Cardio";
+  - subcategories: Push and Pull have vertical or horizontal; Core has anti-extension, anti-rotation or carry; KD and HD have none. A subcategory groups a pattern's exercises; it is never searched;
+  - equipment, one per exercise: barbell, dumbbell, kettlebell, machine, cable, bodyweight, band, other;
+  - levels (beginner, intermediate, advanced) and mechanics (compound, isolation): stored, not shown;
+  - the 16 muscles with English and Polish names (the legacy 12 plus forearms, lower back, traps, abductors), each primary or secondary for an exercise;
+  - the row texts: library "Polish name · pattern · equipment"; choose lists "Polish name · equipment · primary muscles", plus "also: <alias>" when only an alias matched.
+- `library.ts` plans the one-time library upgrade (see `data/`, Seed).
 
 All domain functions are pure: data in, result out.
 
 ### `data/`
 
 - SQLite on the phone through `expo-sqlite`, with Drizzle ORM for typed queries and versioned migrations. A migration must upgrade existing data without loss.
-- **Seed:** the exercise library from `exercises.csv`, loaded on first start before Welcome shows, so the library is never empty.
+- **Seed (GYM-149):** the owner's merged library of 831 exercises, generated by `scripts/build-seed.mjs` from the owner's file (kept off git) into the committed `data/seed/exercises.json`. Sources and licences: `THIRD_PARTY_NOTICES.md`. Every start runs `syncLibrary` in one transaction, before Welcome shows, so the library is never empty:
+  - **below library version 2** (`app_settings` key `library.version`; a fresh install, or a phone updated from the 23-exercise app) it runs the **one-time upgrade**: each existing exercise is matched by its English name or an alias, ignoring case, and becomes that library exercise in place, keeping its id, history and 1RMs; the old name stays as an alias. An exercise with no match (only custom ones; the removed "Hip flexor variation with locked leg" too) is deleted with its session exercises, sets and 1RMs, and a session left with no exercises is deleted (owner rule, GYM-149). The rest of the library is inserted;
+  - **at version 2** it only adds library exercises whose name and aliases are all free, so the trainer's exercises are never touched again.
 - **Import:** a one-time CSV import of the existing history (section 6).
 - **Export:** JSON export of all data, on demand.
 
@@ -253,8 +259,9 @@ Installing a new APK over the old one keeps the app's data, as long as the app i
   - While there is no "Me", an "Add my profile" row sits at the top of the list.
   - An empty list says "No clients yet" above the "Add client" button.
   - **"Me"** is optional: the trainer's own profile, marked with `is_self = 1`. It is created from Welcome, later with "Add my profile" on Clients while there is none, or when Settings › Import history needs it (GYM-25, decision 9: Create my profile opens first, then the import continues). The trainer can rename it. It cannot be archived.
-- **Exercise library:** the exercises installed with the app (the seed list), browsed by pattern or with search. Tapping one shows its English and Polish names, training type, pattern, muscles and whether it uses body weight. The seed exercises are read-only.
-  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`). Required: English name, training type and pattern ("none" is allowed; such an exercise does not count in pattern recovery). Optional: Polish name, muscles. A switch says whether it uses body weight (for example dips). The English name must be unique (section 6); a duplicate shows "An exercise with this name already exists". The library grows with use.
+- **Exercise library** (GYM-149): the exercises installed with the app, filtered by All or one of the 5 patterns, or searched by English name, Polish name or alias. The list is sorted by importance (1, the most common, first), then A to Z, and is virtualized (only visible rows render). Tapping one shows its English and Polish names and Training type · Pattern (with subcategory, "Push · vertical") · Equipment · Primary muscles · Secondary muscles · Sides (Unilateral or Bilateral) · Level; empty rows are hidden. The installed exercises are read-only.
+  - **Add exercise:** from the library (and "New exercise" in the log-session flow), the trainer creates a custom exercise (`is_custom = 1`, importance 1 so it lists first). Required: English name, training type, pattern (hidden and not stored for Cardio), equipment and at least one primary muscle. Optional: Polish name, subcategory (only for Push, Pull and Core; changing the pattern clears it), Unilateral, Uses body weight. Training type, pattern, subcategory and equipment are dropdowns; primary muscles is a multi-select sheet with "Done (n)". Not asked: aliases, secondary muscles, level, mechanic. The English name must differ from every name and alias (section 6); a duplicate shows "An exercise with this name already exists".
+  - **Choose an exercise in a session:** by pattern shows the 5 patterns with their counts (cardio is found by search only); a pattern's list shows its subcategories as chips (the first selected; "Other" for none; no chips for KD and HD) and a search within the chip. The full list searches names and aliases, best match first, then importance.
   - Editing and deleting custom exercises are not in the MVP (backlog item 3).
 - **Client:** that client's profile, history, recovery and progress, as tabs (Profile | History | Recovery | Progress). Tabs replace each other, so back from any tab returns to Clients. "Start session" is the only button at the bottom of the Profile tab. Edit profile, Weight history and Archive client (not for "Me") are in a kebab menu (⋮) at the top right of the profile, because they are rare or risky (GYM-133, owner decisions 2026-11-14, replacing the 2026-11-12 layout with "Start session" on History).
   - **Progress** has two categories. **Strength** (the main one): per exercise, the current 1RM with its date and source (estimated or manual), the "Estimate from history" and "Set manually" buttons, and the best set; "Estimate all 1RMs" sits above the list. **Body**: the body weight history. More measurements join this category with backlog item 14.
@@ -283,35 +290,38 @@ clients ──< sessions ──< session_exercises ──< sets
    └──< one_rep_maxes >── exercises
                                │
 exercises ─────────────────────┘
-   └──< exercise_muscles
+   ├──< exercise_muscles
+   └──< exercise_aliases
 ```
 
 | Table | Columns |
 |---|---|
 | `clients` | `id`, `first_name`, `last_name`, `gender`, `date_of_birth`, `height_cm`, `is_self`, `notes`, `created_at`, `updated_at`, `archived_at` |
 | `measurements` | `id`, `client_id`, `date`, `type`, `value`, `created_at`, `updated_at` |
-| `exercises` | `id`, `name_en`, `name_pl`, `category`, `training_type`, `pattern`, `uses_bodyweight`, `is_custom`, `created_at`, `updated_at` |
+| `exercises` | `id`, `name_en`, `name_pl`, `training_type`, `pattern` (NULL for cardio), `subcategory`, `equipment`, `mechanic`, `level`, `unilateral`, `uses_bodyweight`, `importance` (1 to 4), `is_custom`, `created_at`, `updated_at` |
 | `one_rep_maxes` | `id`, `client_id`, `exercise_id`, `value_kg`, `source` (`estimated` or `manual`), `created_at`, `updated_at` |
-| `exercise_muscles` | `exercise_id`, `muscle`, `updated_at` (key: `exercise_id` + `muscle`) |
+| `exercise_muscles` | `exercise_id`, `muscle`, `role` (`primary` or `secondary`), `updated_at` (key: `exercise_id` + `muscle`) |
+| `exercise_aliases` | `exercise_id`, `alias`, `updated_at` (key: `exercise_id` + `alias`; `alias` unique ignoring case) |
 | `sessions` | `id`, `client_id`, `date`, `status` (`draft` or `finished`), `started_at`, `finished_at`, `updated_at` |
 | `session_exercises` | `id`, `session_id`, `exercise_id`, `position`, `finished_at`, `updated_at` |
 | `sets` | `id`, `session_exercise_id`, `set_no`, `weight_kg`, `reps`, `side`, `height_cm`, `speed_kmh`, `minutes`, `note`, `created_at`, `updated_at` |
 | `app_settings` | `key`, `value`, `updated_at`: app-wide settings, such as whether Welcome was answered (later the backup folder and the last export status) |
 
-- **IDs are UUIDs,** so a future server can sync records from several devices without ID collisions. Two tables have a natural key instead: `exercise_muscles` (`exercise_id` + `muscle`) and `app_settings` (`key`).
+- **IDs are UUIDs,** so a future server can sync records from several devices without ID collisions. Three tables have a natural key instead: `exercise_muscles` (`exercise_id` + `muscle`), `exercise_aliases` (`exercise_id` + `alias`) and `app_settings` (`key`).
 - **Every table has timestamps.** A future sync uses `updated_at`.
 - **Nullable columns:** `weight_kg` and `reps` can be NULL. `side`, `height_cm`, `speed_kmh`, `minutes` and `note` are nullable and have no UI in the MVP. They keep the imported history complete. Backlog items 4 and 5 add their UI.
 - **Archiving:** archiving a client hides the client and keeps their history.
 - **Profile fields:** `first_name` is required, and every client has at least one `measurements` row of type `weight` (added together with the client). The other profile columns are optional. `clients.height_cm` is the client's height; `sets.height_cm` is a box height and is unrelated. `gender` is one of `female`, `male`, `other`, `prefer_not_to_say`, or NULL. `date_of_birth` is stored instead of an age, so the age stays correct.
 - **"Me":** at most one client has `is_self = 1`.
-- **Exercise category is hidden** (GYM-99, owner decision 2026-11-13): it mostly repeated the pattern, so no screen shows or asks for it. The `category` column stays, for later use (backlog: equipment categories such as Machine and Free weights).
-- **Exercise names:** `exercises.name_en` is unique, ignoring upper and lower case ("Dips" and "dips" are the same), because the CSV import matches exercises by it. If a later seed update brings a name that already exists as a custom exercise, the seed entry is skipped and the custom one stays.
+- **No exercise category** (GYM-144, owner decision 2026-11-24): the hidden `category` column (GYM-99) was dropped in migration 0001; with 5 patterns it equalled the pattern.
+- **Exercise names:** English names and aliases are unique together, ignoring upper and lower case ("Dips" and "dips" are the same), because the CSV import, search and the duplicate check match by them. The check runs in JS, where Polish letters fold too; unique indexes on `lower(name_en)` and `lower(alias)` are the backstop. The old app names are aliases since GYM-149, so the legacy `sessions.csv` names still import.
+- **Backups and the schema:** migration 0001 (GYM-144) raised `SCHEMA_VERSION` to 2, so a backup made before it is refused, as intended; GYM-145 converts the owner's file once.
 - **Measurements:** unique on (`client_id`, `type`, `date`). In the MVP `type` is always `weight` and `value` is in kg. Backlog item 14 adds new types (in cm) without a new table.
 - **Units:** weights in kg, heights and lengths in cm. There is no unit setting.
 - **Finished session:** a finished session counts as a gym visit. There is no separate visits table.
 - **Computed values:** recovery and progress are computed from sets and never stored. The 1RM is the exception: it is stored, because it changes only when the trainer sets it.
 - **1RM history:** each "Estimate from history" or "Set manually", and each 1RM that "Estimate all 1RMs" sets or updates, adds a row to `one_rep_maxes`; the newest row (by `created_at`) per client and exercise is the current 1RM, and `created_at` is the date shown. Archiving a client keeps its 1RM rows, like its history.
-- **Body weight exercises:** `exercises.uses_bodyweight` is 1 for "Underhand pull-up" and "Overhand pull-up" in the seed, 0 for the rest. For those exercises `sets.weight_kg` holds the added load.
+- **Body weight exercises:** `exercises.uses_bodyweight` comes from the seed (for example Pull-Up and Chin-Up), or from Add exercise. For those exercises `sets.weight_kg` holds the added load.
 
 ### Import of the existing history
 
@@ -435,7 +445,7 @@ Claude adds the GitHub label `needs-owner`, explains the decision in plain langu
 
 ## 9. Testing
 
-- **Unit tests (Jest)** for all of `domain/`. Expected values come from the output of `gym_tracker.py` on the same sample data.
+- **Unit tests (Jest)** for all of `domain/`. The first expected values came from `gym_tracker.py`; since GYM-144 the Python tool is no longer a reference (owner decision, 2026-11-24) and the tests define the rules.
 - **Data tests** against an in-memory SQLite database: migrations, seed, import, export, restore, session drafts, the one-draft rule.
 - **Component tests** for the log-session flow.
 - **End-to-end UI tests** are a backlog item (Maestro).

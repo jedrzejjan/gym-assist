@@ -4,8 +4,6 @@ import HistoryTab from '../../app/clients/[id]/history';
 import ClientScreen from '../../app/clients/[id]/index';
 import SessionSummary from '../../app/session/[id]/summary';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import {
   addExerciseToSession,
   addSet,
@@ -13,24 +11,22 @@ import {
   getSession,
   startSession,
 } from '../../data/sessions';
-import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';
+import { exerciseId, seededTestDb } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
 function setup() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
     weightKg: 63.5,
     weightDate: '2026-10-01',
   });
-  const ex = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+  const ex = (name: string) => exerciseId(db, name);
   return { db, anna, ex };
 }
 
@@ -46,7 +42,7 @@ function log(db: Db, clientId: string, date: string, plan: Plan, finish = true):
   return sid;
 }
 
-/** Anna on 5 Nov: Back squat 80×5, 85×3 and Overhand pull-up BW+10×6, BW×8. */
+/** Anna on 5 Nov: Back Squat 80×5, 85×3 and Pull-Up BW+10×6, BW×8. */
 function fiveNov(s: ReturnType<typeof setup>) {
   return log(s.db, s.anna, '2026-11-05', [
     [
@@ -145,10 +141,10 @@ describe('session summary', () => {
     expect(screen.getByText('5 Nov 2026')).toBeTruthy();
     expect(button('‹ History')).toBeTruthy();
     for (const text of [
-      'Back squat',
+      'Back Squat',
       'Przysiad ze sztangą',
       '80 kg × 5 · 85 kg × 3',
-      'Overhand pull-up',
+      'Pull-Up',
       'Podciąganie nachwytem',
       'BW + 10 kg × 6 · BW × 8',
     ]) {

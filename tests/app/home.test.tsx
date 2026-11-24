@@ -2,7 +2,7 @@ import { act, fireEvent, screen } from '@testing-library/react-native';
 
 import Home from '../../app/index';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
+import { listExercises } from '../../data/exercises';
 import { mutate } from '../../data/live';
 import {
   BACKUP_FOLDER_NAME,
@@ -15,9 +15,9 @@ import {
 } from '../../data/settings';
 import { addExerciseToSession, startSession } from '../../data/sessions';
 import { createTestDb } from '../../data/testing/testDb';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import { renderWithDb } from '../renderWithDb';
 import { mockRouter } from '../routerMock';
+import { seedLibrary } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
@@ -63,9 +63,9 @@ test('the Settings tile is enabled and opens Settings (GYM-26)', async () => {
 
 test('the Exercise library tile counts exercises and opens the library', async () => {
   const db = answeredDb();
-  seedExercises(db, SEED_EXERCISES);
+  seedLibrary(db);
   await renderWithDb(<Home />, db);
-  expect(screen.getByText('23 exercises')).toBeTruthy();
+  expect(screen.getByText('831 exercises')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: /Exercise library/ }));
   expect(mockRouter.push).toHaveBeenCalledWith('/library');
 });
@@ -122,7 +122,7 @@ describe('backup warning (GYM-27, board `home - backup warning`)', () => {
 
   test('the banner and the "Session in progress" bar show together', async () => {
     const db = answeredDb();
-    seedExercises(db, SEED_EXERCISES);
+    seedLibrary(db);
     const anna = createClient(db, { firstName: 'Anna', weightKg: 64, weightDate: '2026-11-11' });
     const sid = startSession(db, anna, '2026-11-12');
     addExerciseToSession(db, sid, listExercises(db, {})[0].id);

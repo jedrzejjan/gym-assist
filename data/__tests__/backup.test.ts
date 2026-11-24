@@ -5,17 +5,15 @@ import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { BACKUP_TABLES, exportAll, SCHEMA_VERSION } from '../backup';
 import { createClient } from '../clients';
-import { seedExercises } from '../exercises';
 import { mutate, onWrite } from '../live';
 import journal from '../migrations/meta/_journal.json';
 import { setOneRepMax } from '../progress';
 import * as schema from '../schema';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { createTestDb } from '../testing/testDb';
+import { seededTestDb } from '../testing/library';
 
 test('exportAll has every schema table and the schemaVersion from the journal', () => {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const schemaTables = (Object.values(schema) as unknown[])
     .filter((v): v is SQLiteTable => v instanceof SQLiteTable)
@@ -28,23 +26,25 @@ test('exportAll has every schema table and the schemaVersion from the journal', 
   expect(order.indexOf('sessions')).toBeLessThan(order.indexOf('session_exercises'));
   expect(order.indexOf('session_exercises')).toBeLessThan(order.indexOf('sets'));
   expect(order.indexOf('exercises')).toBeLessThan(order.indexOf('exercise_muscles'));
+  expect(order.indexOf('exercises')).toBeLessThan(order.indexOf('exercise_aliases'));
 
   const file = exportAll(db);
   expect(file).toMatchObject({ app: 'gym-assist', formatVersion: 1 });
   expect(SCHEMA_VERSION).toBe(journal.entries.length);
   expect(file.schemaVersion).toBe(journal.entries.length);
   expect(Object.keys(file.tables).sort()).toEqual(schemaTables);
-  expect(file.tables.exercises).toHaveLength(23);
+  expect(file.tables.exercises).toHaveLength(831);
+  expect(file.tables.exercise_aliases).not.toHaveLength(0);
+  expect(SCHEMA_VERSION).toBe(2);
   expect(file.tables.clients).toEqual([expect.objectContaining({ firstName: 'Anna' })]);
   expect(Number.isNaN(Date.parse(file.exportedAt))).toBe(false);
 });
 
 test('exportAll keeps insertion order, so a 1RM tie stays resolved after a restore', () => {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   const anna = createClient(db, { firstName: 'Anna', weightKg: 63.5, weightDate: '2026-10-01' });
   const bench = (exportAll(db).tables.exercises as { id: string; nameEn: string }[]).find(
-    (e) => e.nameEn === 'Bench press',
+    (e) => e.nameEn === 'Bench Press',
   )!.id;
   const spy = jest.spyOn(Date.prototype, 'toISOString').mockReturnValue('2026-11-12T10:00:00.000Z');
   try {

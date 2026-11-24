@@ -4,12 +4,10 @@
 import type { BackupFile } from '../../domain/backup';
 import { exportAll } from '../backup';
 import { archiveClient, createClient } from '../clients';
-import { listExercises, seedExercises } from '../exercises';
 import { mutate } from '../live';
 import { addWeight } from '../measurements';
 import { currentOneRepMax, setOneRepMax } from '../progress';
 import { restoreAll } from '../restore';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { addExerciseToSession, addSet, finishSession, startSession } from '../sessions';
 import {
   BACKUP_FOLDER_NAME,
@@ -21,14 +19,13 @@ import {
 } from '../settings';
 import { createTestDb } from '../testing/testDb';
 import type { Db } from '../types';
+import { exerciseId, seededTestDb } from '../testing/library';
 
-const ex = (db: Db, name: string) =>
-  listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+const ex = (db: Db, name: string) => exerciseId(db, name);
 
 /** A full database: Me, Anna (archived), Jan, weights, 3 finished sessions with 243 sets, a draft, two tied 1RMs. */
 function fullDb() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   setSetting(db, WELCOME_DONE, '1');
   setSetting(db, BACKUP_FOLDER_URI, 'content://tree/old-phone');
   const me = createClient(db, {
@@ -67,8 +64,7 @@ function fullDb() {
 
 /** Another phone: a fresh install with its own folder chosen, and some other data. */
 function otherPhone() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   setSetting(db, BACKUP_FOLDER_URI, 'content://tree/this-phone');
   setSetting(db, BACKUP_FOLDER_NAME, 'This phone');
   setSetting(db, BACKUP_LAST_AT, '2026-11-13T08:00:00.000Z');
@@ -92,6 +88,15 @@ test('export then restore gives identical tables, and counts clients, finished s
     expect({ name, rows: after.tables[name] }).toEqual({ name, rows: file.tables[name] });
   }
   expect(after.tables.sets).toHaveLength(244); // 3 × (80 + 1) finished, + 1 in the draft
+  // The v2 library comes back whole: aliases, muscle roles and the library version.
+  expect(after.tables.exercise_aliases).toEqual(file.tables.exercise_aliases);
+  expect(after.tables.exercise_aliases).not.toHaveLength(0);
+  expect(after.tables.exercise_muscles).toContainEqual(
+    expect.objectContaining({ role: 'secondary' }),
+  );
+  expect(after.tables.app_settings).toContainEqual(
+    expect.objectContaining({ key: 'library.version', value: '2' }),
+  );
   expect(withoutBackupSettings(after.tables.app_settings)).toEqual(
     withoutBackupSettings(file.tables.app_settings),
   );

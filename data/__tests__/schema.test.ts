@@ -4,8 +4,9 @@
 import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+import { SCHEMA_VERSION } from '../backup';
 import * as schema from '../schema';
-import { createTestDb } from '../testing/testDb';
+import { createTestDb, createTestDbAt } from '../testing/testDb';
 
 type Db = ReturnType<typeof createTestDb>;
 
@@ -23,8 +24,8 @@ function addClient(db: Db, id: string, isSelf = false) {
 
 function addExercise(db: Db, id: string, nameEn: string) {
   db.run(
-    sql`INSERT INTO exercises (id, name_en, category, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
-        VALUES (${id}, ${nameEn}, 'Push', 'Strength', 'none', 0, 0, ${NOW}, ${NOW})`,
+    sql`INSERT INTO exercises (id, name_en, training_type, pattern, equipment, created_at, updated_at)
+        VALUES (${id}, ${nameEn}, 'Strength', 'Push', 'barbell', ${NOW}, ${NOW})`,
   );
 }
 
@@ -50,6 +51,7 @@ test('every table has id and updated_at', () => {
     [
       'app_settings',
       'clients',
+      'exercise_aliases',
       'exercise_muscles',
       'exercises',
       'measurements',
@@ -62,14 +64,15 @@ test('every table has id and updated_at', () => {
   for (const name of names) {
     const cols = columns(db, name);
     expect(cols).toContain('updated_at');
+    const pk = db
+      .all<{ name: string; pk: number }>(sql.raw(`PRAGMA table_info(${name})`))
+      .filter((c) => c.pk > 0)
+      .map((c) => c.name)
+      .sort();
     if (name === 'exercise_muscles') {
-      expect(cols).toEqual(expect.arrayContaining(['exercise_id', 'muscle']));
-      const pk = db
-        .all<{ name: string; pk: number }>(sql.raw(`PRAGMA table_info(${name})`))
-        .filter((c) => c.pk > 0)
-        .map((c) => c.name)
-        .sort();
       expect(pk).toEqual(['exercise_id', 'muscle']);
+    } else if (name === 'exercise_aliases') {
+      expect(pk).toEqual(['alias', 'exercise_id']);
     } else if (name === 'app_settings') {
       expect(cols).toContain('key');
     } else {
@@ -171,4 +174,85 @@ test('sets keep nullable backlog columns', () => {
   for (const col of ['weight_kg', 'reps', 'side', 'height_cm', 'speed_kmh', 'minutes', 'note']) {
     expect(row[col]).toBeNull();
   }
+});
+
+test('exercises carry the v2 properties; category is gone (GYM-144)', () => {
+  const db = createTestDb();
+  const cols = columns(db, 'exercises');
+  expect(cols).toEqual(
+    expect.arrayContaining([
+      'subcategory',
+      'equipment',
+      'mechanic',
+      'level',
+      'unilateral',
+      'importance',
+    ]),
+  );
+  expect(cols).not.toContain('category');
+  expect(columns(db, 'exercise_muscles')).toContain('role');
+  expect(SCHEMA_VERSION).toBe(2);
+});
+
+test('a cardio exercise has no pattern; defaults: bilateral, importance 1, primary muscle', () => {
+  const db = createTestDb();
+  db.run(
+    sql`INSERT INTO exercises (id, name_en, training_type, pattern, equipment, created_at, updated_at)
+        VALUES ('run', 'Treadmill', 'Cardio', NULL, 'machine', ${NOW}, ${NOW})`,
+  );
+  db.run(
+    sql`INSERT INTO exercise_muscles (exercise_id, muscle, updated_at) VALUES ('run', 'calves', ${NOW})`,
+  );
+  const row = db.get<Record<string, unknown>>(sql`SELECT * FROM exercises WHERE id = 'run'`)!;
+  expect(row).toMatchObject({ pattern: null, unilateral: 0, importance: 1, is_custom: 0 });
+  expect(db.get<{ role: string }>(sql`SELECT role FROM exercise_muscles`)!.role).toBe('primary');
+});
+
+test('an alias is unique ignoring case across exercises, and goes with its exercise', () => {
+  const db = createTestDb();
+  addExercise(db, 'e1', 'Barbell Bench Press');
+  addExercise(db, 'e2', 'Dumbbell Bench Press');
+  const alias = (id: string, a: string) =>
+    db.run(
+      sql`INSERT INTO exercise_aliases (exercise_id, alias, updated_at) VALUES (${id}, ${a}, ${NOW})`,
+    );
+  alias('e1', 'Bench press');
+  expect(() => alias('e2', 'bench press')).toThrow();
+  db.run(sql`DELETE FROM exercises WHERE id = 'e1'`);
+  expect(count(db, 'exercise_aliases')).toBe(0);
+});
+
+test('migration 0001 keeps a v1 exercise, its id and its sets', () => {
+  const { db, sqlite, migrateRest } = createTestDbAt(1);
+  addClient(db, 'c1');
+  db.run(
+    sql`INSERT INTO exercises (id, name_en, category, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
+        VALUES ('e1', 'Overhead press', 'Push', 'Strength', 'Push vertical', 0, 0, ${NOW}, ${NOW})`,
+  );
+  db.run(
+    sql`INSERT INTO exercise_muscles (exercise_id, muscle, updated_at) VALUES ('e1', 'shoulders', ${NOW})`,
+  );
+  addSession(db, 's1', 'c1', 'finished');
+  db.run(
+    sql`INSERT INTO session_exercises (id, session_id, exercise_id, position, updated_at)
+        VALUES ('se1', 's1', 'e1', 1, ${NOW})`,
+  );
+  db.run(
+    sql`INSERT INTO sets (id, session_exercise_id, set_no, weight_kg, reps, created_at, updated_at)
+        VALUES ('x1', 'se1', 1, 40, 8, ${NOW}, ${NOW})`,
+  );
+
+  migrateRest();
+
+  const row = db.get<Record<string, unknown>>(sql`SELECT * FROM exercises WHERE id = 'e1'`)!;
+  // The pattern is re-tagged by syncLibrary (data/library.ts), not by the SQL migration.
+  expect(row).toMatchObject({
+    name_en: 'Overhead press',
+    pattern: 'Push vertical',
+    equipment: 'other',
+  });
+  expect(db.get<{ role: string }>(sql`SELECT role FROM exercise_muscles`)!.role).toBe('primary');
+  expect(count(db, 'sets')).toBe(1);
+  expect(sqlite.pragma('foreign_key_check')).toEqual([]);
+  expect(db.get<{ foreign_keys: number }>(sql`PRAGMA foreign_keys`)!.foreign_keys).toBe(1);
 });

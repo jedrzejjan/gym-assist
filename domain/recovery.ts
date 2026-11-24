@@ -1,5 +1,7 @@
 // Recovery per movement pattern and per muscle (spec section 5, recovery.ts). Same thresholds as
-// recovery_label in legacy/gym_tracker.py, counted in calendar days. Pure: data in, result out.
+// recovery_label in legacy/gym_tracker.py, counted in calendar days. Since GYM-149 the patterns
+// are the 5 and only primary muscles count, so the legacy tool no longer checks the result.
+// Pure: data in, result out.
 import { MUSCLES, type Muscle, type Pattern, PATTERNS } from './catalogue';
 import { daysBetween } from './dates';
 
@@ -13,8 +15,8 @@ export type RecoveryRow<K> = {
   status: RecoveryStatus;
 };
 
-/** One trained exercise: the session date, its pattern and its muscles. */
-export type Trained = { date: string; pattern: Pattern; muscles: Muscle[] };
+/** One trained exercise: the session date, its pattern (null for cardio) and its primary muscles. */
+export type Trained = { date: string; pattern: Pattern | null; muscles: Muscle[] };
 
 /** 0–1 days: too soon; 2–3 (exactly 3 counts here): the window; 4 or more: due. */
 export function recoveryLabel(days: number): RecoveryStatus {
@@ -39,9 +41,9 @@ function rows<K extends string>(keys: readonly K[], last: Map<K, string>, today:
 }
 
 /**
- * The latest date each pattern and muscle was trained, as status rows. Patterns follow the
- * spec order and leave out "none" (such an exercise still counts for its muscles); muscles
- * follow the catalogue order.
+ * The latest date each pattern and muscle was trained, as status rows: the 5 patterns in the
+ * owner's order (cardio has none, but still counts for its muscles), then the muscles in the
+ * catalogue order.
  */
 export function recoveryTable(
   trained: Trained[],
@@ -54,15 +56,11 @@ export function recoveryTable(
     if (seen === undefined || date > seen) map.set(key, date);
   };
   for (const t of trained) {
-    keepLatest(byPattern, t.pattern, t.date);
+    if (t.pattern !== null) keepLatest(byPattern, t.pattern, t.date);
     for (const m of t.muscles) keepLatest(byMuscle, m, t.date);
   }
   return {
-    patterns: rows(
-      PATTERNS.filter((p) => p !== 'none'),
-      byPattern,
-      today,
-    ),
+    patterns: rows(PATTERNS, byPattern, today),
     muscles: rows(MUSCLES, byMuscle, today),
   };
 }

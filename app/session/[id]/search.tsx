@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import { listExercises } from '../../../data/exercises';
 import { mutate, useDb, useLive } from '../../../data/live';
 import { addExerciseToSession, sessionWriteOptions } from '../../../data/sessions';
+import { chooseRowText } from '../../../domain/catalogue';
 import { AppBar } from '../../../ui/AppBar';
 import { ListRow } from '../../../ui/ListRow';
 import { Screen } from '../../../ui/Screen';
@@ -12,7 +13,10 @@ import { SearchField } from '../../../ui/SearchField';
 import { Text } from '../../../ui/Text';
 import { sizes } from '../../../ui/theme';
 
-/** Boards `log/choose - search` and `- search no results`: the full list, English or Polish. */
+/**
+ * Boards `log / choose - search` and `- search no results` (GYM-149): English and Polish names and
+ * other names (aliases, with an "also: …" note), best match first, then the most common.
+ */
 export default function SearchExercises() {
   const db = useDb();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,6 +46,7 @@ export default function SearchExercises() {
 
   return (
     <Screen
+      scroll={false}
       header={
         <AppBar title="All exercises" back={{ label: '‹ Session', onPress: () => router.back() }} />
       }
@@ -54,20 +59,25 @@ export default function SearchExercises() {
           </Text>
         ) : null}
       </View>
-      {exercises.map((e) => (
-        <ListRow
-          key={e.id}
-          title={e.nameEn}
-          subtitle={e.namePl ?? undefined}
-          onPress={() => choose(e.id)}
-        />
-      ))}
-      {searching && exercises.length === 0 ? (
-        <View style={styles.empty}>
-          <Text>{`No exercises match "${search.trim()}".`}</Text>
-          <Text variant="small">Check the spelling, or search in English or Polish.</Text>
-        </View>
-      ) : null}
+      <FlatList
+        data={exercises}
+        keyExtractor={(e) => e.id}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={12}
+        renderItem={({ item: e }) => (
+          <ListRow title={e.nameEn} subtitle={chooseRowText(e)} onPress={() => choose(e.id)} />
+        )}
+        ListEmptyComponent={
+          searching ? (
+            <View style={styles.empty}>
+              <Text>{`No exercises match "${search.trim()}".`}</Text>
+              <Text variant="small">
+                Check the spelling, or try another name, in English or Polish.
+              </Text>
+            </View>
+          ) : undefined
+        }
+      />
     </Screen>
   );
 }

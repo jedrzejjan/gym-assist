@@ -9,6 +9,9 @@ legacy/profile/
 sessions.csv
 visits.csv
 
+# Local reference data, kept off git (e.g. third-party exercise libraries for research)
+local-data/
+
 # Secrets
 .env*
 *.jks

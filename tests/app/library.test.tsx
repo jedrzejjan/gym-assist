@@ -1,110 +1,115 @@
+// Boards `library / list` and `library / detail` on the v2 library (GYM-149).
 import { fireEvent, screen } from '@testing-library/react-native';
-import { sql } from 'drizzle-orm';
 
 import ExerciseDetailScreen from '../../app/library/[id]';
 import Library from '../../app/library/index';
-import { listExercises, seedExercises } from '../../data/exercises';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
-import { createTestDb } from '../../data/testing/testDb';
+import { addCustomExercise } from '../../data/exercises';
+import { exerciseId, seededTestDb } from '../../data/testing/library';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 
-function seededDb() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
-  return db;
-}
-
-test('the list shows each exercise with its Polish name and pattern', async () => {
-  await renderWithDb(<Library />, seededDb());
-  expect(screen.getByText('Back squat')).toBeTruthy();
-  expect(screen.getByText('Przysiad ze sztangą · Knee Dominant')).toBeTruthy();
+test('the list starts with the most common exercises: Polish name · pattern · equipment', async () => {
+  await renderWithDb(<Library />, seededTestDb());
+  expect(screen.getByText('Back Squat')).toBeTruthy();
+  expect(screen.getByText('Przysiad ze sztangą · Knee dominant · Barbell')).toBeTruthy();
 });
 
-test('a bodyweight exercise shows BW, and a custom one is marked custom', async () => {
-  const db = seededDb();
-  db.run(
-    sql`INSERT INTO exercises (id, name_en, name_pl, category, training_type, pattern, uses_bodyweight, is_custom, created_at, updated_at)
-        VALUES ('dips', 'Dips', 'Pompki na poręczach', 'Push', 'Strength', 'Push vertical', 1, 1, 'x', 'x')`,
-  );
+test('an exercise the trainer added lists first, with no "custom" mark', async () => {
+  const db = seededTestDb();
+  addCustomExercise(db, {
+    nameEn: 'Aaa landmine press',
+    namePl: 'Wyciskanie landmine',
+    trainingType: 'Strength',
+    pattern: 'Push',
+    subcategory: 'vertical',
+    equipment: 'barbell',
+    primaryMuscles: ['shoulders'],
+    unilateral: true,
+    usesBodyweight: false,
+  });
   await renderWithDb(<Library />, db);
-  expect(screen.getByText('Podciąganie nachwytem · BW')).toBeTruthy();
-  expect(screen.getByText('Pompki na poręczach · BW · custom')).toBeTruthy();
+  expect(screen.getByText('Wyciskanie landmine · Push · Barbell')).toBeTruthy();
+  expect(screen.queryByText(/custom/)).toBeNull();
 });
 
-test('a pattern chip filters the list, and All brings everything back', async () => {
-  await renderWithDb(<Library />, seededDb());
-  await fireEvent.press(screen.getByRole('radio', { name: 'Hip Dominant' }));
-  expect(screen.getByText('Deadlift')).toBeTruthy();
-  expect(screen.queryByText('Back squat')).toBeNull();
+test('All plus the 5 pattern chips; a chip filters the list, All brings everything back', async () => {
+  await renderWithDb(<Library />, seededTestDb());
+  for (const name of ['All', 'Knee dominant', 'Hip dominant', 'Push', 'Pull', 'Core']) {
+    expect(screen.getByRole('radio', { name })).toBeTruthy();
+  }
+  expect(screen.getByRole('radio', { name: 'All' })).toBeChecked();
+  await fireEvent.press(screen.getByRole('radio', { name: 'Core' }));
+  expect(screen.getByText('Cable Crunch')).toBeTruthy();
+  expect(screen.queryByText('Back Squat')).toBeNull();
   await fireEvent.press(screen.getByRole('radio', { name: 'All' }));
-  expect(screen.getByText('Back squat')).toBeTruthy();
+  expect(screen.getByText('Back Squat')).toBeTruthy();
 });
 
-test('search finds Polish names, and an unknown word shows the empty state', async () => {
-  await renderWithDb(<Library />, seededDb());
-  await fireEvent.changeText(screen.getByLabelText('Search exercises'), 'martwy');
-  expect(screen.getByText('Deadlift')).toBeTruthy();
-  expect(screen.queryByText('Back squat')).toBeNull();
+test('search finds Polish names and other names; an unknown word shows the empty state', async () => {
+  await renderWithDb(<Library />, seededTestDb());
+  await fireEvent.changeText(screen.getByLabelText('Search exercises'), 'Overhand pull-up');
+  expect(screen.getByText('Pull-Up')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Search exercises'), 'ławce płaskiej');
+  expect(screen.getByText('Bench Press')).toBeTruthy();
+  expect(screen.queryByText('Back Squat')).toBeNull();
   await fireEvent.changeText(screen.getByLabelText('Search exercises'), 'xyz');
   expect(screen.getByText('No exercises match "xyz".')).toBeTruthy();
-  expect(screen.getByText('Check the spelling, or search in English or Polish.')).toBeTruthy();
+  expect(
+    screen.getByText('Check the spelling, or try another name, in English or Polish.'),
+  ).toBeTruthy();
 });
 
 test('tapping an exercise opens its detail', async () => {
-  const db = seededDb();
+  const db = seededTestDb();
   await renderWithDb(<Library />, db);
-  await fireEvent.press(screen.getByText('Back squat'));
-  const id = listExercises(db, { search: 'Back squat' })[0].id;
-  expect(mockRouter.push).toHaveBeenCalledWith(`/library/${id}`);
+  await fireEvent.press(screen.getByText('Back Squat'));
+  expect(mockRouter.push).toHaveBeenCalledWith(`/library/${exerciseId(db, 'Back Squat')}`);
 });
 
-test('the detail shows every field, and says seed exercises are read-only', async () => {
-  const db = seededDb();
-  mockParams.current = { id: listExercises(db, { search: 'Overhand pull-up' })[0].id };
+test('the detail shows the fields in the owner order (board library / detail)', async () => {
+  const db = seededTestDb();
+  mockParams.current = { id: exerciseId(db, 'Pull-Up') };
   await renderWithDb(<ExerciseDetailScreen />, db);
-  for (const text of [
-    'Overhand pull-up',
-    'Podciąganie nachwytem',
-    'Strength',
-    'Pull vertical',
-    'Lats, upper back',
-    'Uses body weight',
-    'Yes · added load is typed',
-    'Exercises installed with the app are read-only.',
-  ]) {
-    expect(screen.getByText(text)).toBeTruthy();
+  const pairs = [
+    ['Training type', 'Strength'],
+    ['Pattern', 'Pull · vertical'],
+    ['Equipment', 'Bodyweight'],
+    ['Primary muscles', 'Lats'],
+    ['Secondary muscles', 'Biceps, upper back, forearms'],
+    ['Sides', 'Bilateral'],
+    ['Level', 'Beginner'],
+  ];
+  for (const [label, value] of pairs) {
+    expect(screen.getByLabelText(`${label}: ${value}`)).toBeTruthy();
   }
-  expect(screen.queryByText('Category')).toBeNull(); // stored, not shown (GYM-99)
+  expect(screen.getByText('Podciąganie nachwytem')).toBeTruthy();
+  expect(screen.getByText('Exercises installed with the app are read-only.')).toBeTruthy();
+  for (const gone of ['Mechanic', 'Uses body weight', 'Also called', 'Category']) {
+    expect(screen.queryByText(gone)).toBeNull();
+  }
 });
 
-test('a non-bodyweight exercise says No, and KD shows as Knee Dominant', async () => {
-  const db = seededDb();
-  mockParams.current = { id: listExercises(db, { search: 'Back squat' })[0].id };
+test('the detail hides empty rows: no level, no subcategory, no secondary muscles', async () => {
+  const db = seededTestDb();
+  mockParams.current = { id: exerciseId(db, 'Back Squat') };
   await renderWithDb(<ExerciseDetailScreen />, db);
-  expect(screen.getByText('No')).toBeTruthy();
-  expect(screen.getAllByText('Knee Dominant').length).toBeGreaterThan(0);
+  expect(screen.getByLabelText('Pattern: Knee dominant')).toBeTruthy();
+  mockParams.current = { id: exerciseId(db, 'Bench Press') };
+  await renderWithDb(<ExerciseDetailScreen />, db);
+  expect(screen.queryByText('Level')).toBeNull();
 });
 
-test('the pattern chips are radios: one is checked, and tapping it again keeps it checked', async () => {
-  await renderWithDb(<Library />, seededDb());
-  expect(screen.getByRole('radio', { name: 'All' })).toBeChecked();
-  await fireEvent.press(screen.getByRole('radio', { name: 'Hip Dominant' }));
-  await fireEvent.press(screen.getByRole('radio', { name: 'Hip Dominant' }));
-  expect(screen.getByRole('radio', { name: 'Hip Dominant' })).toBeChecked();
-  expect(screen.getByRole('radio', { name: 'All' })).not.toBeChecked();
-});
-
-test('a pattern with no exercises says so', async () => {
-  await renderWithDb(<Library />, seededDb());
-  await fireEvent.press(screen.getByRole('radio', { name: 'Carries' }));
-  expect(screen.getByText('No exercises for this pattern yet.')).toBeTruthy();
+test('a cardio exercise reads Cardio as its pattern', async () => {
+  const db = seededTestDb();
+  mockParams.current = { id: exerciseId(db, 'Running, Treadmill') };
+  await renderWithDb(<ExerciseDetailScreen />, db);
+  expect(screen.getByLabelText('Pattern: Cardio')).toBeTruthy();
 });
 
 test('"+ Add exercise" opens the Add exercise page', async () => {
-  await renderWithDb(<Library />, seededDb());
+  await renderWithDb(<Library />, seededTestDb());
   await fireEvent.press(screen.getByRole('button', { name: '+ Add exercise' }));
   expect(mockRouter.push).toHaveBeenCalledWith('/library/add');
 });

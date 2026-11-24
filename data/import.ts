@@ -5,7 +5,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 
 import { foldImportName, type ImportRow } from '../domain/importRows';
 import { getSelf } from './clients';
-import { exercises, sessionExercises, sessions, sets } from './schema';
+import { exerciseAliases, exercises, sessionExercises, sessions, sets } from './schema';
 import { type DbOrTx, newId, nowIso } from './types';
 
 /** The import goes to "Me" only; without one, the screen first opens Create my profile. */
@@ -43,13 +43,19 @@ export function importHistory(db: DbOrTx, rows: ImportRow[]): { sessions: number
     .map((s) => s.date);
   if (taken.length > 0) throw new DatesTakenError([...new Set(taken)].sort());
 
-  const idOf = new Map(
-    db
-      .select({ id: exercises.id, nameEn: exercises.nameEn })
+  // English names and aliases: the old tool's names are aliases since GYM-149.
+  const idOf = new Map([
+    ...db
+      .select({ id: exerciseAliases.exerciseId, name: exerciseAliases.alias })
+      .from(exerciseAliases)
+      .all()
+      .map((e) => [foldImportName(e.name), e.id] as const),
+    ...db
+      .select({ id: exercises.id, name: exercises.nameEn })
       .from(exercises)
       .all()
-      .map((e) => [foldImportName(e.nameEn), e.id]),
-  );
+      .map((e) => [foldImportName(e.name), e.id] as const),
+  ]);
   const now = nowIso();
 
   for (const date of dates) {

@@ -12,9 +12,7 @@ import SessionPage from '../../app/session/[id]/index';
 import Reorder from '../../app/session/[id]/reorder';
 import StartSession from '../../app/session/start';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
 import { DbProvider } from '../../data/live';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import {
   addExerciseToSession,
   addSet,
@@ -26,12 +24,11 @@ import {
   startSession,
 } from '../../data/sessions';
 import { setSetting, WELCOME_DONE } from '../../data/settings';
-import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
+import { exerciseId, seededTestDb } from '../../data/testing/library';
 
 function setup() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   setSetting(db, WELCOME_DONE, '1');
   const anna = createClient(db, {
     firstName: 'Anna',
@@ -40,12 +37,11 @@ function setup() {
     weightDate: '2026-10-01',
   });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
-  const ex = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+  const ex = (name: string) => exerciseId(db, name);
   return { db, anna, jan, ex };
 }
 
-/** Anna's draft on 10 Nov: Back squat (finished, 2 sets), Bench press (3 sets), Deadlift. */
+/** Anna's draft on 10 Nov: Back Squat (finished, 2 sets), Bench Press (3 sets), Conventional Deadlift. */
 function annasDraft(s: ReturnType<typeof setup>) {
   const sid = startSession(s.db, s.anna, '2026-11-10');
   const squat = addExerciseToSession(s.db, sid, s.ex('Back squat'));
@@ -297,7 +293,7 @@ describe('the session page', () => {
     const s = setup();
     const { sid, squat } = annasDraft(s);
     await renderApp(s.db, `/session/${sid}`);
-    await fireEvent.press(screen.getByText(/Back squat/));
+    await fireEvent.press(screen.getByText(/Back Squat/));
     expect(screen).toHavePathname(`/session/${sid}/exercise/${squat}`);
     expect(screen.getAllByText('80 kg × 5')).toHaveLength(2);
     await fireEvent.changeText(screen.getByLabelText('Weight (kg)'), '85');
@@ -314,12 +310,12 @@ describe('reorder', () => {
     await renderApp(s.db, `/session/${sid}`);
     await press('Reorder');
     expect(screen.getByText('Reorder exercises')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Move Back squat up' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move Deadlift down' })).toBeDisabled();
-    await press('Move Deadlift up');
-    expect(names(s.db, sid)).toEqual(['Back squat', 'Deadlift', 'Bench press']);
-    await press('Move Back squat down');
-    expect(names(s.db, sid)).toEqual(['Deadlift', 'Back squat', 'Bench press']);
+    expect(screen.getByRole('button', { name: 'Move Back Squat up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Conventional Deadlift down' })).toBeDisabled();
+    await press('Move Conventional Deadlift up');
+    expect(names(s.db, sid)).toEqual(['Back Squat', 'Conventional Deadlift', 'Bench Press']);
+    await press('Move Back Squat down');
+    expect(names(s.db, sid)).toEqual(['Conventional Deadlift', 'Back Squat', 'Bench Press']);
     await press('Done');
     expect(screen).toHavePathname(`/session/${sid}`);
   });
@@ -328,11 +324,11 @@ describe('reorder', () => {
     const s = setup();
     const { sid } = annasDraft(s);
     await renderApp(s.db, `/session/${sid}/reorder`);
-    await press('Remove Bench press');
+    await press('Remove Bench Press');
     const dialog = screen;
     expect(dialog.getByText('Remove this exercise and its sets?')).toBeTruthy();
-    expect(dialog.getByText('Bench press · 3 sets')).toBeTruthy();
+    expect(dialog.getByText('Bench Press · 3 sets')).toBeTruthy();
     await press('Remove');
-    expect(names(s.db, sid)).toEqual(['Back squat', 'Deadlift']);
+    expect(names(s.db, sid)).toEqual(['Back Squat', 'Conventional Deadlift']);
   });
 });

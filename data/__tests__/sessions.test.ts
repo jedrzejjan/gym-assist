@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { createClient } from '../clients';
-import { listExercises, seedExercises } from '../exercises';
+import { listExercises } from '../exercises';
 import { currentOneRepMax } from '../progress';
 import { oneRepMaxes } from '../schema';
 import {
@@ -30,13 +30,11 @@ import {
   listSessionExercises,
   startSession,
 } from '../sessions';
-import { SEED_EXERCISES } from '../seed/exercises';
 import { logSession } from '../testing/logSession';
-import { createTestDb } from '../testing/testDb';
+import { exerciseId, seededTestDb } from '../testing/library';
 
 function setup() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   const anna = createClient(db, {
     firstName: 'Anna',
     lastName: 'Kowalska',
@@ -44,9 +42,8 @@ function setup() {
     weightDate: '2026-10-01',
   });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
-  const id = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
-  return { db, anna, jan, squat: id('Back squat'), bench: id('Bench press') };
+  const id = (name: string) => exerciseId(db, name);
+  return { db, anna, jan, squat: id('Back Squat'), bench: id('Bench Press') };
 }
 
 test('startSession makes a draft for the client on that date', () => {
@@ -79,8 +76,8 @@ test('addExerciseToSession appends at the end of the list', () => {
   const a = addExerciseToSession(db, sid, squat);
   const b = addExerciseToSession(db, sid, bench);
   expect(listSessionExercises(db, sid).map((e) => [e.id, e.nameEn, e.position])).toEqual([
-    [a, 'Back squat', 1],
-    [b, 'Bench press', 2],
+    [a, 'Back Squat', 1],
+    [b, 'Bench Press', 2],
   ]);
   expect(getDraft(db)!.exerciseCount).toBe(2);
 });
@@ -253,7 +250,7 @@ describe('sets', () => {
     const { db, anna, bench, seId } = withExercise();
     addSet(db, seId, { weightKg: 60, reps: 8 });
     const d = exerciseScreenData(db, seId)!;
-    expect(d.exercise).toMatchObject({ id: bench, nameEn: 'Bench press', usesBodyweight: false });
+    expect(d.exercise).toMatchObject({ id: bench, nameEn: 'Bench Press', usesBodyweight: false });
     expect(d.sets.map((x) => [x.setNo, x.weightKg, x.reps])).toEqual([[1, 60, 8]]);
     expect(d.oneRepMax).toBeNull();
     expect(d.bodyWeight).toEqual({ valueKg: 63.5, date: '2026-10-01' });
@@ -266,8 +263,7 @@ describe('sets', () => {
 describe('finish, discard, reorder, remove, resume', () => {
   function threeExercises() {
     const s = setup();
-    const id = (name: string) =>
-      listExercises(s.db, { search: name }).find((e) => e.nameEn === name)!.id;
+    const id = (name: string) => exerciseId(s.db, name);
     const sid = startSession(s.db, s.anna, '2026-11-10');
     const a = addExerciseToSession(s.db, sid, s.squat);
     const b = addExerciseToSession(s.db, sid, s.bench);
@@ -285,7 +281,7 @@ describe('finish, discard, reorder, remove, resume', () => {
     discardSession(db, empty);
     const { sid } = (() => {
       const s2 = startSession(db, anna, '2026-11-11');
-      addExerciseToSession(db, s2, listExercises(db, { search: 'Bench press' })[0].id);
+      addExerciseToSession(db, s2, listExercises(db, { search: 'Bench Press' })[0].id);
       return { sid: s2 };
     })();
     finishSession(db, sid);

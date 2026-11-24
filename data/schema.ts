@@ -55,10 +55,20 @@ export const exercises = sqliteTable(
     id: text('id').primaryKey(),
     nameEn: text('name_en').notNull(),
     namePl: text('name_pl'),
-    category: text('category').notNull(),
     trainingType: text('training_type').notNull(),
-    pattern: text('pattern').notNull(),
+    // null for cardio (GYM-149). Codes and display names: domain/catalogue.ts.
+    pattern: text('pattern'),
+    subcategory: text('subcategory'),
+    // One per exercise (GYM-144). The default only fills rows that existed before migration 0001;
+    // syncLibrary then sets the real value or drops the row.
+    equipment: text('equipment').notNull().default('other'),
+    // Stored, not shown or asked (GYM-149 screen review).
+    mechanic: text('mechanic'),
+    level: text('level'),
+    unilateral: integer('unilateral', { mode: 'boolean' }).notNull().default(false),
     usesBodyweight: integer('uses_bodyweight', { mode: 'boolean' }).notNull().default(false),
+    // 1 = most common, listed first; 4 = really uncommon. The trainer's own exercises get 1.
+    importance: integer('importance').notNull().default(1),
     isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(false),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -78,9 +88,30 @@ export const exerciseMuscles = sqliteTable(
       .notNull()
       .references(() => exercises.id, { onDelete: 'cascade' }),
     muscle: text('muscle').notNull(),
+    // Only primary muscles count for Recovery (GYM-149).
+    role: text('role', { enum: ['primary', 'secondary'] })
+      .notNull()
+      .default('primary'),
     updatedAt: text('updated_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.exerciseId, t.muscle] })],
+);
+
+/** Other names of an exercise (the old app names among them), searched like the real ones. */
+export const exerciseAliases = sqliteTable(
+  'exercise_aliases',
+  {
+    exerciseId: text('exercise_id')
+      .notNull()
+      .references(() => exercises.id, { onDelete: 'cascade' }),
+    alias: text('alias').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.exerciseId, t.alias] }),
+    // Backstop only: data/exercises.ts checks names and aliases together in JS (Polish letters).
+    uniqueIndex('exercise_aliases_alias_nocase').on(sql`lower(${t.alias})`),
+  ],
 );
 
 export const oneRepMaxes = sqliteTable(

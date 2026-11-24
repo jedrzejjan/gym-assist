@@ -7,15 +7,13 @@ import CreateProfile from '../../app/create-profile';
 import ImportScreen from '../../app/settings/import';
 import Settings from '../../app/settings/index';
 import { createClient, getSelf } from '../../data/clients';
-import { seedExercises } from '../../data/exercises';
 import { pickTextFile } from '../../data/files';
 import { listHistory } from '../../data/history';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import { setSetting, WELCOME_DONE } from '../../data/settings';
-import { createTestDb } from '../../data/testing/testDb';
 import { fixToday } from '../fixedToday';
 import { renderWithDb } from '../renderWithDb';
 import { mockParams, mockRouter } from '../routerMock';
+import { seededTestDb } from '../../data/testing/library';
 
 jest.mock('expo-router', () => require('../routerMock').routerMock);
 jest.mock('../../data/files', () => ({
@@ -37,8 +35,7 @@ beforeEach(() => {
 });
 
 function setup({ withSelf = true } = {}) {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   setSetting(db, WELCOME_DONE, '1');
   if (withSelf) {
     createClient(db, { firstName: 'Me', isSelf: true, weightKg: 82, weightDate: '2026-10-01' });
@@ -66,7 +63,7 @@ test('one session reads "1 session imported into Me."', async () => {
   const db = setup();
   pick.mockResolvedValue({
     name: 'one.csv',
-    text: `${HEADER}\n2026-11-01,Back squat,1,,80,5,,,,\n`,
+    text: `${HEADER}\n2026-11-01,Back Squat,1,,80,5,,,,\n`,
   });
   await renderWithDb(<ImportScreen />, db);
   await fireEvent.press(button('Choose file'));
@@ -84,7 +81,7 @@ test('the profile’s current name is used', async () => {
   });
   pick.mockResolvedValue({
     name: 'one.csv',
-    text: `${HEADER}\n2026-11-01,Back squat,1,,80,5,,,,\n`,
+    text: `${HEADER}\n2026-11-01,Back Squat,1,,80,5,,,,\n`,
   });
   await renderWithDb(<ImportScreen />, db);
   await fireEvent.press(button('Choose file'));
@@ -98,9 +95,9 @@ test('error shows "Nothing was imported", the row and the bullet list of names, 
     name: 'bad.csv',
     text: [
       HEADER,
-      '2026-11-01,Back squat,1,,80,5,,,,',
-      '2026-11-01,Front squat,1,,60,5,,,,',
-      '2026-11-02,Nordic curl,1,,,6,,,,',
+      '2026-11-01,Back Squat,1,,80,5,,,,',
+      '2026-11-01,Mystery lift,1,,60,5,,,,',
+      '2026-11-02,Made-up drill,1,,,6,,,,',
     ].join('\n'),
   });
   await renderWithDb(<ImportScreen />, db);
@@ -108,7 +105,7 @@ test('error shows "Nothing was imported", the row and the bullet list of names, 
   expect(await screen.findByText('Nothing was imported')).toBeTruthy();
   expect(screen.getByText('Row 3 has an exercise that is not in the library:')).toBeTruthy();
   expect(screen.getByText('Unknown exercise names')).toBeTruthy();
-  expect(screen.getByText('• Front squat\n• Nordic curl')).toBeTruthy();
+  expect(screen.getByText('• Mystery lift\n• Made-up drill')).toBeTruthy();
   expect(screen.getByText('Fix the names in the CSV file and import again.')).toBeTruthy();
   expect(listHistory(db, getSelf(db)!.id)).toEqual([]);
 
@@ -121,7 +118,7 @@ test('a bad value shows its row, and dates Me already has are listed', async () 
   const db = setup();
   pick.mockResolvedValue({
     name: 'bad.csv',
-    text: `${HEADER}\n2026-11-01,Back squat,1,,80,0,,,,\n`,
+    text: `${HEADER}\n2026-11-01,Back Squat,1,,80,0,,,,\n`,
   });
   await renderWithDb(<ImportScreen />, db);
   await fireEvent.press(button('Choose file'));

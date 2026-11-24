@@ -12,10 +12,8 @@ import SessionPage from '../../app/session/[id]/index';
 import Reorder from '../../app/session/[id]/reorder';
 import SessionSummary from '../../app/session/[id]/summary';
 import { createClient } from '../../data/clients';
-import { listExercises, seedExercises } from '../../data/exercises';
 import { listHistory } from '../../data/history';
 import { DbProvider } from '../../data/live';
-import { SEED_EXERCISES } from '../../data/seed/exercises';
 import {
   addExerciseToSession,
   addSet,
@@ -27,9 +25,9 @@ import {
   startSession,
 } from '../../data/sessions';
 import { setSetting, WELCOME_DONE } from '../../data/settings';
-import { createTestDb } from '../../data/testing/testDb';
 import type { Db } from '../../data/types';
 import { fixToday } from '../fixedToday';
+import { exerciseId, seededTestDb } from '../../data/testing/library';
 
 // The native date picker, replaced by a button that picks 10 Nov 2026.
 jest.mock('@react-native-community/datetimepicker', () => {
@@ -47,8 +45,7 @@ jest.mock('@react-native-community/datetimepicker', () => {
 });
 
 function setup() {
-  const db = createTestDb();
-  seedExercises(db, SEED_EXERCISES);
+  const db = seededTestDb();
   setSetting(db, WELCOME_DONE, '1');
   const anna = createClient(db, {
     firstName: 'Anna',
@@ -57,8 +54,7 @@ function setup() {
     weightDate: '2026-10-01',
   });
   const jan = createClient(db, { firstName: 'Jan', weightKg: 80, weightDate: '2026-10-01' });
-  const ex = (name: string) =>
-    listExercises(db, { search: name }).find((e) => e.nameEn === name)!.id;
+  const ex = (name: string) => exerciseId(db, name);
   return { db, anna, jan, ex };
 }
 
@@ -74,7 +70,7 @@ function log(db: Db, clientId: string, date: string, plan: Plan): string {
   return sid;
 }
 
-/** Anna on 5 Nov: Back squat 80×5, 85×3 and Overhand pull-up BW+10×6. */
+/** Anna on 5 Nov: Back Squat 80×5, 85×3 and Pull-Up BW+10×6. */
 function fiveNov(s: ReturnType<typeof setup>) {
   return log(s.db, s.anna, '2026-11-05', [
     [
@@ -132,8 +128,8 @@ test('Edit on the summary opens "Edit session" with the date, numbered rows, "+ 
   expect(screen.getByText('Edit session')).toBeTruthy();
   expect(screen.getByRole('button', { name: '‹ Summary' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Date, 5 Nov 2026' })).toBeTruthy();
-  expect(screen.getByText('1  Back squat')).toBeTruthy(); // no ✓ in a finished session
-  expect(screen.getByText('2  Overhand pull-up')).toBeTruthy();
+  expect(screen.getByText('1  Back Squat')).toBeTruthy(); // no ✓ in a finished session
+  expect(screen.getByText('2  Pull-Up')).toBeTruthy();
   expect(screen.getByText('Przysiad ze sztangą · 2 sets')).toBeTruthy();
   for (const b of ['+ By pattern', '+ Full list', '+ New exercise', 'Reorder', 'Done']) {
     expect(screen.getByRole('button', { name: b })).toBeTruthy();
@@ -182,14 +178,14 @@ test('removing the last exercise asks "Delete this session?" and Delete returns 
   const sid = log(s.db, s.anna, '2026-11-05', [[s.ex('Bench press'), [[50, 8]]]]);
   await openEdit(s.db, s.anna, '5 Nov 2026');
   await press('Reorder');
-  await press('Remove Bench press');
+  await press('Remove Bench Press');
   expect(screen.getByText('Delete this session?')).toBeTruthy();
   expect(
-    screen.getByText('Bench press is its only exercise. A finished session needs at least one.'),
+    screen.getByText('Bench Press is its only exercise. A finished session needs at least one.'),
   ).toBeTruthy();
   await press('Cancel');
   expect(getSession(s.db, sid)).not.toBeNull();
-  await press('Remove Bench press');
+  await press('Remove Bench Press');
   await press('Delete');
   expect(getSession(s.db, sid)).toBeNull();
   expect(screen).toHavePathname(`/clients/${s.anna}/history`);
@@ -201,10 +197,10 @@ test('with two exercises, Remove works as in a draft and the session stays', asy
   const sid = fiveNov(s);
   await openEdit(s.db, s.anna, '5 Nov 2026');
   await press('Reorder');
-  await press('Remove Overhand pull-up');
+  await press('Remove Pull-Up');
   expect(screen.getByText('Remove this exercise and its sets?')).toBeTruthy();
   await press('Remove');
-  expect(listSessionExercises(s.db, sid).map((e) => e.nameEn)).toEqual(['Back squat']);
+  expect(listSessionExercises(s.db, sid).map((e) => e.nameEn)).toEqual(['Back Squat']);
   expect(getSession(s.db, sid)!.status).toBe('finished');
 });
 
@@ -214,7 +210,7 @@ test('the exercise page of a finished session shows "Done" instead of "Finish ex
   const sid = fiveNov(s);
   log(s.db, s.anna, '2026-11-09', [[s.ex('Back squat'), [[90, 5]]]]);
   await openEdit(s.db, s.anna, '5 Nov 2026');
-  await fireEvent.press(screen.getByText('1  Back squat'));
+  await fireEvent.press(screen.getByText('1  Back Squat'));
   const [squat] = listSessionExercises(s.db, sid);
   expect(screen).toHavePathname(`/session/${sid}/exercise/${squat.id}`);
   expect(screen.queryByRole('button', { name: 'Finish exercise' })).toBeNull();
@@ -240,11 +236,8 @@ test('editing a finished session while a draft exists works and leaves the draft
   await act(() => router.push(`/session/${sid}/summary`));
   await press('Edit');
   await press('Reorder');
-  await press('Move Overhand pull-up up');
-  expect(listSessionExercises(s.db, sid).map((e) => e.nameEn)).toEqual([
-    'Overhand pull-up',
-    'Back squat',
-  ]);
+  await press('Move Pull-Up up');
+  expect(listSessionExercises(s.db, sid).map((e) => e.nameEn)).toEqual(['Pull-Up', 'Back Squat']);
   expect(getDraft(s.db)!.sessionId).toBe(draft);
   expect(getSession(s.db, sid)!.status).toBe('finished');
   await act(() => router.dismissAll());
