@@ -12,6 +12,11 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ## Decisions
 
+### 2026-11-24: The old-backup converter reuses the phone's upgrade path (GYM-145)
+- **Decision:** the converter loads the schema-1 rows into a database at migration 1, runs the remaining migrations, then `syncLibrary` and `exportAll`. It doesn't hold a second, hand-written mapping, so a converted file is the same as what an in-place app update produces.
+- **Rule applied:** an exercise with no library match is deleted with its history (owner rule, GYM-149, which came after the ticket's "custom exercises get defaults"). The converter's report names each one, with its set and 1RM counts, before the owner restores.
+- **Runner:** it runs through Jest (`npx jest --testMatch "**/scripts/convert-backup-v2.run.ts"`), because Jest already compiles TypeScript and stubs `expo-crypto`. So no new library (`tsx`) was needed.
+
 ### 2026-11-24: The library upgrade runs in app code, once, keyed by a version (GYM-144, GYM-149)
 - **Decision (owner-approved plan):** migration 0001 changes the schema only. A JS step, `syncLibrary` (`data/library.ts`), runs at every start in one transaction. Below `library.version = 2` it maps the old exercises onto the 831-exercise library by name or alias (ids and history stay), deletes the unmatched ones with their history and emptied sessions, and inserts the rest. At version 2 it only adds exercises whose names are all free.
 - **Why:** matching by aliases with Polish case folding needs JS, not SQL. The version key makes the destructive part happen exactly once, so a custom exercise added after the upgrade is never deleted on a later start.
