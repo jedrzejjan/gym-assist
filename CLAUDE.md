@@ -96,7 +96,7 @@ The user is preparing for IT job interviews. When a key concept comes up, explai
 
 These come from the earlier Gym Assist project, a Python CLI and AI gym assistant. They're here to give context for building the app: the domain logic, the data model and real sample data. They aren't app code, and they'll be removed once the MVP replaces them. In Stage 0 they move to `legacy/`.
 
-- `gym_tracker.py`: the reference implementation. Port its logic to `domain/` and check the app's results against its output, e.g. recovery status and the Epley e1RM.
+- `gym_tracker.py`: the original implementation. Its logic was ported to `domain/` (recovery thresholds, the Epley e1RM). **It is no longer a reference point** (owner decision, 2026-11-24, GYM-144): everything needed from it was taken, the app's rules have their own tests, and app results are not checked against it any more.
 - `data/exercises.csv`: the first seed of the exercise library (PL/EN names, category, training type, pattern, muscles). Replaced by the owner's 831-exercise library in GYM-149 (`data/seed/exercises.json`).
 - `data/sessions.csv` and `data/visits.csv`: the user's real history, imported into the app as client "Me". Not committed.
 - `plans/training-planner.md`: rules for the backlog item "What should I train today?". Recovery windows are 48 to 72 hours.

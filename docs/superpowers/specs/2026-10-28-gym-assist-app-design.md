@@ -74,7 +74,7 @@ Two 2-week sprints:
 
 - the APK is installed on the user's phone;
 - the user has logged three real sessions with it;
-- the recovery screen matches `python legacy/gym_tracker.py status` for the same data (on the owner's install, with their history imported into "Me"). Checked on the Sprint 2 build; since GYM-149 the app's patterns and muscle rule differ from the Python tool on purpose;
+- the recovery screen matched `python legacy/gym_tracker.py status` for the same data during Sprint 2. Since GYM-144 the Python tool is no longer a reference point (owner decision, 2026-11-24): the app's own rules and tests are;
 - a backup restores correctly on a reinstalled app;
 - CI is green.
 
@@ -188,7 +188,7 @@ domain/     training logic           (plain TypeScript functions, no UI, no data
   - never trained: "never logged".
   Only finished sessions count. A draft does not.
   An exercise counts once it has at least one set. The Recovery tab (GYM-23) shows Patterns or Muscles: the 5 patterns in the catalogue order (a cardio exercise has no pattern but still counts for its muscles), then the 16 muscles in catalogue order. **Only primary muscles count** (GYM-149, owner decision 2026-11-23): a bench press refreshes chest, not triceps. This differs from the Python tool, which counted every listed muscle, so the golden test against it was retired; the thresholds above still match it. Each row reads "<status> · N days ago" ("today" for 0 days, "1 day ago" for 1), or "never logged".
-- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight on the session date + added load, with a blank added load counted as 0). This is an intended difference from the Python tool, which ranks such sets by the added load only, so parity checks against `gym_tracker.py` cover the other exercises.
+- `progress.ts` holds the Epley estimated one-rep max (`weight` when reps = 1, otherwise `weight × (1 + reps / 30)`) and the best set per exercise. The best set is ranked by e1RM, then reps. Sets without weight or reps are not compared. For an exercise that uses body weight, `weight` is the total load (body weight on the session date + added load, with a blank added load counted as 0). This is an intended difference from the Python tool, which ranked such sets by the added load only.
   - **1RM per client and exercise** is a stored value, not a live calculation. It changes only when the trainer sets it on purpose in Progress: per exercise, "Estimate from history" (the best e1RM from finished sessions; a confirmation shows the value and the set it comes from, e.g. "101.75 kg, from 92.5 kg × 3 on 5 Nov") or "Set manually"; or for all exercises at once, "Estimate all 1RMs" (GYM-134, owner decision 2026-11-14). That one keeps the 1RMs set by hand: an exercise with no 1RM gets the estimate, an estimated 1RM that differs from the estimate is updated, and an exercise with no comparable set, or whose estimate is 0 kg (only 0 kg sets, e.g. jumps), is skipped; the per-exercise Estimate is disabled for it too. A confirmation first says how many change ("Set 2 new 1RMs and update 1 from each exercise's best set. 1RMs set by hand stay."), and everything is saved in one write. The button is disabled when nothing would change. Logging a session never changes the 1RM. Its date is the date it was set.
   - **The Progress tab (GYM-24, decision 6):** Strength lists the exercises the client did in finished sessions, most recently trained first, then those with only a stored 1RM. Each card shows the 1RM line ("1RM 101.75 kg · estimated · 5 Nov 2026", or "No 1RM yet"), "Best set: 92.5 kg × 3" ("-" when no set can be compared, which disables Estimate), "Estimate" and "Set manually". The estimate is stored rounded to 2 decimals. For a bodyweight exercise, a 1RM (estimated or manual) is the total load and reads "1RM 81 kg total (BW + 17.5) · manual · 1 Nov 2026", using the latest body weight. Each change adds a row, so the 1RM history is kept. Body shows the latest weight with "−2.3 kg since 15 Sep" and the entries newest first.
   - **% to kg:** `kg = 1RM × % / 100`, rounded to the nearest 1 kg (fine enough for small muscle groups such as biceps). For an exercise that uses body weight, the added load is that total minus the body weight on the session date, rounded to the nearest 1 kg and never below 0.
@@ -445,7 +445,7 @@ Claude adds the GitHub label `needs-owner`, explains the decision in plain langu
 
 ## 9. Testing
 
-- **Unit tests (Jest)** for all of `domain/`. Expected values came from the output of `gym_tracker.py` on the same sample data; since GYM-149 the recovery rules differ from it on purpose and have their own tests.
+- **Unit tests (Jest)** for all of `domain/`. The first expected values came from `gym_tracker.py`; since GYM-144 the Python tool is no longer a reference (owner decision, 2026-11-24) and the tests define the rules.
 - **Data tests** against an in-memory SQLite database: migrations, seed, import, export, restore, session drafts, the one-draft rule.
 - **Component tests** for the log-session flow.
 - **End-to-end UI tests** are a backlog item (Maestro).

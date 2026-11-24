@@ -19,7 +19,7 @@ Links: Jira `https://jedrosz.atlassian.net/browse/GYM-<n>`, GitHub `https://gith
 
 ### 2026-11-24: Only primary muscles count for Recovery; the golden test is retired (GYM-149)
 - **Decision (owner, 2026-11-23):** the Muscles view counts an exercise's primary muscles only (a bench press refreshes chest, not triceps), and the Patterns view shows the 5 patterns.
-- **Consequence:** `legacy/gym_tracker.py` knows the old 9 patterns and counts every muscle, so the golden-file test against it (GYM-23) can no longer agree; it was removed with its fixtures. The recovery thresholds keep their unit tests, and the new rules have explicit tests. The Sprint 2 phone check against `gym_tracker.py status` must be done on a build before GYM-144.
+- **Consequence:** `legacy/gym_tracker.py` knows the old 9 patterns and counts every muscle, so the golden-file test against it (GYM-23) can no longer agree; it was removed with its fixtures. The recovery thresholds keep their unit tests, and the new rules have explicit tests. **Owner decision (2026-11-24):** the Python tool is no longer a reference point at all ("all we needed from it is retrieved; we move forward without it"), so the planned Sprint 2 phone check against `gym_tracker.py status` is dropped too.
 
 ### 2026-11-24: The hidden `category` column is dropped (GYM-144, reverses GYM-99's "hidden, not dropped")
 - **Decision (owner-approved plan):** with 5 patterns the category equalled the pattern, so it carried no information.
