@@ -189,8 +189,15 @@ test('a draft that keeps one exercise survives with its sets', () => {
   expect(count(db, 'sets')).toBe(1);
 });
 
-test('a custom exercise that has a library name is mapped and becomes built-in', () => {
-  const { db, migrateRest } = v1Phone(['push-up']);
+test('a custom exercise that has a library name is mapped, becomes built-in and keeps its history', () => {
+  const { db, anna, migrateRest } = v1Phone(['push-up']);
+  const sid = logSession(db, {
+    clientId: anna,
+    date: '2026-11-03',
+    exerciseId: idOf('push-up'),
+    sets: [[0, 20]],
+  });
+  setOneRepMax(db, anna, idOf('push-up'), 90, 'manual');
   migrateRest();
 
   syncLibrary(db, SEED_EXERCISES);
@@ -201,6 +208,57 @@ test('a custom exercise that has a library name is mapped and becomes built-in',
     importance: 1,
   });
   expect(countExercises(db)).toBe(831);
+  expect(db.get<{ id: string }>(sql`SELECT id FROM sessions WHERE id = ${sid}`)).toBeDefined();
+  expect(count(db, 'sets')).toBe(1);
+  expect(currentOneRepMax(db, anna, idOf('push-up'))!.valueKg).toBe(90);
+});
+
+test('a custom exercise matching the same library exercise as a built-in one merges into it, history kept', () => {
+  // v1 allowed both: "Overhand pull-up" (built-in) and "Pull-up" (custom) are different names, but
+  // both are names of "Pull-Up" now. The built-in row wins; the custom one's history moves to it.
+  const { db, sqlite, anna, migrateRest } = v1Phone(['Pull-up']);
+  const onlyCustom = logSession(db, {
+    clientId: anna,
+    date: '2026-11-03',
+    exerciseId: idOf('Pull-up'),
+    sets: [[5, 8]],
+  });
+  logSession(db, {
+    clientId: anna,
+    date: '2026-11-04',
+    exerciseId: idOf('Overhand pull-up'),
+    sets: [[0, 10]],
+  });
+  setOneRepMax(db, anna, idOf('Pull-up'), 95, 'manual');
+  migrateRest();
+
+  const result = syncLibrary(db, SEED_EXERCISES);
+
+  expect(result).toMatchObject({ mapped: 22, merged: 1, dropped: 1 }); // dropped: the hip flexor
+  expect(row(db, idOf('Pull-up'))).toBeUndefined();
+  const pullUp = idOf('Overhand pull-up');
+  expect(row(db, pullUp)).toMatchObject({ name_en: 'Pull-Up', is_custom: 0 });
+  const moved = db.get<{ exercise_id: string }>(
+    sql`SELECT exercise_id FROM session_exercises WHERE session_id = ${onlyCustom}`,
+  )!;
+  expect(moved.exercise_id).toBe(pullUp);
+  expect(count(db, 'sets')).toBe(2);
+  expect(currentOneRepMax(db, anna, pullUp)!.valueKg).toBe(95);
+  expect(countExercises(db)).toBe(831);
+  expect(sqlite.pragma('foreign_key_check')).toEqual([]);
+});
+
+test('which row wins a merge does not depend on insertion order: built-in before custom', () => {
+  const at = createTestDbAt(1);
+  // The custom row is inserted first this time.
+  insertV1(at.db, 'mine', custom('Pull-up'), true);
+  for (const e of V1_EXERCISES) insertV1(at.db, idOf(e.nameEn), e);
+  at.migrateRest();
+
+  syncLibrary(at.db, SEED_EXERCISES);
+
+  expect(row(at.db, 'mine')).toBeUndefined();
+  expect(row(at.db, idOf('Overhand pull-up'))).toMatchObject({ name_en: 'Pull-Up' });
 });
 
 test('later starts change nothing, and an exercise added after the upgrade stays', () => {
@@ -214,12 +272,28 @@ test('later starts change nothing, and an exercise added after the upgrade stays
 
   expect(syncLibrary(db, SEED_EXERCISES)).toEqual({
     mapped: 0,
+    merged: 0,
     dropped: 0,
     inserted: 0,
     sessionsDeleted: 0,
   });
   expect(row(db, 'mine')).toBeDefined();
   expect(countExercises(db)).toBe(832);
+});
+
+test('a later library version never runs the one-time upgrade again', () => {
+  const db = createTestDb();
+  syncLibrary(db, SEED_EXERCISES);
+  db.run(
+    sql`INSERT INTO exercises (id, name_en, training_type, pattern, equipment, is_custom, created_at, updated_at)
+        VALUES ('mine', 'My new drill', 'Strength', 'Core', 'other', 1, ${T}, ${T})`,
+  );
+
+  const result = syncLibrary(db, SEED_EXERCISES, 3);
+
+  expect(result).toMatchObject({ dropped: 0, merged: 0, mapped: 0 });
+  expect(row(db, 'mine')).toBeDefined();
+  expect(getSetting(db, 'library.version')).toBe('3');
 });
 
 test('a later seed version only adds exercises whose names are free', () => {
@@ -238,6 +312,7 @@ test('a fresh install gets the whole library and the version', () => {
   const db = createTestDb();
   expect(syncLibrary(db, SEED_EXERCISES)).toEqual({
     mapped: 0,
+    merged: 0,
     dropped: 0,
     inserted: 831,
     sessionsDeleted: 0,

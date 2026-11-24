@@ -1,6 +1,6 @@
 // Installing and upgrading the exercise library at start-up (spec section 5, Seed; GYM-149).
 // data/db/open.ts calls syncLibrary in one transaction after the migrations, every start.
-import { eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 
 import { foldName, planLibraryUpgrade } from '../domain/library';
 import {
@@ -19,6 +19,9 @@ import { type DbOrTx, newId, nowIso } from './types';
 /** app_settings key: the library version this database has (missing = v1, before GYM-144). */
 export const LIBRARY_VERSION = 'library.version';
 
+/** The version that brought the 831-exercise library: only phones below it get the one-time upgrade. */
+export const LIBRARY_V2 = 2;
+
 /** SQLite's limit on bound variables: insert and delete in chunks so 831 rows can't hit it. */
 const CHUNK = 100;
 
@@ -30,6 +33,7 @@ function chunks<T>(rows: T[]): T[][] {
 
 export type SyncResult = {
   mapped: number;
+  merged: number;
   dropped: number;
   inserted: number;
   sessionsDeleted: number;
@@ -43,18 +47,29 @@ export type SyncResult = {
  * inserted. At the seed's version it only adds library exercises whose names are all free, so
  * nothing the trainer made is ever touched again. Run it inside one transaction.
  */
-export function syncLibrary(db: DbOrTx, seed: SeedExercise[]): SyncResult {
+export function syncLibrary(
+  db: DbOrTx,
+  seed: SeedExercise[],
+  seedVersion: number = SEED_VERSION,
+): SyncResult {
   const version = Number(getSetting(db, LIBRARY_VERSION) ?? '1');
+  // The destructive upgrade belongs to v1 → v2 only: a later seed version only adds exercises,
+  // so custom exercises made since v2 are never deleted (review finding, GYM-144).
   const result =
-    version < SEED_VERSION
+    version < LIBRARY_V2
       ? upgrade(db, seed)
-      : { ...addNew(db, seed), mapped: 0, dropped: 0, sessionsDeleted: 0 };
-  if (version < SEED_VERSION) setSetting(db, LIBRARY_VERSION, String(SEED_VERSION));
+      : { ...addNew(db, seed), mapped: 0, merged: 0, dropped: 0, sessionsDeleted: 0 };
+  if (version < seedVersion) setSetting(db, LIBRARY_VERSION, String(seedVersion));
   return result;
 }
 
 function existingWithAliases(db: DbOrTx) {
-  const rows = db.select({ id: exercises.id, nameEn: exercises.nameEn }).from(exercises).all();
+  // Built-in rows first, then by age, so the row that wins a merge doesn't depend on chance.
+  const rows = db
+    .select({ id: exercises.id, nameEn: exercises.nameEn })
+    .from(exercises)
+    .orderBy(asc(exercises.isCustom), asc(exercises.createdAt), asc(exercises.id))
+    .all();
   const aliasesOf = new Map<string, string[]>();
   for (const a of db.select().from(exerciseAliases).all()) {
     aliasesOf.set(a.exerciseId, [...(aliasesOf.get(a.exerciseId) ?? []), a.alias]);
@@ -65,6 +80,7 @@ function existingWithAliases(db: DbOrTx) {
 function upgrade(db: DbOrTx, seed: SeedExercise[]): SyncResult {
   const existing = existingWithAliases(db);
   const plan = planLibraryUpgrade(existing, seed);
+  mergeExercises(db, plan.merge);
   const sessionsDeleted = dropExercises(db, plan.drop);
   const now = nowIso();
 
@@ -93,7 +109,25 @@ function upgrade(db: DbOrTx, seed: SeedExercise[]): SyncResult {
     plan.insert.map((i) => seed[i]),
     now,
   );
-  return { mapped: plan.map.length, dropped: plan.drop.length, inserted, sessionsDeleted };
+  return {
+    mapped: plan.map.length,
+    merged: plan.merge.length,
+    dropped: plan.drop.length,
+    inserted,
+    sessionsDeleted,
+  };
+}
+
+/** Moves the history of each merged exercise to the one it joins, then deletes it. */
+function mergeExercises(db: DbOrTx, merges: { from: string; into: string }[]) {
+  for (const { from, into } of merges) {
+    db.update(sessionExercises)
+      .set({ exerciseId: into })
+      .where(eq(sessionExercises.exerciseId, from))
+      .run();
+    db.update(oneRepMaxes).set({ exerciseId: into }).where(eq(oneRepMaxes.exerciseId, from)).run();
+    db.delete(exercises).where(eq(exercises.id, from)).run(); // muscles and aliases cascade
+  }
 }
 
 /** Deletes exercises and everything that points at them; returns how many sessions it emptied. */

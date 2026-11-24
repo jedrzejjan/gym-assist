@@ -36,11 +36,12 @@ test("an existing exercise's own alias can match too", () => {
 test('an exercise with no match is dropped', () => {
   const plan = planLibraryUpgrade([{ id: 'x', nameEn: 'My drill', aliases: [] }], seed);
   expect(plan.map).toEqual([]);
+  expect(plan.merge).toEqual([]);
   expect(plan.drop).toEqual(['x']);
   expect(plan.insert).toEqual([0, 1, 2, 3]);
 });
 
-test('two existing exercises hitting one library exercise: the first maps, the second is dropped', () => {
+test('two existing exercises hitting one library exercise: the first maps, the second merges into it', () => {
   const plan = planLibraryUpgrade(
     [
       { id: 'first', nameEn: 'Bench press', aliases: [] },
@@ -49,6 +50,8 @@ test('two existing exercises hitting one library exercise: the first maps, the s
     seed,
   );
   expect(plan.map).toEqual([{ id: 'first', seedIndex: 0 }]);
-  expect(plan.drop).toEqual(['second']);
+  // A match is never deleted with its history (owner rule): it joins the exercise it matched.
+  expect(plan.merge).toEqual([{ from: 'second', into: 'first' }]);
+  expect(plan.drop).toEqual([]);
   expect(plan.insert).toEqual([1, 2, 3]);
 });

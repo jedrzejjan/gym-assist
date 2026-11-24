@@ -10,6 +10,8 @@ export const foldName = (s: string) => s.trim().toLocaleLowerCase('pl');
 export type LibraryUpgradePlan = {
   /** Existing exercises that become a library exercise in place: their id, and so their history, stays. */
   map: { id: string; seedIndex: number }[];
+  /** Existing exercises matching a library exercise another row already took: their history moves to that row. */
+  merge: { from: string; into: string }[];
   /** Existing exercises with no match: deleted with their history (owner rule, GYM-149). */
   drop: string[];
   /** Library exercises nobody mapped to: inserted as new rows. */
@@ -19,8 +21,8 @@ export type LibraryUpgradePlan = {
 /**
  * Matches each existing exercise, by its English name or any of its aliases, against the library's
  * English names and aliases, ignoring case. A library exercise takes one existing exercise only:
- * the first one in `existing` order wins, and a later one that hits the same exercise is dropped,
- * because two rows can't both become it (names are unique).
+ * the first one in `existing` order wins (the caller orders built-in rows first), and a later one
+ * that hits the same exercise is merged into it, so a match never loses its history.
  */
 export function planLibraryUpgrade(
   existing: { id: string; nameEn: string; aliases: string[] }[],
@@ -31,16 +33,18 @@ export function planLibraryUpgrade(
     for (const name of [s.nameEn, ...s.aliases]) indexOf.set(foldName(name), i);
   });
 
-  const taken = new Set<number>();
-  const plan: LibraryUpgradePlan = { map: [], drop: [], insert: [] };
+  const taken = new Map<number, string>();
+  const plan: LibraryUpgradePlan = { map: [], merge: [], drop: [], insert: [] };
   for (const e of existing) {
     const hit = [e.nameEn, ...e.aliases]
       .map((n) => indexOf.get(foldName(n)))
       .find((i) => i !== undefined);
-    if (hit === undefined || taken.has(hit)) {
+    if (hit === undefined) {
       plan.drop.push(e.id);
+    } else if (taken.has(hit)) {
+      plan.merge.push({ from: e.id, into: taken.get(hit)! });
     } else {
-      taken.add(hit);
+      taken.set(hit, e.id);
       plan.map.push({ id: e.id, seedIndex: hit });
     }
   }
